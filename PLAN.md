@@ -68,3 +68,8 @@
   Added a final captured-canvas alignment check against Win32 ClientToScreen, including decorations.
 - Public relay route is now live: two real Share clients exchanged positions both ways through
   `wss://dungeonmaps.brettj.dev` in an isolated test group. A two-person in-game test remains pending.
+- Brett clarified launch-time permission: no OS autostart on either platform; when manually opening
+  the exe, ask permission to read WoW and keep window capture working while covered. Kept WGC
+  (discarded the uncommitted visible-screen experiment). Added per-launch capture consent, the real
+  Windows borderless-access request, and an optional link to Screenshot borders settings if denied.
+  Tests exercise consent rejection/acceptance and ensure a second instance doesn't ask again.

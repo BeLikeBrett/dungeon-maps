@@ -72,3 +72,9 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   `wss://dungeonmaps.brettj.dev`. Do not treat the earlier DNS-pending notes as current state.
 - Windows test fixture must fit the CI desktop (1024×768): a wider Tk image crops off the beacon
   header. WGC is required in CI; artifacts include captured frames and on-screen overlay evidence.
+- Latest permission preference supersedes fully silent launch: the Windows exe asks capture consent
+  when manually opened, then lives in the tray. Requests actual Windows borderless permission;
+  offers Screenshot borders settings if Windows denies it. No autostart and no automatic policy
+  changes. This launch-time permission UI is authorized; ongoing overlay/tray must not steal focus.
+- Retain WGC capture while covered. Do not replace it with visible-screen-only capture: Brett chose
+  launch-time permission instead. Border removal still depends on Windows support/permission.

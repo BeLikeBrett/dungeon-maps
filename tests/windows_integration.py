@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np
 from PIL import Image, ImageTk, ImageGrab
 from dungeonmaps import beacon, windows
+from dungeonmaps.windows_permissions import BORDER_TITLE, CAPTURE_TITLE
 from test_pipeline import encode
 
 
@@ -34,6 +35,21 @@ def main():
     label.pack()
     shown = []
     serial = 0
+    consent_answer = 6
+    consent_count = 0
+    windows.user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    windows.user32.SendMessageW.restype = ctypes.c_ssize_t
+
+    def answer_prompts():
+        nonlocal consent_count
+        dialog = windows.user32.FindWindowW("#32770", CAPTURE_TITLE)
+        if dialog:
+            consent_count += 1
+            windows.user32.SendMessageW(dialog, 0x111, consent_answer, 0)
+        dialog = windows.user32.FindWindowW("#32770", BORDER_TITLE)
+        if dialog:
+            # CI must not modify system policy. Continue with a border if the OS denies it.
+            windows.user32.SendMessageW(dialog, 0x111, 7, 0)
 
     def paint(pitch=2):
         nonlocal serial
@@ -63,6 +79,7 @@ def main():
     def pump(seconds, pitch=2):
         until = time.monotonic() + seconds
         while time.monotonic() < until:
+            answer_prompts()
             paint(pitch)
             time.sleep(0.03)
 
@@ -153,7 +170,16 @@ def main():
         env = dict(os.environ, LOCALAPPDATA=state, DUNGEONMAPS_RELAY="off")
         log = Path(state) / "DungeonMaps" / "state" / "tracker.log"
         try:
-            foreground = windows.user32.GetForegroundWindow()
+            consent_answer = 7
+            declined = subprocess.Popen([exe, "--no-share"], env=env)
+            processes.append(declined)
+            deadline = time.monotonic() + 30
+            while declined.poll() is None and time.monotonic() < deadline:
+                pump(0.1, 3)
+            assert declined.returncode == 0 and "capture permission declined" in log.read_text()
+            assert "tracker started" not in log.read_text(), "captured without consent"
+            result["exe_capture_consent_declined"] = True
+            consent_answer = 6
             first = subprocess.Popen([exe, "--no-share"], env=env)
             processes.append(first)
             deadline = time.monotonic() + 30
@@ -163,7 +189,16 @@ def main():
                     break
                 assert first.poll() is None, "packaged executable failed at startup"
             else:
+                ImageGrab.grab().save("windows-startup.png")
                 raise AssertionError("packaged executable did not start")
+            assert "capture permission granted for this run" in log.read_text()
+            assert "borderless capture access" in log.read_text()
+            assert "ModuleNotFoundError" not in log.read_text() and "ImportError" not in log.read_text(), log.read_text()
+            result["exe_capture_consent_accepted"] = True
+            # The launch-time permission UI is authorized; the running tracker must then preserve
+            # the fake game's foreground, including when a second copy is started.
+            windows.user32.SetForegroundWindow(hwnd)
+            foreground = windows.user32.GetForegroundWindow()
             deadline = time.monotonic() + 10
             tray = None
             while time.monotonic() < deadline:
@@ -214,7 +249,7 @@ def main():
                     break
                 assert manual.poll() is None, "manual-close instance failed at startup"
                 pump(0.1, 3)
-            assert tray, "manual-close instance never created its tray icon"
+            assert tray and log.read_text().count("capturing World of Warcraft") >= 2, "manual-close capture never started"
             windows.user32.PostMessageW(tray, 0x111, windows.Tray.CLOSE, 0)
             deadline = time.monotonic() + 5
             while manual.poll() is None and time.monotonic() < deadline:
@@ -222,6 +257,8 @@ def main():
             assert manual.returncode == 0, "tray Close did not exit cleanly"
             root.destroy()
             result["exe_tray_close"] = True
+            assert consent_count == 3, ("unexpected permission prompt count", consent_count)
+            result["exe_permission_once_per_launch"] = True
         finally:
             for process in processes:
                 if process.poll() is None:

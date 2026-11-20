@@ -4,3 +4,6 @@ Pillow>=10
 websockets>=14,<18
 # Windows only: window capture (Linux uses the screencast portal through GStreamer/PipeWire, system packages)
 windows-capture==2.0.1; sys_platform == "win32"
+winrt-runtime==4.2.0; sys_platform == "win32"
+winrt-Windows.Graphics.Capture==4!10.0.28000.2957; sys_platform == "win32"
+winrt-Windows.Security.Authorization.AppCapabilityAccess==4!10.0.28000.2957; sys_platform == "win32"

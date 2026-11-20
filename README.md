@@ -26,13 +26,17 @@ That's enough for the maps. Bosses, group dots and right-click "I'm here" all wo
 ### 2. The tracker (for the live arrows)
 
 **Windows:** download `DungeonMaps.exe` from the release and run it, before or after starting WoW.
-- It starts silently in the system tray. Right-click its icon and choose **Close** whenever you want.
+- When you open it, it asks permission to read the WoW window. After you allow it, it runs in the
+  system tray. Right-click its icon and choose **Close** whenever you want.
   It also closes automatically three seconds after WoW closes.
 - Its log is at `%LOCALAPPDATA%\DungeonMaps\state\tracker.log`.
 - WoW must be in **Windowed** or **Windowed (Fullscreen)** mode, because exclusive fullscreen hides
   overlays.
 - Windows SmartScreen may warn about an unknown app the first time: click "More info", then "Run anyway".
-- On Windows 10, a thin yellow border shows around WoW while it's captured (Windows 11 doesn't draw it).
+- It requests Windows' permission to hide the yellow capture border. If Windows requires a Settings
+  change, it offers to open **Screenshot borders** for you. Windows may still require the border if
+  permission is denied or unavailable on your Windows version. Capture keeps working when another
+  window covers WoW, but pauses while WoW is minimized.
 
 **Linux (Wayland):** needs Python 3 with `numpy`, `Pillow` and `websockets`, GStreamer with the
 PipeWire plug-in plus `python-gobject` (for window capture), `grim`, and

@@ -625,5 +625,9 @@ def single_instance():
 def main():
     if not single_instance():
         return
+    from .windows_permissions import ask_capture, request_borderless
+    if not ask_capture(info):
+        return
+    request_borderless(info)
     info("Dungeon Maps tracker started")
     WindowsTracker(share="--no-share" not in sys.argv).run()
