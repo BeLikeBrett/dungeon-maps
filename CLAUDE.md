@@ -68,3 +68,7 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   automatic exit 3 seconds after the game closes. No startup notice or main window. Tray menu
   foreground ownership is allowed only in direct response to the user's right-click.
 - Do not reintroduce QML `Behavior on rotation` / RotationAnimation: movement and turning are instant.
+- Public relay route verified 2026-11-20: real Share clients exchanged positions both ways through
+  `wss://dungeonmaps.brettj.dev`. Do not treat the earlier DNS-pending notes as current state.
+- Windows test fixture must fit the CI desktop (1024×768): a wider Tk image crops off the beacon
+  header. WGC is required in CI; artifacts include captured frames and on-screen overlay evidence.

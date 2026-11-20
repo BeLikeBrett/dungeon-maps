@@ -113,6 +113,25 @@ def main():
                     break
             time.sleep(0.05)
         assert decoded and tracker.state, "WGC produced no decodable synthetic frame"
+        # Compare the real captured canvas to its client-area position on the desktop, including
+        # the title bar and frame. This catches capture-origin errors that raw-frame tests cannot.
+        windows.user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+        client = wintypes.POINT(0, 0)
+        assert windows.user32.ClientToScreen(hwnd, ctypes.byref(client))
+        expected = (client.x + 100, client.y + 200, 700, 420)
+        assert all(abs(a - b) <= 1 for a, b in zip(tracker.state[:4], expected)), (tracker.state, expected)
+        captured_overlay = windows.Overlay()
+        try:
+            captured_overlay.update(tracker.state)
+            captured_overlay.pump()
+            rect = wintypes.RECT()
+            windows.user32.GetWindowRect(captured_overlay.hwnd, ctypes.byref(rect))
+            assert all(abs(a - b) <= 1 for a, b in zip(
+                (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top), expected))
+            ImageGrab.grab().save("windows-captured-overlay.png")
+        finally:
+            captured_overlay.close()
+        result["wgc_physical_canvas_alignment"] = True
         result["wgc_capture_decode"] = True
     except Exception as error:
         result["wgc_capture_decode"] = str(error)

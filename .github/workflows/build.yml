@@ -52,6 +52,7 @@ jobs:
             windows-test-results.json
             windows-integration.png
             windows-capture.png
+            windows-captured-overlay.png
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

@@ -63,3 +63,8 @@
 - Capture investigation: WGC delivered 152 real frames on CI. The 1100-pixel fake game exceeded
   the 1024-pixel CI desktop, so Tk cropped off the beacon header. Reduced the fixture to 900×650
   and require WGC capture/decode in CI (removed the permissive CI flag).
+- Required WGC capture/decode now passes on real Windows CI (build 26100, 96 DPI); the packaged exe
+  also passes silent tray startup, Close, single instance, and automatic exit (3.41 seconds).
+  Added a final captured-canvas alignment check against Win32 ClientToScreen, including decorations.
+- Public relay route is now live: two real Share clients exchanged positions both ways through
+  `wss://dungeonmaps.brettj.dev` in an isolated test group. A two-person in-game test remains pending.
