@@ -56,3 +56,5 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Tk windows start withdrawn; apply no-activate styles before showing via Win32.
 - Declare ctypes HWND/HANDLE signatures explicitly; default c_int can truncate 64-bit handles.
 - Old Linux tracker was still running while WoW was open during continuation; left it untouched.
+- Tk 8.6.14 unconditionally calls SetActiveWindow on its first wrapper, even withdrawn; overlay
+  windows also use Tk's `-disabled` attribute to make native activation impossible.

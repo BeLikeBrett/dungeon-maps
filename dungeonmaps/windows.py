@@ -183,6 +183,9 @@ class Overlay:
         self.tk = tk
         self.root = tk.Tk()
         self.root.withdraw()  # set no-activate styles before the first native show
+        # Tk 8.6.14 calls SetActiveWindow on its first wrapper even when withdrawn.
+        # A disabled display-only window cannot be activated; clicks still pass through.
+        self.root.attributes("-disabled", True)
         self.root.overrideredirect(True)
         self.root.geometry("1x1-32000-32000")
         self.root.attributes("-topmost", True)
@@ -280,6 +283,7 @@ class Overlay:
         tk = self.tk
         w = tk.Toplevel(self.root)
         w.withdraw()
+        w.attributes("-disabled", True)
         w.overrideredirect(True)
         w.attributes("-topmost", True)
         w.configure(bg="#1d1f24")
