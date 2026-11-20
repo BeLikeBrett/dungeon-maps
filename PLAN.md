@@ -76,3 +76,6 @@
 - Compatibility review found unconditional WGC options would reject capture on Windows 10 / older
   Windows 11. Gate cursor control at build 19041, border control at 20348, and minimum update interval
   at 26100; older builds keep the callback FPS limiter and use supported defaults.
+- Tracking continues through covered-window WGC frames; the overlay itself now hides whenever WoW
+  isn't foreground or is minimized, so it never paints arrows over another app. Added a real Windows
+  covering-window test that checks capture continues while the overlay is hidden.

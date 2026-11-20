@@ -150,6 +150,24 @@ def main():
             captured_overlay.close()
         result["wgc_physical_canvas_alignment"] = True
         result["wgc_capture_decode"] = True
+        # WGC must keep delivering the game when another ordinary window covers it. Only the
+        # overlay is hidden; tracking continues, without drawing over the covering application.
+        cover = tk.Toplevel(root)
+        cover.title("Synthetic covering window")
+        cover.geometry("950x700+40+20")
+        cover.update()
+        cover_hwnd = windows.user32.GetParent(cover.winfo_id()) or cover.winfo_id()
+        windows.user32.SetForegroundWindow(cover_hwnd)
+        serial_before = cap.serial
+        pump(0.4, 3)
+        assert cap.serial > serial_before, "covered game stopped producing frames"
+        tracker.process(cap.frame, time.monotonic())
+        assert tracker.state and tracker.overlay_state() is None, "covered overlay remained visible"
+        cover.destroy()
+        windows.user32.SetForegroundWindow(hwnd)
+        assert tracker.overlay_state() is not None
+        result["wgc_tracks_while_covered"] = True
+        result["overlay_hidden_while_covered"] = True
     except Exception as error:
         result["wgc_capture_decode"] = str(error)
         if "--allow-no-capture" not in sys.argv:

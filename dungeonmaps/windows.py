@@ -607,13 +607,19 @@ class WindowsTracker:
             except Exception as e:  # keep going: one bad frame must not end the tracker
                 info("frame skipped: %r" % e)
 
+    def overlay_state(self):
+        # Keep reading WGC frames while covered, but never draw the map arrow over another app.
+        if not self.hwnd or user32.GetForegroundWindow() != self.hwnd or user32.IsIconic(self.hwnd):
+            return None
+        return self.state
+
     def run(self):
         ov = Overlay()
         tray = Tray(lambda: setattr(self, "quit", True))
         worker = threading.Thread(target=self.worker, daemon=True)
         worker.start()
         try:
-            ov.run(lambda: self.state, lambda: self.quit)
+            ov.run(self.overlay_state, lambda: self.quit)
         finally:
             self.quit = True
             worker.join(timeout=1)
