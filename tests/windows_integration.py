@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageGrab
 from dungeonmaps import beacon, windows
 from test_pipeline import encode
 
@@ -34,8 +34,11 @@ def main():
     label = tk.Label(root, bd=0, highlightthickness=0)
     label.pack()
     shown = []
+    serial = 0
 
     def paint(pitch=2):
+        nonlocal serial
+        serial += 1
         fields = dict(version=beacon.FORMAT_VERSION, map_open=1, indoors=1, zoom=3, radius4=240,
                       dungeon=1, shown_floor=1, lm_count=1, lm_kind=1, lm_floor=1,
                       lm_u=0.55 * 4095, lm_v=0.4 * 4095,
@@ -46,7 +49,7 @@ def main():
         img = np.full((700, 1100, 3), 40, np.uint8)
         img[200:660, 100:800] = (70, 80, 90)
         # Moving counter outside the beacon forces new WGC frames.
-        img[680:690, 0:len(shown) % 100 + 1] = (90, 100, 110)
+        img[680:690, 0:serial % 100 + 1] = (90, 100, 110)
         for i, colour in enumerate(encode(fields)):
             img[:pitch, pitch * i:pitch * (i + 1)] = colour
         photo = ImageTk.PhotoImage(Image.fromarray(img))
@@ -82,13 +85,16 @@ def main():
         tracker.process(windows.Frame(bgra, 1100, 700, pitch), time.monotonic())
         assert tracker.state and tracker.state[4], "beacon did not produce a player marker"
         ox, oy, _ = windows.frame_origin(hwnd)
-        assert tracker.state[:4] == (ox + 100, oy + 200, 700, 460), tracker.state
+        # Beacon coordinates use sampled cell centres (up to half a physical pixel).
+        expected = (ox + 100, oy + 200, 700, 460)
+        assert all(abs(a - b) <= 1 for a, b in zip(tracker.state[:4], expected)), tracker.state
         ov.update(tracker.state)
         ov.pump()
         rect = wintypes.RECT()
         windows.user32.GetWindowRect(ov.hwnd, ctypes.byref(rect))
-        assert (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) == tracker.state[:4]
+        assert (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) == tuple(round(v) for v in tracker.state[:4])
         assert windows.user32.GetForegroundWindow() == foreground, "overlay took focus"
+    ImageGrab.grab().save("windows-integration.png")
     result["physical_placement_and_beacon_pitches"] = [2, 3]
     ov.close()
 

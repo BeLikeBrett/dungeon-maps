@@ -1,10 +1,12 @@
-"""Windows: WoW's window through Windows Graphics Capture, a native layered overlay.
+r"""Windows: WoW's window through Windows Graphics Capture, a native layered overlay.
 
   * Capture: the windows-capture package (Windows Graphics Capture) on the "World of Warcraft" window:
     keeps working while the game is covered (not while minimized). No picker, nothing to set up.
   * Placement: Windows says where the window is (DWM frame bounds), so the overlay sits exactly over
     the dungeon map; checked every frame.
-  * Overlay: a borderless, always-on-top, click-through native window over the map canvas with per-pixel transparency. WoW must run windowed or "windowed fullscreen" (exclusive fullscreen hides overlays).
+  * Overlay: a borderless, always-on-top, click-through native window over the map canvas with
+    per-pixel transparency. WoW must run windowed or "windowed fullscreen" (exclusive fullscreen
+    hides overlays).
 
     DungeonMaps.exe            (or: python -m dungeonmaps)
 
