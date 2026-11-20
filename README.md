@@ -1,6 +1,6 @@
 # Dungeon Maps
 
-Dungeon maps for **WoW: Forever**. Inside a dungeon, your map key (G by default) opens a big map of
+Dungeon maps for **WoW: Forever**. Inside a dungeon, your map key opens a big map of
 the floor you're on, with the bosses and your group marked. Outside a dungeon the key works as normal.
 
 With the **tracker** running as well, the map shows a live arrow for where you are and which way
