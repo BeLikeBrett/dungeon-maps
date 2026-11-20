@@ -79,3 +79,12 @@
 - Tracking continues through covered-window WGC frames; the overlay itself now hides whenever WoW
   isn't foreground or is minimized, so it never paints arrows over another app. Added a real Windows
   covering-window test that checks capture continues while the overlay is hidden.
+
+## Bundled-map release update (2026-11-20)
+- v1.0.0 published successfully (CI 44778185183); all three assets downloaded, hashes and layouts
+  verified. It was immediately superseded by Brett's explicit request below.
+- **Brett superseded the earlier map-exclusion rule:** include Santiago's images in the public repo
+  and release. Copied all 17 original BLPs, byte-identical to the installed FDR copies, with credits.
+  The add-on loads its own `DungeonMaps/maps/` files directly; FDR and discovery APIs aren't required.
+- Preparing v1.0.1: all 17 BLPs decode, crop correctly, and the Lua harness opens every corresponding
+  floor and verifies the exact bundled texture path without Forever Dungeon Routes installed.

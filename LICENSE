@@ -22,5 +22,5 @@ SOFTWARE.
 
 The dungeon data in addon/DungeonMaps/Data.lua and dungeonmaps/data/dungeons.json is made from
 Forever Dungeon Routes' data (MIT, Checkov23): see addon/DungeonMaps/LICENSE-ForeverDungeonRoutes.txt.
-The picture maps of some Forever dungeons (by Santiago Reyes) are NOT part of this project: the
-addon shows them from your own Forever Dungeon Routes install.
+The bundled picture maps by Santiago Reyes retain the artist's copyright and are not covered by
+this MIT license: see addon/DungeonMaps/maps/CREDITS.txt.

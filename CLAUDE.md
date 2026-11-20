@@ -81,3 +81,11 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - WGC optional properties require OS feature gates: cursor control >=19041, border control >=20348,
   MinUpdateInterval >=26100. `None` selects library defaults; requesting unsupported properties
   rejects the entire session. Windows 10 may require a border but capture must still work.
+
+## Latest map decision — supersedes earlier exclusion rule (2026-11-20)
+- Brett explicitly requested Santiago's map images in the PUBLIC repo and release. The earlier
+  "never committed/shipped" rule is superseded. All 17 originals now belong in `addon/DungeonMaps/maps/`.
+- Keep `maps/CREDITS.txt` and the original images/watermarks. Art retains Santiago's copyright;
+  code/data licensing is unchanged. Do not require FDR just to load these bundled pictures.
+- `tests/test_maps.py` decodes every bundled BLP and checks the crop; `addon_harness.lua` opens every
+  picture floor through the real add-on and checks its texture path with FDR/discovery APIs absent.

@@ -3,6 +3,6 @@ __pycache__/
 build/
 dist/
 *.spec.bak
-# Santiago Reyes's maps are never committed: the addon loads them from Forever Dungeon Routes
-addon/DungeonMaps/maps/
+# Bundled add-on maps are intentional assets; ignore other BLP copies.
 *.blp
+!addon/DungeonMaps/maps/*.blp

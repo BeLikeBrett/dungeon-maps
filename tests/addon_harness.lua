@@ -15,7 +15,8 @@ local function widget(kind)
     if k == "SetPoint" then return function(s, ...) s._pts = {...} end end
     if k == "SetAlpha" then return function(s, v) s._alpha = v end end
     if k == "CreateTexture" or k == "CreateFontString" then return function() return widget("Region") end end
-    if k == "SetTexture" then return function() return true end end
+    if k == "SetTexture" then return function(s, value) s._texture = value return true end end
+    if k == "SetTexCoord" then return function(s, ...) s._texcoord = {...} end end
     if k == "SetScript" then return function(s, ev, fn) local t = rawget(s, "_scripts") or {} rawset(s, "_scripts", t) t[ev] = fn end end
     if k == "StartMoving" or k == "StopMovingOrSizing" then return function() end end
     return function() end
@@ -97,4 +98,27 @@ for _, f in ipairs(ALLFRAMES) do if f._text == "World Map" then rawget(f, "_scri
 print("dungeon map shown after World Map click:", DungeonMapsFrame._shown, "world map shown:", WorldMapFrame._shown)
 rawget(DungeonMapsBackButton, "_scripts").OnClick(DungeonMapsBackButton)
 print("after Dungeon Map click: dungeon map", DungeonMapsFrame._shown, "world map", WorldMapFrame._shown)
+-- Every bundled picture must be selected through the real addon without FDR or addon-discovery APIs.
+local pictures = 0
+for _, d in ipairs(ns.Dungeons) do
+  for _, floor in ipairs(d.floors) do
+    local info = ns.Floors[floor]
+    if info and info.image then
+      GetInstanceInfo = function() return d.name, "party", 1, "", 5, 0, false, d.instanceID end
+      C_Map.GetBestMapForUnit = function() return floor end
+      DungeonMapsFrame:Hide()
+      DungeonMaps_Toggle()
+      local m = DungeonMapsFrame
+      assert(m.picture._shown and not m.noArt._shown, "picture hidden for floor " .. floor)
+      assert(m.picture._texture == "Interface\\AddOns\\DungeonMaps\\" .. info.image.file, m.picture._texture)
+      assert(m.picture._texcoord[2] == (info.image.right or 1) and m.picture._texcoord[4] == (info.image.bottom or 1))
+      local file = assert(io.open(ADDONS .. "/DungeonMaps/" .. info.image.file:gsub("\\", "/") .. ".blp", "rb"))
+      assert(file:read(4) == "BLP2", "invalid BLP image for floor " .. floor)
+      file:close()
+      pictures = pictures + 1
+    end
+  end
+end
+assert(pictures == 17, "expected all 17 bundled map pictures, got " .. pictures)
+print("OK 17 bundled pictures loaded without Forever Dungeon Routes")
 print("OK no runtime errors")

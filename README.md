@@ -17,9 +17,8 @@ in the top-left corner). It never reads or touches the game's memory or files.
 1. Download `DungeonMaps-addon.zip` from the [latest release](../../releases/latest).
 2. Unzip it into `World of Warcraft\_forever_\Interface\AddOns\`. You should end up with
    `AddOns\DungeonMaps\DungeonMaps.toc`.
-3. Also install **Forever Dungeon Routes**. 17 of the Forever dungeon floors use its hand-drawn
-   maps (by Santiago Reyes, shared with his permission). It can stay disabled in the add-on list;
-   it only needs to be in the AddOns folder.
+3. Fully restart WoW. Santiago Reyes's hand-drawn maps for all 17 Forever floors are included;
+   **Forever Dungeon Routes is not required**.
 
 That's enough for the maps. Bosses, group dots and right-click "I'm here" all work without the tracker.
 
@@ -79,6 +78,6 @@ To turn sharing off, set the environment variable `DUNGEONMAPS_RELAY=off`, or ru
 
 - Dungeon layouts, boss and room positions: Forever Dungeon Routes
   data (MIT, Checkov23).
-- Hand-drawn Forever maps: Santiago Reyes, used through Forever Dungeon Routes with his permission.
-  They are not part of this project.
+- Hand-drawn Forever maps: Santiago Reyes, Atlas de Azeroth: Forever. Included with the original
+  watermarks and credits; these images retain the artist's copyright (see `maps/CREDITS.txt` in the add-on).
 - Everything else: MIT, see `LICENSE`.

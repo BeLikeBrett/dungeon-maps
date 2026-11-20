@@ -22,7 +22,7 @@ local _, ns = ...
 
 local MAP_W, MAP_H, TILE = 1002, 668, 256
 local BAR_H, PAD = 30, 8
-local FDR_PATH = "Interface\\AddOns\\ForeverDungeonRoutes\\"
+local ADDON_PATH = "Interface\\AddOns\\DungeonMaps\\"
 local BLIP_ATLAS = "WhiteCircle-RaidBlips"
 local SKULL = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 local DOT, ME_DOT, BOSS = 14, 18, 24   -- marker sizes in map pixels
@@ -742,15 +742,6 @@ end
 -- The map window
 ---------------------------------------------------------------------------------------------------
 
--- The picture maps load from Forever Dungeon Routes' folder (installed is enough: textures load from
--- an addon's folder even while it is disabled).
-local function pictureSource()
-	local exists = C_AddOns and C_AddOns.DoesAddOnExist
-	local ok = exists and exists("ForeverDungeonRoutes")
-	if ok == nil and GetAddOnInfo then ok = GetAddOnInfo("ForeverDungeonRoutes") ~= nil end
-	return ok and FDR_PATH or nil
-end
-
 local function showFloor(index)
 	if not floors[index] then return end
 	floorIndex = index
@@ -766,19 +757,15 @@ local function showFloor(index)
 			tex:Hide()
 		end
 	end
-	-- the picture maps (Santiago Reyes's) are not part of this addon: they come from Forever Dungeon
-	-- Routes, which ships them with his permission
-	local source = image and pictureSource()
-	if image and not source then image = nil end
+	-- Santiago Reyes's pictures are bundled with the addon; no other addon or discovery API needed.
 	if image then
-		map.picture:SetTexture(source .. image.file, nil, nil, "TRILINEAR")
+		map.picture:SetTexture(ADDON_PATH .. image.file, nil, nil, "TRILINEAR")
 		map.picture:SetTexCoord(0, image.right or 1, 0, image.bottom or 1)
 		map.picture:Show()
 	else
 		map.picture:Hide()
 	end
-	map.noArt:SetText(info and info.image and not image
-		and "This map comes with Forever Dungeon Routes:\ninstall it (it can stay disabled)" or "No map art for this floor")
+	map.noArt:SetText("No map art for this floor")
 	map.noArt:SetShown(not tiles and not image)
 	map.credit:SetText(info and info.credit and ("Map: " .. info.credit) or "")
 	local wings = #(byInstance[dungeon.instanceID] or {})
