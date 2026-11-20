@@ -58,7 +58,6 @@ ShellRoot {
             anchors.fill: parent
             visible: m.hasHeading
             rotation: m.who.heading || 0
-            Behavior on rotation { RotationAnimation { duration: 25; direction: RotationAnimation.Shortest } }
             Canvas {
                 anchors.fill: parent
                 property color c: m.fill

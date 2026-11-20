@@ -64,3 +64,7 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Windows lifetime checks run independently of capture retry scheduling; do not block the worker
   for 5-second retries or the required 3-second exit is delayed. The executable integration check
   enforces the exit deadline even on systems where WGC cannot capture.
+- Brett's Windows UI choice (2026-11-20): start silently in the system tray, right-click → Close,
+  automatic exit 3 seconds after the game closes. No startup notice or main window. Tray menu
+  foreground ownership is allowed only in direct response to the user's right-click.
+- Do not reintroduce QML `Behavior on rotation` / RotationAnimation: movement and turning are instant.

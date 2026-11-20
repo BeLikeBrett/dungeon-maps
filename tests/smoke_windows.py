@@ -37,6 +37,14 @@ assert ov.image.getbbox(), "empty overlay"
 ov.notice("Dungeon Maps smoke test", seconds=0.1)
 ov.pump()
 assert user32.GetForegroundWindow() == fg_before, "notice took the foreground"
+closed = []
+tray = windows.Tray(lambda: closed.append(True))
+assert not user32.IsWindowVisible(tray.hwnd), "tray opened a window"
+assert user32.GetForegroundWindow() == fg_before, "tray took the foreground"
+user32.PostMessageW(tray.hwnd, 0x111, windows.Tray.CLOSE, 0)
+ov.pump()
+assert closed == [True], "tray Close command was not handled"
+tray.close()
 ov.update(None)
 ov.pump()
 assert not user32.IsWindowVisible(ov.hwnd)

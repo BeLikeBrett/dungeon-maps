@@ -106,6 +106,50 @@ if sys.platform == "win32":
     gdi32.SelectObject.restype = wintypes.HANDLE
     gdi32.DeleteObject.argtypes = [wintypes.HANDLE]
     gdi32.DeleteDC.argtypes = [wintypes.HDC]
+    WindowProc = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, wintypes.HWND, wintypes.UINT,
+                                   wintypes.WPARAM, wintypes.LPARAM)
+
+    class WindowClass(ctypes.Structure):
+        _fields_ = [("style", wintypes.UINT), ("proc", WindowProc), ("class_extra", ctypes.c_int),
+                    ("window_extra", ctypes.c_int), ("instance", wintypes.HINSTANCE),
+                    ("icon", wintypes.HICON), ("cursor", wintypes.HANDLE), ("background", wintypes.HANDLE),
+                    ("menu", wintypes.LPCWSTR), ("name", wintypes.LPCWSTR)]
+
+    class Guid(ctypes.Structure):
+        _fields_ = [("a", wintypes.DWORD), ("b", wintypes.WORD), ("c", wintypes.WORD),
+                    ("d", ctypes.c_ubyte * 8)]
+
+    class NotifyIconData(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("hwnd", wintypes.HWND), ("id", wintypes.UINT),
+                    ("flags", wintypes.UINT), ("message", wintypes.UINT), ("icon", wintypes.HICON),
+                    ("tip", wintypes.WCHAR * 128), ("state", wintypes.DWORD), ("mask", wintypes.DWORD),
+                    ("info", wintypes.WCHAR * 256), ("version", wintypes.UINT),
+                    ("title", wintypes.WCHAR * 64), ("info_flags", wintypes.DWORD),
+                    ("guid", Guid), ("balloon_icon", wintypes.HICON)]
+
+    ctypes.windll.kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+    ctypes.windll.kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+    user32.RegisterClassW.argtypes = [ctypes.POINTER(WindowClass)]
+    user32.UnregisterClassW.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
+    user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user32.DefWindowProcW.restype = ctypes.c_ssize_t
+    user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT,
+                                  ctypes.c_int, ctypes.c_int, wintypes.UINT]
+    user32.LoadImageW.restype = wintypes.HANDLE
+    user32.LoadIconW.argtypes = [wintypes.HINSTANCE, ctypes.c_void_p]
+    user32.LoadIconW.restype = wintypes.HICON
+    user32.DestroyIcon.argtypes = [wintypes.HICON]
+    user32.CreatePopupMenu.restype = wintypes.HMENU
+    user32.AppendMenuW.argtypes = [wintypes.HMENU, wintypes.UINT, ctypes.c_size_t, wintypes.LPCWSTR]
+    user32.TrackPopupMenu.argtypes = [wintypes.HMENU, wintypes.UINT, ctypes.c_int, ctypes.c_int,
+                                     ctypes.c_int, wintypes.HWND, ctypes.c_void_p]
+    user32.DestroyMenu.argtypes = [wintypes.HMENU]
+    user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user32.RegisterWindowMessageW.argtypes = [wintypes.LPCWSTR]
+    shell32 = ctypes.windll.shell32
+    shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(NotifyIconData)]
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)  # physical pixels everywhere
     except Exception:
@@ -253,6 +297,75 @@ class LayeredWindow:
         if self.hwnd:
             user32.DestroyWindow(self.hwnd)
             self.hwnd = None
+
+
+class Tray:
+    """A silent tray icon; the menu is opened only by the user's right-click."""
+
+    CLASS = "DungeonMapsTray"
+    MESSAGE = 0x8001
+    CLOSE = 1
+
+    def __init__(self, on_close):
+        self.on_close = on_close
+        self.taskbar_created = user32.RegisterWindowMessageW("TaskbarCreated")
+        self.callback = WindowProc(self._message)
+        self.instance = ctypes.windll.kernel32.GetModuleHandleW(None)
+        self.window_class = WindowClass(name=self.CLASS, proc=self.callback, instance=self.instance)
+        if not user32.RegisterClassW(ctypes.byref(self.window_class)):
+            raise ctypes.WinError()
+        self.hwnd = user32.CreateWindowExW(0x8000080, self.CLASS, "Dungeon Maps tracker", 0,
+                                          0, 0, 0, 0, None, None, self.instance, None)
+        if not self.hwnd:
+            user32.UnregisterClassW(self.CLASS, self.instance)
+            raise ctypes.WinError()
+        here = os.path.dirname(__file__)
+        path = os.path.join(here, "icon.ico")
+        if not os.path.exists(path):
+            path = os.path.join(here, "..", "packaging", "icon.ico")
+        self.icon = user32.LoadImageW(None, path, 1, 32, 32, 0x10)
+        self.owns_icon = bool(self.icon)
+        self.icon = self.icon or user32.LoadIconW(None, 32512)
+        self.data = NotifyIconData(size=ctypes.sizeof(NotifyIconData), hwnd=self.hwnd, id=1,
+                                   flags=7, message=self.MESSAGE, icon=self.icon, tip="Dungeon Maps")
+        if not shell32.Shell_NotifyIconW(0, ctypes.byref(self.data)):
+            self.close()
+            raise ctypes.WinError()
+        info("tray icon ready")
+
+    def _message(self, hwnd, message, wparam, lparam):
+        # Our own window procedure, never attached to the game or another process.
+        if message == self.MESSAGE and lparam in (0x205, 0x7b):  # right button up / context menu
+            menu = user32.CreatePopupMenu()
+            user32.AppendMenuW(menu, 0, self.CLOSE, "Close")
+            point = wintypes.POINT()
+            user32.GetCursorPos(ctypes.byref(point))
+            # Windows requires foreground ownership to dismiss a tray menu correctly. This is
+            # exclusively in direct response to the user's right-click, never during startup.
+            user32.SetForegroundWindow(hwnd)
+            command = user32.TrackPopupMenu(menu, 0x100 | 0x2, point.x, point.y, 0, hwnd, None)
+            user32.PostMessageW(hwnd, 0, 0, 0)
+            user32.DestroyMenu(menu)
+            if command == self.CLOSE:
+                self.on_close()
+            return 0
+        if message == 0x111 and wparam & 0xffff == self.CLOSE:  # WM_COMMAND
+            self.on_close()
+            return 0
+        if message == self.taskbar_created and hasattr(self, "data"):
+            shell32.Shell_NotifyIconW(0, ctypes.byref(self.data))
+            return 0
+        return user32.DefWindowProcW(hwnd, message, wparam, lparam)
+
+    def close(self):
+        if self.hwnd:
+            shell32.Shell_NotifyIconW(2, ctypes.byref(self.data))
+            user32.DestroyWindow(self.hwnd)
+            self.hwnd = None
+            user32.UnregisterClassW(self.CLASS, self.instance)
+        if self.owns_icon:
+            user32.DestroyIcon(self.icon)
+            self.owns_icon = False
 
 
 class Overlay:
@@ -436,7 +549,7 @@ class WindowsTracker:
         started = time.monotonic()
         gone_at = None
         retry_at = 0.0
-        while True:
+        while not self.quit:
             now = time.monotonic()
             hwnd = find_wow()
             if not hwnd:
@@ -490,11 +603,17 @@ class WindowsTracker:
                 info("frame skipped: %r" % e)
 
     def run(self):
-        threading.Thread(target=self.worker, daemon=True).start()
         ov = Overlay()
-        ov.notice("Dungeon Maps tracker is running.\nOpen the dungeon map in WoW (your map key) to see the arrows.\n"
-                  "It closes by itself when WoW closes.")
-        ov.run(lambda: self.state, lambda: self.quit)
+        tray = Tray(lambda: setattr(self, "quit", True))
+        worker = threading.Thread(target=self.worker, daemon=True)
+        worker.start()
+        try:
+            ov.run(lambda: self.state, lambda: self.quit)
+        finally:
+            self.quit = True
+            worker.join(timeout=1)
+            self.cap.stop()
+            tray.close()
 
 
 def single_instance():

@@ -7,7 +7,8 @@ ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 a = Analysis(
     [os.path.join(ROOT, "packaging", "windows_entry.py")],
     pathex=[ROOT],
-    datas=[(os.path.join(ROOT, "dungeonmaps", "data"), os.path.join("dungeonmaps", "data"))],
+    datas=[(os.path.join(ROOT, "dungeonmaps", "data"), os.path.join("dungeonmaps", "data")),
+           (os.path.join(ROOT, "packaging", "icon.ico"), "dungeonmaps")],
     hiddenimports=["windows_capture", "websockets.sync.client"],
     excludes=["gi", "matplotlib", "scipy", "pandas"],
 )

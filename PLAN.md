@@ -56,3 +56,7 @@
 - Brett has not restarted WoW yet and asked to continue release work. He confirmed the intended
   display: own arrow, everyone else dots. Explained the possible duplicate room-estimate/exact dot;
   no coarse-dot behavior change selected. Check duplication during the live test.
+- Brett requested silent tray startup for the Windows exe, with right-click → Close; automatic
+  exit after WoW closes stays. Implemented a native notification-area icon and Close menu, removed
+  the startup notice, bundled the icon, and added source/exe tray lifecycle checks.
+- Removed a leftover 25 ms Linux rotation animation: turning now applies instantly as required.

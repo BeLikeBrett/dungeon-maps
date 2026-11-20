@@ -26,7 +26,8 @@ That's enough for the maps. Bosses, group dots and right-click "I'm here" all wo
 ### 2. The tracker (for the live arrows)
 
 **Windows:** download `DungeonMaps.exe` from the release and run it, before or after starting WoW.
-- It has no window. A note in the screen corner says it's running, and it shuts down by itself a few seconds after WoW closes.
+- It starts silently in the system tray. Right-click its icon and choose **Close** whenever you want.
+  It also closes automatically three seconds after WoW closes.
 - WoW must be in **Windowed** or **Windowed (Fullscreen)** mode, because exclusive fullscreen hides
   overlays.
 - Windows SmartScreen may warn about an unknown app the first time: click "More info", then "Run anyway".
