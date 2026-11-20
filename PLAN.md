@@ -73,3 +73,6 @@
   (discarded the uncommitted visible-screen experiment). Added per-launch capture consent, the real
   Windows borderless-access request, and an optional link to Screenshot borders settings if denied.
   Tests exercise consent rejection/acceptance and ensure a second instance doesn't ask again.
+- Compatibility review found unconditional WGC options would reject capture on Windows 10 / older
+  Windows 11. Gate cursor control at build 19041, border control at 20348, and minimum update interval
+  at 26100; older builds keep the callback FPS limiter and use supported defaults.

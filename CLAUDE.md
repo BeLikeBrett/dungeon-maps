@@ -78,3 +78,6 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   changes. This launch-time permission UI is authorized; ongoing overlay/tray must not steal focus.
 - Retain WGC capture while covered. Do not replace it with visible-screen-only capture: Brett chose
   launch-time permission instead. Border removal still depends on Windows support/permission.
+- WGC optional properties require OS feature gates: cursor control >=19041, border control >=20348,
+  MinUpdateInterval >=26100. `None` selects library defaults; requesting unsupported properties
+  rejects the entire session. Windows 10 may require a border but capture must still work.

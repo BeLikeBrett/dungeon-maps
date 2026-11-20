@@ -200,7 +200,12 @@ class WindowCapture:
 
     def start(self, hwnd):
         from windows_capture import WindowsCapture  # windows-capture 2.0.x
-        cap = WindowsCapture(cursor_capture=False, draw_border=False, minimum_update_interval=1000 // MAX_FPS,
+        build = sys.getwindowsversion().build
+        # Passing an unsupported option makes windows-capture reject the entire session.
+        # The callback below still limits processing to MAX_FPS on older Windows versions.
+        cap = WindowsCapture(cursor_capture=False if build >= 19041 else None,
+                             draw_border=False if build >= 20348 else None,
+                             minimum_update_interval=1000 // MAX_FPS if build >= 26100 else None,
                              window_hwnd=hwnd)
 
         @cap.event
