@@ -664,7 +664,7 @@ def main():
     tracker = LinuxTracker(use_portal="--screenshots" not in sys.argv and os.environ.get("DUNGEONMAPS_CAPTURE") != "screenshots",
                            share="--no-share" not in sys.argv)
     t = start_telemetry(tracker)
-    info("Dungeon Maps tracker %s started (%s)" % (__version__, tele.system()))
+    info("Dungeon Maps tracker started (v%s, %s)" % (__version__, tele.system()))
     try:
         tracker.run()
     except KeyboardInterrupt:

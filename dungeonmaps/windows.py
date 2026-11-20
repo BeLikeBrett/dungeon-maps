@@ -877,7 +877,7 @@ def main():
     borderless = request_borderless(info)
     tracker = WindowsTracker(share="--no-share" not in sys.argv, borderless=borderless, release=release, note=note)
     t = start_telemetry(tracker)
-    info("Dungeon Maps tracker %s started (%s)" % (__version__, tele.system()))
+    info("Dungeon Maps tracker started (v%s, %s)" % (__version__, tele.system()))
     try:
         tracker.run()
     finally:
