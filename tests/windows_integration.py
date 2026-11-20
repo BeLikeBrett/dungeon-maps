@@ -120,6 +120,12 @@ def main():
             raise
         print("UNVERIFIED WGC:", error, flush=True)
     finally:
+        result["wgc_frame_count"] = cap.serial
+        result["wgc_closed"] = cap.closed
+        if cap.frame:
+            fr = cap.frame
+            result["wgc_frame_size"] = [fr.w, fr.h, fr.rows.shape[0]]
+            Image.fromarray(fr.crop(0, 0, fr.w, fr.rows.shape[0])).save("windows-capture.png")
         cap.stop()
 
     # Exercise the actual one-file executable, including its bootloader and named mutex.
