@@ -39,7 +39,7 @@ jobs:
       - name: DungeonMaps.exe
         run: pyinstaller --noconfirm --distpath dist packaging/DungeonMaps.spec
       - name: Windows executable and synthetic game
-        run: python tests/windows_integration.py dist/DungeonMaps.exe --allow-no-capture
+        run: python tests/windows_integration.py dist/DungeonMaps.exe
       - uses: actions/upload-artifact@v4
         with:
           name: DungeonMaps-windows

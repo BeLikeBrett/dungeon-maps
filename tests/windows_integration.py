@@ -29,8 +29,8 @@ def main():
     result = {"platform": sys.getwindowsversion().build}
     root = tk.Tk()
     root.title("World of Warcraft")
-    root.geometry("1100x700+40+30")
-    label = tk.Label(root, bd=0, highlightthickness=0)
+    root.geometry("900x650+40+30")
+    label = tk.Label(root, bd=0, highlightthickness=0, anchor="nw")
     label.pack()
     shown = []
     serial = 0
@@ -41,14 +41,14 @@ def main():
         fields = dict(version=beacon.FORMAT_VERSION, map_open=1, indoors=1, zoom=3, radius4=240,
                       dungeon=1, shown_floor=1, lm_count=1, lm_kind=1, lm_floor=1,
                       lm_u=0.55 * 4095, lm_v=0.4 * 4095,
-                      mm_x=900 + 4096, mm_y=40 + 4096, mm_w=140, mm_h=140,
-                      cv_x=100 + 4096, cv_y=200 + 4096, cv_w=700, cv_h=460,
+                      mm_x=720 + 4096, mm_y=40 + 4096, mm_w=140, mm_h=140,
+                      cv_x=100 + 4096, cv_y=200 + 4096, cv_w=700, cv_h=420,
                       arrow_size=15, name_len=4, n0=84, n1=101, n2=115, n3=116,
                       cr=31, cg=31, cb=31)
-        img = np.full((700, 1100, 3), 40, np.uint8)
-        img[200:660, 100:800] = (70, 80, 90)
+        img = np.full((650, 900, 3), 40, np.uint8)
+        img[200:620, 100:800] = (70, 80, 90)
         # Moving counter outside the beacon forces new WGC frames.
-        img[680:690, 0:serial % 100 + 1] = (90, 100, 110)
+        img[630:640, 0:serial % 100 + 1] = (90, 100, 110)
         for i, colour in enumerate(encode(fields)):
             img[:pitch, pitch * i:pitch * (i + 1)] = colour
         photo = ImageTk.PhotoImage(Image.fromarray(img))
@@ -76,16 +76,16 @@ def main():
     # Verify physical placement and beacon decoding at two UI scales, even if WGC is unavailable.
     ov = windows.Overlay()
     foreground = windows.user32.GetForegroundWindow()
-    for pitch, position in ((2, "+40+30"), (3, "+140+80")):
-        root.geometry("1100x700" + position)
+    for pitch, position in ((2, "+40+30"), (3, "+80+50")):
+        root.geometry("900x650" + position)
         rgb = paint(pitch)
-        bgra = np.zeros((700, 1100, 4), np.uint8)
+        bgra = np.zeros((650, 900, 4), np.uint8)
         bgra[:, :, :3] = rgb[:, :, ::-1]
-        tracker.process(windows.Frame(bgra, 1100, 700, pitch), time.monotonic())
+        tracker.process(windows.Frame(bgra, 900, 650, pitch), time.monotonic())
         assert tracker.state and tracker.state[4], "beacon did not produce a player marker"
         ox, oy, _ = windows.frame_origin(hwnd)
         # Beacon coordinates use sampled cell centres (up to half a physical pixel).
-        expected = (ox + 100, oy + 200, 700, 460)
+        expected = (ox + 100, oy + 200, 700, 420)
         assert all(abs(a - b) <= 1 for a, b in zip(tracker.state[:4], expected)), tracker.state
         ov.update(tracker.state)
         ov.pump()

@@ -60,3 +60,6 @@
   exit after WoW closes stays. Implemented a native notification-area icon and Close menu, removed
   the startup notice, bundled the icon, and added source/exe tray lifecycle checks.
 - Removed a leftover 25 ms Linux rotation animation: turning now applies instantly as required.
+- Capture investigation: WGC delivered 152 real frames on CI. The 1100-pixel fake game exceeded
+  the 1024-pixel CI desktop, so Tk cropped off the beacon header. Reduced the fixture to 900×650
+  and require WGC capture/decode in CI (removed the permissive CI flag).
