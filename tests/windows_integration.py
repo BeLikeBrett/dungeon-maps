@@ -196,21 +196,31 @@ def main():
             assert 2.5 <= elapsed < 4.5, elapsed
             result["exe_log"] = log.read_text()
             assert not windows.user32.FindWindowW(windows.Tray.CLASS, "Dungeon Maps tracker"), "tray window leaked"
-            # Relaunch without a game, then select the same command as the tray's Close menu item.
+            # Relaunch with an active capture, then select the tray's Close command while the
+            # fake game keeps rendering. This also checks shutdown of the native capture thread.
+            root = tk.Tk()
+            root.title("World of Warcraft")
+            root.geometry("900x650+40+30")
+            label = tk.Label(root, bd=0, highlightthickness=0, anchor="nw")
+            label.pack()
+            paint(3)
             manual = subprocess.Popen([exe, "--no-share"], env=env)
             processes.append(manual)
             deadline = time.monotonic() + 30
             tray = None
             while time.monotonic() < deadline:
                 tray = windows.user32.FindWindowW(windows.Tray.CLASS, "Dungeon Maps tracker")
-                if tray and log.read_text().count("tray icon ready") == 2:
+                if tray and log.read_text().count("capturing World of Warcraft") == 2:
                     break
                 assert manual.poll() is None, "manual-close instance failed at startup"
-                time.sleep(0.05)
+                pump(0.1, 3)
             assert tray, "manual-close instance never created its tray icon"
             windows.user32.PostMessageW(tray, 0x111, windows.Tray.CLOSE, 0)
-            manual.wait(timeout=5)
+            deadline = time.monotonic() + 5
+            while manual.poll() is None and time.monotonic() < deadline:
+                pump(0.1, 3)
             assert manual.returncode == 0, "tray Close did not exit cleanly"
+            root.destroy()
             result["exe_tray_close"] = True
         finally:
             for process in processes:
