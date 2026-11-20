@@ -1,0 +1,9 @@
+services:
+  dungeonmaps-relay:
+    build: .
+    container_name: dungeonmaps-relay
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8105:8105"   # the Cloudflare tunnel reaches it on localhost only
+    read_only: true
+    mem_limit: 128m

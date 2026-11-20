@@ -1,0 +1,1473 @@
+-- Dungeon Maps 5 - a Turtle-WoW-style dungeon map for WoW: Forever. Standalone (no other addon
+-- needed); its data (Data.lua) comes from Forever Dungeon Routes (MIT), see the header there.
+--
+-- Inside a dungeon or raid, the map key (whatever is bound to "Toggle World Map", G here) opens one
+-- big map of the dungeon floor instead of the outdoor zone. Outside instances the key is left alone.
+-- "World Map" opens the normal map on the dungeon's zone; "Dungeon Map" on the world map comes back.
+--
+-- Where the dots come from. WoW: Forever gives addons no coordinates inside instances (tested in
+-- Ragefire Chasm, build 1.60.1.70959: UnitPosition, C_Map.GetPlayerMapPosition, GetBestMapForUnit and
+-- GetPlayerFacing answer nothing; the engine's UnitPositionFrame draws nothing; nameplate units are
+-- secret). What the game does reveal:
+--   * YOU, at the latest landmark: the entrance when you zone in, a boss's spot when its encounter
+--     starts, the named room you walk into (the sub-zone). Older landmarks fade.
+--   * TEAMMATES running this addon or Forever Dungeon Routes: the room they broadcast (addon
+--     messages, Forever Dungeon Routes' "FDRGroup" format, so both addons understand each other).
+--   * TEAMMATES without either: range checks. Within ~28 yards (CheckInteractDistance 4) they are
+--     drawn beside you; within ~40 yards (UnitInRange), beside you and faded.
+-- Bosses: numbered skulls at Forever's boss spots, hover for the name, grey once killed. (Skulls
+-- painted into some classic map art are the Cataclysm versions' bosses.)
+
+local _, ns = ...
+
+local MAP_W, MAP_H, TILE = 1002, 668, 256
+local BAR_H, PAD = 30, 8
+local FDR_PATH = "Interface\\AddOns\\ForeverDungeonRoutes\\"
+local BLIP_ATLAS = "WhiteCircle-RaidBlips"
+local SKULL = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
+local DOT, ME_DOT, BOSS = 14, 18, 24   -- marker sizes in map pixels
+local SPREAD = 20                      -- people sharing a spot sit on a ring this far from it
+local NEAR_RING = 22                   -- teammates found by range sit this far from you
+local POLL = 0.5                       -- seconds between updates
+local MANUAL_HOLD = 20                 -- after picking a floor by hand, auto-follow waits this long
+local FRESH = 90                       -- a landmark this many seconds old is still "you are here"
+local OLD_FADE = 0.55                  -- alpha of a dot placed from an old landmark / last room
+local FAR_FADE = 0.7                   -- alpha of a teammate placed from the 40-yard check
+local LEGEND_ROW, LEGEND_MAX = 18, 10
+local RUN_MAX_AGE = 3 * 3600           -- boss kills older than this belong to an old run
+local PREFIX = "FDRGroup"              -- Forever Dungeon Routes' group channel (same message format)
+local STATE_GAP = 2                    -- seconds between two room messages
+
+DungeonMapsDB = DungeonMapsDB or {}
+DungeonMapsCharDB = DungeonMapsCharDB or {}
+
+BINDING_HEADER_DUNGEONMAPS = "Dungeon Maps"
+BINDING_NAME_DUNGEONMAPS_TOGGLE = "Dungeon map (in dungeons) / world map"
+
+local events = CreateFrame("Frame")
+local bindingsPending = false
+
+local map              -- the map window (built on first use)
+local backButton       -- "Dungeon Map" on Blizzard's world map
+local dungeon          -- the dungeon shown (an entry of ns.Dungeons)
+local floors = {}      -- its floor uiMapIDs
+local floorIndex       -- index into floors
+local manualAt = 0     -- GetTime() of the last floor picked by hand
+local lastRoom = {}    -- [short name] = { room, key, t, now } last named room seen, per person
+local landmark         -- { key, floor, u, v, label, t, kind }: where you were last seen for sure
+local landmarkCount = 0 -- goes up with every new landmark (the live tracker watches it)
+local wingPick = {}    -- [instanceID] = dungeon key picked (instances with several wings)
+local members = {}     -- [sender] = { key, room name } from group messages
+
+local function say(msg)
+	DEFAULT_CHAT_FRAME:AddMessage("|cffffd24dDungeon Maps:|r " .. msg)
+end
+
+-- Plain value or nil: in restricted instances Forever hands addons secret values, which can't be
+-- compared or used; they count as unknown.
+local isSecret = issecretvalue or function() return false end
+local function plain(v)
+	if isSecret(v) then return nil end
+	return v
+end
+
+local function call(fn, ...)
+	if not fn then return nil end
+	local r = { pcall(fn, ...) }
+	if not r[1] then return nil end
+	return select(2, unpack(r))
+end
+
+local function inDungeon()
+	local inside, kind = IsInInstance()
+	inside, kind = plain(inside), plain(kind)
+	return inside == true and (kind == "party" or kind == "raid")
+end
+
+local function instanceID()
+	return plain((select(8, GetInstanceInfo())))
+end
+
+local function shortName(name)
+	if type(name) ~= "string" then return nil end
+	return Ambiguate and Ambiguate(name, "short") or name:match("^[^-]+")
+end
+
+local function classColor(unit)
+	local _, class = UnitClass(unit)
+	class = plain(class)
+	local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+	if c then return c.r, c.g, c.b end
+	return 0.8, 0.8, 0.8
+end
+
+local function groupUnits()
+	local list = {}
+	if IsInRaid() then
+		for i = 1, GetNumGroupMembers() do list[#list + 1] = "raid" .. i end
+	else
+		for i = 1, GetNumSubgroupMembers() do list[#list + 1] = "party" .. i end
+	end
+	return list
+end
+
+---------------------------------------------------------------------------------------------------
+-- Data lookups
+---------------------------------------------------------------------------------------------------
+
+local byKey, byInstance = {}, {}
+for _, d in ipairs(ns.Dungeons) do
+	byKey[d.key] = d
+	byInstance[d.instanceID] = byInstance[d.instanceID] or {}
+	table.insert(byInstance[d.instanceID], d)
+end
+
+local function indexOf(floor)
+	for i, f in ipairs(floors) do
+		if f == floor then return i end
+	end
+end
+
+local function roomOnFloor(room, floor)
+	for _, box in ipairs(room.boxes) do
+		if box[1] == floor then return true end
+	end
+	return false
+end
+
+-- The floor that shows most of the room.
+local function roomMainFloor(room)
+	local area, best, bestArea = {}, nil, nil
+	for _, box in ipairs(room.boxes) do
+		area[box[1]] = (area[box[1]] or 0) + box[4] * box[5]
+	end
+	for floor, a in pairs(area) do
+		if not bestArea or a > bestArea or (a == bestArea and floor < best) then best, bestArea = floor, a end
+	end
+	return best
+end
+
+-- Middle of the room on a floor (weighted by the size of its parts), map coordinates 0..1.
+local function roomCenter(room, floor)
+	local su, sv, sum = 0, 0, 0
+	for _, box in ipairs(room.boxes) do
+		if box[1] == floor then
+			local a = box[4] * box[5]
+			su, sv, sum = su + box[2] * a, sv + box[3] * a, sum + a
+		end
+	end
+	if sum == 0 then return nil end
+	return su / sum, sv / sum
+end
+
+local function roomNamed(key, name)
+	if type(name) ~= "string" or name == "" then return nil end
+	for _, room in ipairs(ns.Rooms[key] or {}) do
+		if room.name == name then return room end
+	end
+end
+
+-- The name the game gives where you stand (the sub-zone, else the minimap's zone text).
+local function subzone()
+	local s = plain(GetSubZoneText())
+	if type(s) ~= "string" or s == "" then s = plain(GetMinimapZoneText()) end
+	return type(s) == "string" and s or nil
+end
+
+---------------------------------------------------------------------------------------------------
+-- Which dungeon
+---------------------------------------------------------------------------------------------------
+
+-- The dungeon you are in. Instances with several wings (Scarlet Monastery, Blackrock Spire): the wing
+-- whose room you stand in, else the one whose floor the game names, else the last pick, else the first.
+local function findDungeon()
+	local id = instanceID()
+	local list = id and byInstance[id]
+	if not list then return nil end
+	if #list == 1 then return list[1] end
+	local here = subzone()
+	for _, d in ipairs(list) do
+		if roomNamed(d.key, here) then wingPick[id] = d.key return d end
+	end
+	local best = plain(call(C_Map.GetBestMapForUnit, "player"))
+	for _, d in ipairs(list) do
+		for _, f in ipairs(d.floors) do
+			if f == best then wingPick[id] = d.key return d end
+		end
+	end
+	return byKey[wingPick[id] or ""] or list[1]
+end
+
+---------------------------------------------------------------------------------------------------
+-- Boss kills (per character, per run)
+---------------------------------------------------------------------------------------------------
+
+local function run(key, create)
+	DungeonMapsCharDB.runs = DungeonMapsCharDB.runs or {}
+	local r = DungeonMapsCharDB.runs[key]
+	if r and time() - (r.t or 0) > RUN_MAX_AGE then r = nil end
+	if not r and create then
+		r = { t = time(), killed = {} }
+	end
+	DungeonMapsCharDB.runs[key] = r
+	return r
+end
+
+local function bossDone(key, index)
+	local r = run(key, false)
+	return r ~= nil and r.killed[index] == true
+end
+
+-- The boss of a dungeon an encounter belongs to: index, boss.
+local function bossFor(key, encounterID, encounterName)
+	for i, b in ipairs(ns.Bosses[key] or {}) do
+		if type(encounterName) == "string" and b.name == encounterName then return i, b end
+		for _, id in ipairs(b.encounters or {}) do
+			if id == encounterID then return i, b end
+		end
+	end
+end
+
+local function onBossKilled(encounterID, encounterName)
+	encounterID, encounterName = plain(encounterID), plain(encounterName)
+	local d = findDungeon()
+	if not d then return end
+	local i = bossFor(d.key, encounterID, encounterName)
+	if i then
+		local r = run(d.key, true)
+		r.killed[i] = true
+		r.t = time()
+	end
+end
+
+---------------------------------------------------------------------------------------------------
+-- Landmarks: the moments the game shows where you are
+---------------------------------------------------------------------------------------------------
+
+local LM_ENTRANCE, LM_BOSS, LM_MARKED = 1, 2, 3
+
+local function setLandmark(key, floor, u, v, label, kind)
+	landmark = { key = key, floor = floor, u = u, v = v, label = label, t = GetTime(), kind = kind }
+	landmarkCount = landmarkCount + 1
+end
+
+local function landmarkEntrance()
+	local d = findDungeon()
+	local e = d and ns.Entry[d.key]
+	if e and #(byInstance[d.instanceID] or {}) == 1 then -- several wings: which door is unknown
+		setLandmark(d.key, e.floor, e.x, e.y, "the entrance", LM_ENTRANCE)
+	end
+end
+
+local function landmarkBoss(encounterID, encounterName)
+	encounterID, encounterName = plain(encounterID), plain(encounterName)
+	local d = findDungeon()
+	if not d then return end
+	local _, b = bossFor(d.key, encounterID, encounterName)
+	if b then setLandmark(d.key, b.floor, b.x, b.y, b.name, LM_BOSS) end
+end
+
+---------------------------------------------------------------------------------------------------
+-- Group messages: rooms of teammates (same format as Forever Dungeon Routes)
+--   P <key> <room>   I am in this dungeon, in this room (English name; empty: none)
+--   W                where are you? (answered with P)
+---------------------------------------------------------------------------------------------------
+
+local lastState, lastStateTime, stateTimer = nil, 0, false
+
+local function channel()
+	if LE_PARTY_CATEGORY_INSTANCE and plain(IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) then return "INSTANCE_CHAT" end
+	if plain(IsInRaid()) then return "RAID" end
+	if plain(IsInGroup()) then return "PARTY" end
+end
+
+local function send(text)
+	local ch = channel()
+	if ch and C_ChatInfo and C_ChatInfo.SendAddonMessage then
+		call(C_ChatInfo.SendAddonMessage, PREFIX, text, ch)
+	end
+end
+
+local function myState()
+	if not inDungeon() then return "P\t\t" end
+	local d = findDungeon()
+	if not d then return "P\t\t" end
+	local room = roomNamed(d.key, subzone())
+	return "P\t" .. d.key .. "\t" .. (room and room.name or "")
+end
+
+local function sendState(force)
+	if not channel() then
+		lastState = nil
+		return
+	end
+	local state = myState()
+	if not force and state == lastState then return end
+	local wait = STATE_GAP - (time() - lastStateTime)
+	if not force and wait > 0 then
+		if not stateTimer then
+			stateTimer = true
+			C_Timer.After(wait, function()
+				stateTimer = false
+				sendState()
+			end)
+		end
+		return
+	end
+	lastState, lastStateTime = state, time()
+	send(state)
+end
+
+local function onAddonMessage(prefix, text, sender)
+	prefix, text, sender = plain(prefix), plain(text), plain(sender)
+	if prefix ~= PREFIX or type(text) ~= "string" or type(sender) ~= "string" then return end
+	if shortName(sender) == shortName(plain(UnitName("player"))) then return end
+	local f = {}
+	for field in (text .. "\t"):gmatch("([^\t]*)\t") do f[#f + 1] = field end
+	if f[1] == "P" then
+		if f[2] and byKey[f[2]] then
+			members[sender] = { key = f[2], room = f[3] ~= "" and f[3] or nil }
+		else
+			members[sender] = nil
+		end
+	elseif f[1] == "W" then
+		sendState(true)
+	end
+end
+
+-- Teammates' rooms in this dungeon: [short name] = room or false (no named room right now).
+local function groupRooms()
+	local out = {}
+	if not dungeon then return out end
+	for sender, m in pairs(members) do
+		if m.key == dungeon.key then
+			local n = shortName(sender)
+			if n then out[n] = roomNamed(dungeon.key, m.room) or false end
+		end
+	end
+	return out
+end
+
+---------------------------------------------------------------------------------------------------
+-- Where everyone is
+---------------------------------------------------------------------------------------------------
+
+-- Remembers each person's named room; returns the room, whether it is current, and since when.
+local function roomFor(name, current)
+	local last = lastRoom[name]
+	if current then
+		-- a new sighting when the room changes or is walked into again
+		if not (last and last.room == current and last.key == dungeon.key and last.now) then
+			last = { room = current, key = dungeon.key, t = GetTime() }
+			lastRoom[name] = last
+		end
+		last.now = true
+		return current, true, last.t
+	end
+	if last then last.now = false end
+	if last and last.key == dungeon.key then return last.room, false, last.t end
+	return nil, false, nil
+end
+
+local function roomPoint(room, floor)
+	if not room then return nil end
+	if floor and roomOnFloor(room, floor) then
+		local u, v = roomCenter(room, floor)
+		if u then return floor, u, v end
+	end
+	local main = roomMainFloor(room)
+	if main then
+		local u, v = roomCenter(room, main)
+		if u then return main, u, v end
+	end
+end
+
+-- Your spot: the newest of the landmark and the named room.
+local function mySpot(name, shownFloor)
+	local room, now, since = roomFor(name, roomNamed(dungeon.key, subzone()))
+	local lm = landmark and landmark.key == dungeon.key and landmark or nil
+	if lm and (not room or (since or 0) <= lm.t) then
+		return { floor = lm.floor, u = lm.u, v = lm.v, place = lm.label, how = "landmark",
+			fresh = GetTime() - lm.t <= FRESH }
+	end
+	if room then
+		local floor, u, v = roomPoint(room, shownFloor)
+		if floor then
+			return { floor = floor, u = u, v = v, place = room.name, how = now and "room" or "lastroom",
+				fresh = now, room = room }
+		end
+	end
+end
+
+local function locatePeople()
+	local people = {}
+	local shown = floorIndex and floors[floorIndex]
+	local me = shortName(plain(UnitName("player"))) or "You"
+	local mine = mySpot(me, shown)
+	people[1] = { name = me, unit = "player", r = 1, g = 0.82, b = 0.3, me = true, spot = mine,
+		how = mine and mine.how or "unknown", place = mine and mine.place, fresh = mine and mine.fresh,
+		room = mine and mine.room }
+	local rooms = groupRooms()
+	for _, unit in ipairs(groupUnits()) do
+		if UnitExists(unit) and not plain(UnitIsUnit(unit, "player")) then
+			local name = shortName(plain(UnitName(unit))) or "?"
+			local r, g, b = classColor(unit)
+			local p = { name = name, unit = unit, r = r, g = g, b = b }
+			local room, now = roomFor(name, rooms[name] or nil)
+			local dead = plain(UnitIsDeadOrGhost(unit))
+			local online = plain(UnitIsConnected(unit))
+			p.status = online == false and "offline" or dead and "dead" or nil
+			local near28 = plain(call(CheckInteractDistance, unit, 4))
+			local near40 = plain(call(UnitInRange, unit))
+			if room and now then
+				local floor, u, v = roomPoint(room, shown)
+				if floor then p.spot = { floor = floor, u = u, v = v } end
+				p.how, p.place, p.fresh = "room", room.name, true
+			elseif near28 == true and mine then
+				p.spot, p.how, p.place, p.fresh = mine, "near28", "near you", mine.fresh
+			elseif near40 == true and mine then
+				p.spot, p.how, p.place, p.fresh = mine, "near40", "near you", false
+			elseif room then
+				local floor, u, v = roomPoint(room, shown)
+				if floor then p.spot = { floor = floor, u = u, v = v } end
+				p.how, p.place, p.fresh = "lastroom", room.name, false
+			else
+				p.how = "unknown"
+			end
+			people[#people + 1] = p
+		end
+	end
+	return people
+end
+
+---------------------------------------------------------------------------------------------------
+-- Drawing: room glow, bosses, dots with names
+---------------------------------------------------------------------------------------------------
+
+local function tooltipOn(frame)
+	frame:EnableMouse(true)
+	frame:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(self.tipTitle or "", self.tipR or 1, self.tipG or 0.82, self.tipB or 0)
+		for _, line in ipairs(self.tipLines or {}) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+		GameTooltip:Show()
+		if self.hover then self.hover:Show() end
+	end)
+	frame:SetScript("OnLeave", function(self)
+		GameTooltip:Hide()
+		if self.hover then self.hover:Hide() end
+	end)
+end
+
+local function getDot(i)
+	local d = map.dots[i]
+	if d then return d end
+	d = CreateFrame("Frame", nil, map.dotLayer)
+	d:SetSize(DOT, DOT)
+	d.ring = d:CreateTexture(nil, "ARTWORK", nil, 1)
+	d.ring:SetAtlas(BLIP_ATLAS)
+	d.ring:SetPoint("CENTER")
+	d.blip = d:CreateTexture(nil, "ARTWORK", nil, 2)
+	d.blip:SetAtlas(BLIP_ATLAS)
+	d.blip:SetPoint("CENTER")
+	d.label = d:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	d.label:SetFont(STANDARD_TEXT_FONT, 13, "OUTLINE")
+	d.label:SetPoint("LEFT", d, "RIGHT", 3, 0)
+	tooltipOn(d)
+	map.dots[i] = d
+	return d
+end
+
+local function getBoss(i)
+	local b = map.bosses[i]
+	if b then return b end
+	b = CreateFrame("Frame", nil, map.bossLayer)
+	b:SetSize(BOSS, BOSS)
+	b.back = b:CreateTexture(nil, "ARTWORK", nil, 1)
+	b.back:SetAtlas(BLIP_ATLAS)
+	b.back:SetVertexColor(0, 0, 0, 0.85)
+	b.back:SetSize(BOSS + 4, BOSS + 4)
+	b.back:SetPoint("CENTER")
+	b.icon = b:CreateTexture(nil, "ARTWORK", nil, 2)
+	b.icon:SetTexture(SKULL)
+	b.icon:SetSize(BOSS - 6, BOSS - 6)
+	b.icon:SetPoint("CENTER")
+	b.hover = b:CreateTexture(nil, "ARTWORK", nil, 3)
+	b.hover:SetAtlas(BLIP_ATLAS)
+	b.hover:SetVertexColor(1, 0.82, 0.3, 0.45)
+	b.hover:SetBlendMode("ADD")
+	b.hover:SetSize(BOSS + 14, BOSS + 14)
+	b.hover:SetPoint("CENTER")
+	b.hover:Hide()
+	b.num = b:CreateFontString(nil, "OVERLAY")
+	b.num:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+	b.num:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 5, -3)
+	tooltipOn(b)
+	map.bosses[i] = b
+	return b
+end
+
+local function drawBosses(floor)
+	local n = 0
+	for i, boss in ipairs(dungeon and ns.Bosses[dungeon.key] or {}) do
+		if boss.floor == floor then
+			n = n + 1
+			local b = getBoss(n)
+			local done = bossDone(dungeon.key, i)
+			b:ClearAllPoints()
+			b:SetPoint("CENTER", map.canvas, "TOPLEFT", boss.x * MAP_W, -boss.y * MAP_H)
+			b.num:SetText(tostring(i))
+			b.icon:SetDesaturated(done)
+			b:SetAlpha(done and 0.6 or 1)
+			b.tipTitle = boss.name
+			b.tipR, b.tipG, b.tipB = 1, 0.3, 0.3
+			b.tipLines = { ("Boss %d"):format(i) .. (done and "  -  |cff88ff88defeated|r" or "") }
+			if boss.note and boss.note ~= "" then table.insert(b.tipLines, boss.note) end
+			b:Show()
+		end
+	end
+	for i = n + 1, #map.bosses do map.bosses[i]:Hide() end
+end
+
+local function drawGlow(room, floor)
+	local n = 0
+	if room then
+		for _, box in ipairs(room.boxes) do
+			if box[1] == floor then
+				n = n + 1
+				local t = map.glow[n]
+				if not t then
+					t = map.canvas:CreateTexture(nil, "BORDER")
+					t:SetColorTexture(1, 0.82, 0.3)
+					map.glow[n] = t
+				end
+				-- room boxes are turned by box[6]; nearly all by a multiple of 90 degrees, so the turned
+				-- box is drawn as its upright bounding box (exact at 0/90/180/270 degrees)
+				local c, s = math.abs(math.cos(box[6])), math.abs(math.sin(box[6]))
+				t:SetSize(box[4] * c + box[5] * s, box[4] * s + box[5] * c)
+				t:ClearAllPoints()
+				t:SetPoint("CENTER", map.canvas, "TOPLEFT", box[2] * MAP_W, -box[3] * MAP_H)
+				t:SetAlpha(0.16)
+				t:Show()
+			end
+		end
+	end
+	for i = n + 1, #map.glow do map.glow[i]:Hide() end
+end
+
+local HOW_TEXT = {
+	landmark = "seen at %s",
+	room = "in %s",
+	lastroom = "last seen in %s",
+	near28 = "within ~28 yards of you",
+	near40 = "within ~40 yards of you",
+}
+
+local function drawDots(people)
+	local floor = floorIndex and floors[floorIndex]
+	local groups, order = {}, {}
+	for _, p in ipairs(people) do
+		local s = p.spot
+		if p.me and DungeonMapsDB.live ~= false then s = nil end -- live mode: the tracker draws you
+		if s then
+			if s.floor == floor then
+				local key = ("%.4f:%.4f"):format(s.u, s.v)
+				local g = groups[key]
+				if not g then
+					g = { u = s.u, v = s.v, list = {} }
+					groups[key] = g
+					order[#order + 1] = g
+				end
+				table.insert(g.list, p)
+			else
+				p.elsewhere = true
+			end
+		end
+	end
+	local n = 0
+	for _, g in ipairs(order) do
+		local cx, cy = g.u * MAP_W, g.v * MAP_H
+		local others, hasMe = 0, false
+		for _, p in ipairs(g.list) do
+			if p.me then hasMe = true else others = others + 1 end
+		end
+		local k = 0
+		for _, p in ipairs(g.list) do
+			n = n + 1
+			local d = getDot(n)
+			local x, y = cx, cy
+			if not p.me and (hasMe or others > 1) then
+				-- teammates on a ring around the spot (around you when placed by range);
+				-- one teammate alone on a spot sits on it
+				k = k + 1
+				local radius = (p.how == "near28" or p.how == "near40") and NEAR_RING or SPREAD
+				local angle = (k - 1) / math.max(others, 1) * 2 * math.pi - math.pi / 2
+				x, y = cx + radius * math.cos(angle), cy + radius * math.sin(angle)
+			end
+			local size = p.me and ME_DOT or DOT
+			d:SetSize(size, size)
+			d.blip:SetSize(size, size)
+			d.ring:SetSize(size + 6, size + 6)
+			if p.me then
+				d.blip:SetVertexColor(1, 0.82, 0.3)
+				d.ring:SetVertexColor(1, 1, 1)
+			else
+				d.blip:SetVertexColor(p.r, p.g, p.b)
+				d.ring:SetVertexColor(0, 0, 0)
+			end
+			d:SetFrameLevel(map.dotLayer:GetFrameLevel() + (p.me and 5 or 2))
+			d:ClearAllPoints()
+			d:SetPoint("CENTER", map.canvas, "TOPLEFT", x, -y)
+			d.label:SetText(p.me and "You" or p.name)
+			d.label:SetTextColor(p.r, p.g, p.b)
+			local alpha = p.fresh and 1 or OLD_FADE
+			if p.how == "near40" then alpha = math.min(alpha, FAR_FADE) end
+			if p.status then alpha = math.min(alpha, 0.5) end
+			d:SetAlpha(alpha)
+			d.tipTitle = p.me and (p.name .. " (you)") or p.name
+			d.tipR, d.tipG, d.tipB = p.r, p.g, p.b
+			d.tipLines = { (HOW_TEXT[p.how] or "%s"):format(p.place or "?") .. (p.status and (" (" .. p.status .. ")") or "") }
+			d:Show()
+		end
+	end
+	for i = n + 1, #map.dots do map.dots[i]:Hide() end
+end
+
+---------------------------------------------------------------------------------------------------
+-- Legend
+---------------------------------------------------------------------------------------------------
+
+local function legendDetail(p)
+	if p.status then return p.status end
+	if p.me and DungeonMapsDB.live ~= false then
+		if landmark and landmark.kind == LM_MARKED and GetTime() - landmark.t < 5 then return "marked - the arrow starts here" end
+		return "live arrow (right-click the map where you stand to set it)"
+	end
+	if p.how == "unknown" then return p.me and "not placed yet" or "far away" end
+	local text = p.place or "?"
+	if p.how == "landmark" then text = (p.fresh and "at " or "last seen at ") .. text end
+	if p.how == "lastroom" then text = "last: " .. text end
+	if p.elsewhere then text = text .. ", other floor" end
+	return text
+end
+
+local function refreshLegend(people)
+	local legend = map.legend
+	local shown = math.min(#people, LEGEND_MAX)
+	local width = 60
+	for i = 1, LEGEND_MAX + 1 do
+		local line = legend.lines[i]
+		if not line then
+			line = {}
+			line.dot = legend:CreateTexture(nil, "OVERLAY")
+			line.dot:SetSize(12, 12)
+			line.dot:SetAtlas(BLIP_ATLAS)
+			line.dot:SetPoint("TOPLEFT", 8, -6 - (i - 1) * LEGEND_ROW - 2)
+			line.text = legend:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+			line.text:SetPoint("LEFT", line.dot, "RIGHT", 6, 0)
+			legend.lines[i] = line
+		end
+		local p = people[i]
+		if i <= shown then
+			line.dot:SetVertexColor(p.r, p.g, p.b)
+			local hex = ("|cff%02x%02x%02x"):format(p.r * 255, p.g * 255, p.b * 255)
+			line.text:SetText(hex .. (p.me and (p.name .. " (you)") or p.name) .. "|r  |cffb0b0b0" .. legendDetail(p) .. "|r")
+			line.dot:Show()
+			line.text:Show()
+		elseif i == shown + 1 and #people > shown then
+			line.dot:Hide()
+			line.text:SetText(("|cffccccccand %d more|r"):format(#people - shown))
+			line.text:Show()
+		else
+			line.dot:Hide()
+			line.text:Hide()
+		end
+		if line.text:IsShown() then width = math.max(width, line.text:GetStringWidth() + 34) end
+	end
+	legend:SetSize(width, (shown + (#people > shown and 1 or 0)) * LEGEND_ROW + 12)
+end
+
+local function refreshPeople()
+	if not (map and map:IsShown() and dungeon) then return end
+	local people = locatePeople()
+	local floor = floorIndex and floors[floorIndex]
+	drawGlow(people[1].how == "room" and people[1].room or nil, floor)
+	drawBosses(floor)
+	drawDots(people)
+	refreshLegend(people)
+end
+
+---------------------------------------------------------------------------------------------------
+-- Diagnostics (saved, read later from WTF)
+---------------------------------------------------------------------------------------------------
+
+local function recordDiag()
+	local best = C_Map and plain(call(C_Map.GetBestMapForUnit, "player"))
+	local ux, uy, _, uinst = call(UnitPosition, "player")
+	ux, uy = plain(ux), plain(uy)
+	local version, build = GetBuildInfo()
+	local room = dungeon and roomNamed(dungeon.key, subzone())
+	local d = {
+		time = date("%Y-%m-%d %H:%M"),
+		build = tostring(version) .. "." .. tostring(build),
+		instanceID = instanceID(),
+		instanceName = plain((GetInstanceInfo())),
+		dungeonKey = dungeon and dungeon.key,
+		subzone = subzone(),
+		room = room and room.name or "none",
+		landmark = landmark and ("%s %.0fs ago"):format(tostring(landmark.label), GetTime() - landmark.t) or "none",
+		bestMap = best,
+		shownFloor = floorIndex and floors[floorIndex],
+		unitPosition = (type(ux) == "number" and type(uy) == "number") and ("%.1f, %.1f"):format(ux, uy) or "none",
+		unitPositionInstance = plain(uinst),
+		facing = plain(call(GetPlayerFacing)),
+		group = {},
+	}
+	for _, unit in ipairs(groupUnits()) do
+		if UnitExists(unit) then
+			d.group[#d.group + 1] = ("%s near28=%s near40=%s"):format(tostring(plain(UnitName(unit))),
+				tostring(plain(call(CheckInteractDistance, unit, 4))), tostring(plain(call(UnitInRange, unit))))
+		end
+	end
+	for name, r in pairs(groupRooms()) do
+		d.group[#d.group + 1] = ("%s shared room=%s"):format(name, r and r.name or "none")
+	end
+	DungeonMapsDB.diag = DungeonMapsDB.diag or {}
+	DungeonMapsDB.diag[tostring(d.instanceID or "?") .. ":" .. tostring(d.shownFloor or "?")] = d
+	DungeonMapsDB.lastDiag = d
+	return d
+end
+
+---------------------------------------------------------------------------------------------------
+-- The map window
+---------------------------------------------------------------------------------------------------
+
+-- The picture maps load from Forever Dungeon Routes' folder (installed is enough: textures load from
+-- an addon's folder even while it is disabled).
+local function pictureSource()
+	local exists = C_AddOns and C_AddOns.DoesAddOnExist
+	local ok = exists and exists("ForeverDungeonRoutes")
+	if ok == nil and GetAddOnInfo then ok = GetAddOnInfo("ForeverDungeonRoutes") ~= nil end
+	return ok and FDR_PATH or nil
+end
+
+local function showFloor(index)
+	if not floors[index] then return end
+	floorIndex = index
+	local floor = floors[index]
+	local info = ns.Floors[floor]
+	local tiles = info and info.tiles
+	local image = info and info.image
+	for i, tex in ipairs(map.tiles) do
+		if tiles then
+			tex:SetTexture(tiles[i], nil, nil, "TRILINEAR") -- the game's own map tile (file ID)
+			tex:Show()
+		else
+			tex:Hide()
+		end
+	end
+	-- the picture maps (Santiago Reyes's) are not part of this addon: they come from Forever Dungeon
+	-- Routes, which ships them with his permission
+	local source = image and pictureSource()
+	if image and not source then image = nil end
+	if image then
+		map.picture:SetTexture(source .. image.file, nil, nil, "TRILINEAR")
+		map.picture:SetTexCoord(0, image.right or 1, 0, image.bottom or 1)
+		map.picture:Show()
+	else
+		map.picture:Hide()
+	end
+	map.noArt:SetText(info and info.image and not image
+		and "This map comes with Forever Dungeon Routes:\ninstall it (it can stay disabled)" or "No map art for this floor")
+	map.noArt:SetShown(not tiles and not image)
+	map.credit:SetText(info and info.credit and ("Map: " .. info.credit) or "")
+	local wings = #(byInstance[dungeon.instanceID] or {})
+	map.title:SetText(dungeon.name .. (wings > 1 and "  |cff999999(click: other wing)|r" or ""))
+	local name = info and info.name or ("Map " .. tostring(floor))
+	map.floorText:SetText(#floors > 1 and ("%s  (%d/%d)"):format(name, index, #floors) or name)
+	map.prev:SetEnabled(index > 1)
+	map.next:SetEnabled(index < #floors)
+	map.prev:SetShown(#floors > 1)
+	map.next:SetShown(#floors > 1)
+	refreshPeople()
+end
+
+local function step(delta)
+	if floorIndex then
+		manualAt = GetTime()
+		showFloor(math.max(1, math.min(#floors, floorIndex + delta)))
+	end
+end
+
+-- The floor of the next boss not killed yet.
+local function nextBossFloor()
+	for i, b in ipairs(ns.Bosses[dungeon.key] or {}) do
+		if not bossDone(dungeon.key, i) and indexOf(b.floor) then return b.floor end
+	end
+end
+
+-- The floor to follow: your spot's floor, else the game's map, else the next boss's floor.
+local function wantedFloor()
+	local me = shortName(plain(UnitName("player"))) or "You"
+	local spot = mySpot(me, floorIndex and floors[floorIndex])
+	if spot and indexOf(spot.floor) then return spot.floor end
+	local best = plain(call(C_Map.GetBestMapForUnit, "player"))
+	if type(best) == "number" and indexOf(best) then return best end
+	return nextBossFloor()
+end
+
+local function makeArrowButton(parent, left)
+	local b = CreateFrame("Button", nil, parent)
+	b:SetSize(26, 26)
+	local dir = left and "Prev" or "Next"
+	b:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. dir .. "Page-Up")
+	b:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. dir .. "Page-Down")
+	b:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. dir .. "Page-Disabled")
+	b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+	b:SetScript("OnClick", function() step(left and -1 or 1) end)
+	return b
+end
+
+local function setDungeon(d)
+	dungeon = d
+	floors = d.floors or {}
+	manualAt = 0
+	showFloor(indexOf(wantedFloor() or floors[1]) or 1)
+end
+
+-- Several wings in one instance: the title cycles through them.
+local function nextWing()
+	local list = dungeon and byInstance[dungeon.instanceID]
+	if not list or #list < 2 then return end
+	for i, d in ipairs(list) do
+		if d == dungeon then
+			local nd = list[i % #list + 1]
+			wingPick[dungeon.instanceID] = nd.key
+			setDungeon(nd)
+			return
+		end
+	end
+end
+
+-- The world map on the zone around the dungeon's entrance; Blizzard's map zooms out from there.
+local function openWorldMap()
+	if map then map:Hide() end
+	if not (WorldMapFrame and WorldMapFrame:IsShown()) then ToggleWorldMap() end
+	local zone = dungeon and ns.Zone[dungeon.key]
+	if zone and WorldMapFrame and WorldMapFrame.SetMapID then
+		pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone.map)
+	end
+end
+
+local openMap -- (below)
+
+-- "Dungeon Map" on Blizzard's world map, shown while you are in a dungeon.
+local function buildBackButton()
+	if backButton or not WorldMapFrame then return end
+	backButton = CreateFrame("Button", "DungeonMapsBackButton", WorldMapFrame, "UIPanelButtonTemplate")
+	backButton:SetSize(130, 24)
+	backButton:SetText("Dungeon Map")
+	backButton:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMLEFT", 16, 16)
+	backButton:SetFrameStrata("FULLSCREEN_DIALOG")
+	backButton:SetScript("OnClick", function()
+		if WorldMapFrame:IsShown() then ToggleWorldMap() end
+		openMap()
+	end)
+	local function sync() backButton:SetShown(inDungeon() and findDungeon() ~= nil) end
+	WorldMapFrame:HookScript("OnShow", sync)
+	sync()
+end
+
+-- Forever Dungeon Routes, if it is still installed, opens its small map on entering a dungeon; Brett
+-- doesn't want that. Its setting "on entering a dungeon" goes to "none" and an open small map closes.
+local function quietRoutes()
+	local dr = _G.ForeverDungeonRoutes
+	if not (dr and dr.db) then return end
+	dr.db.onEnter = "none"
+	dr.hinted = true
+	if dr.Window and call(dr.Window.IsMini, dr.Window) then call(dr.Window.CloseMini, dr.Window) end
+end
+
+local function buildMap()
+	map = CreateFrame("Frame", "DungeonMapsFrame", UIParent, "BackdropTemplate")
+	map:SetSize(MAP_W + PAD * 2, MAP_H + BAR_H + PAD * 2)
+	map:SetPoint("CENTER")
+	map:SetFrameStrata("HIGH")
+	map:SetToplevel(true)
+	map:SetClampedToScreen(true)
+	map:SetMovable(true)
+	map:EnableMouse(true)
+	map:RegisterForDrag("LeftButton")
+	map:SetScript("OnDragStart", map.StartMoving)
+	map:SetScript("OnDragStop", map.StopMovingOrSizing)
+	-- right-click on the map: "I am here" (starts or corrects the live arrow, and your landmark dot)
+	map:SetScript("OnMouseUp", function(_, button)
+		if button ~= "RightButton" or not (dungeon and floorIndex) then return end
+		local c = map.canvas
+		local x, y = GetCursorPosition()
+		local s = c:GetEffectiveScale()
+		local u = (x / s - c:GetLeft()) / c:GetWidth()
+		local v = (c:GetTop() - y / s) / c:GetHeight()
+		if u < 0 or u > 1 or v < 0 or v > 1 then return end
+		setLandmark(dungeon.key, floors[floorIndex], u, v, "where you marked", LM_MARKED)
+		refreshPeople()
+	end)
+	map:SetBackdrop({
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+		edgeSize = 24,
+		insets = { left = 5, right = 5, top = 5, bottom = 5 },
+	})
+	map:SetBackdropColor(0.06, 0.05, 0.04, 0.96)
+	map:Hide()
+	tinsert(UISpecialFrames, "DungeonMapsFrame") -- Esc closes it, like the world map
+
+	local function fit()
+		local s = math.min(1, UIParent:GetHeight() * 0.85 / map:GetHeight(), UIParent:GetWidth() * 0.92 / map:GetWidth())
+		map:SetScale(s)
+	end
+	fit()
+	map:RegisterEvent("UI_SCALE_CHANGED")
+	map:RegisterEvent("DISPLAY_SIZE_CHANGED")
+	map:SetScript("OnEvent", fit)
+
+	-- top bar: [World Map] Dungeon name ........ < Floor > ........ [x]
+	local world = CreateFrame("Button", nil, map, "UIPanelButtonTemplate")
+	world:SetSize(104, 22)
+	world:SetText("World Map")
+	world:SetPoint("TOPLEFT", PAD + 6, -PAD - 4)
+	world:SetScript("OnClick", openWorldMap)
+	world:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+		GameTooltip:SetText("World Map")
+		GameTooltip:AddLine("Opens the normal map on this dungeon's zone. Zoom out from there; \"Dungeon Map\" brings you back.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	world:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	local titleButton = CreateFrame("Button", nil, map)
+	titleButton:SetPoint("LEFT", world, "RIGHT", 10, 0)
+	titleButton:SetSize(360, 22)
+	titleButton:SetScript("OnClick", nextWing)
+	map.title = titleButton:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	map.title:SetPoint("LEFT")
+	map.prev = makeArrowButton(map, true)
+	map.next = makeArrowButton(map, false)
+	map.floorText = map:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	map.floorText:SetPoint("TOP", map, "TOP", 0, -PAD - 8)
+	map.prev:SetPoint("RIGHT", map.floorText, "LEFT", -6, 0)
+	map.next:SetPoint("LEFT", map.floorText, "RIGHT", 6, 0)
+	local close = CreateFrame("Button", nil, map, "UIPanelCloseButton")
+	close:SetPoint("TOPRIGHT", -2, -2)
+
+	-- the canvas: 1002 x 668, the top-left of a 4 x 3 grid of 256-px tiles (Blizzard's map layout)
+	local canvas = CreateFrame("Frame", nil, map)
+	canvas:SetSize(MAP_W, MAP_H)
+	canvas:SetPoint("TOPLEFT", PAD, -(PAD + BAR_H))
+	canvas:SetClipsChildren(true)
+	map.canvas = canvas
+	map.tiles = {}
+	for row = 0, 2 do
+		for col = 0, 3 do
+			local t = canvas:CreateTexture(nil, "BACKGROUND")
+			t:SetSize(TILE, TILE)
+			t:SetPoint("TOPLEFT", col * TILE, -row * TILE)
+			map.tiles[#map.tiles + 1] = t
+		end
+	end
+	map.picture = canvas:CreateTexture(nil, "BACKGROUND", nil, 1)
+	map.picture:SetAllPoints(canvas)
+	map.noArt = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
+	map.noArt:SetPoint("CENTER")
+	map.noArt:SetText("No map art for this floor")
+	map.glow = {}
+
+	map.bossLayer = CreateFrame("Frame", nil, canvas)
+	map.bossLayer:SetAllPoints(canvas)
+	map.bossLayer:SetFrameLevel(canvas:GetFrameLevel() + 5)
+	map.bosses = {}
+
+	map.dotLayer = CreateFrame("Frame", nil, canvas)
+	map.dotLayer:SetAllPoints(canvas)
+	map.dotLayer:SetFrameLevel(canvas:GetFrameLevel() + 10)
+	map.dots = {}
+
+	local legend = CreateFrame("Frame", nil, canvas, "BackdropTemplate")
+	legend:SetPoint("BOTTOMLEFT", 10, 10)
+	legend:SetFrameLevel(canvas:GetFrameLevel() + 30)
+	legend:SetBackdrop({
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		edgeSize = 12,
+		insets = { left = 3, right = 3, top = 3, bottom = 3 },
+	})
+	legend:SetBackdropColor(0, 0, 0, 0.7)
+	legend:SetBackdropBorderColor(0.6, 0.5, 0.3, 0.9)
+	legend.lines = {}
+	map.legend = legend
+
+	local note = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	note:SetPoint("BOTTOMRIGHT", -10, 8)
+	note:SetText("Numbered skulls = this dungeon's bosses. Dots = last place the game revealed (entrance, boss, room).")
+	map.credit = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	map.credit:SetPoint("BOTTOMRIGHT", note, "TOPRIGHT", 0, 3)
+
+	local elapsed = 0
+	map:SetScript("OnUpdate", function(_, dt)
+		elapsed = elapsed + dt
+		if elapsed < POLL then return end
+		elapsed = 0
+		-- walking into a room of another wing (Scarlet Monastery, Blackrock Spire) switches the map
+		local d = findDungeon()
+		if d and d ~= dungeon then
+			setDungeon(d)
+			return
+		end
+		if GetTime() - manualAt > MANUAL_HOLD then
+			local want = wantedFloor()
+			local i = want and indexOf(want)
+			if i and i ~= floorIndex then
+				showFloor(i)
+				return
+			end
+		end
+		refreshPeople()
+	end)
+end
+
+openMap = function()
+	local d = findDungeon()
+	if not d then
+		say("no map for this instance; opening the world map.")
+		ToggleWorldMap()
+		return
+	end
+	if WorldMapFrame and WorldMapFrame:IsShown() then ToggleWorldMap() end
+	if not map then buildMap() end
+	map:Show()
+	setDungeon(d)
+	recordDiag()
+end
+
+---------------------------------------------------------------------------------------------------
+-- Live beacon: a 52 x 2 pixel strip of 26 coloured cells in the top-left corner of the game that the
+-- screen tracker (a separate
+-- Linux program, ~/Projects/wow-dungeon-tracker) reads from the screen. It carries what only the game
+-- knows: the dungeon, landmarks, the room, the minimap zoom, and where the minimap and the dungeon map
+-- are on the screen (in pixels, from the strip). Nothing leaves the game any other way.
+--   cells 1-2: magenta, green (to find the strip); 3-5: the 8 colour levels (calibration)
+--   cells 6-26: 9 bits each (3 per colour channel), the fields below, then a checksum
+---------------------------------------------------------------------------------------------------
+
+local BEACON_CELLS, BEACON_PX = 53, 2 -- cells, physical pixels per cell side
+local HEADER = { { 7, 0, 7 }, { 0, 7, 0 }, { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 0 } }
+local beacon
+
+local dungeonIndex = {}
+for i, d in ipairs(ns.Dungeons) do dungeonIndex[d] = i end
+
+local function pushBits(bits, value, n)
+	value = math.max(0, math.min(2 ^ n - 1, math.floor(value + 0.5)))
+	for i = n - 1, 0, -1 do bits[#bits + 1] = math.floor(value / 2 ^ i) % 2 end
+end
+
+-- Physical pixels per UI unit of a frame, and its top-left corner in physical pixels (from the top).
+local function pixelRect(frame)
+	local _, physH = GetPhysicalScreenSize()
+	local k = physH / (UIParent:GetHeight() * UIParent:GetEffectiveScale())
+	local s = frame:GetEffectiveScale() * k
+	local left, top = frame:GetLeft(), frame:GetTop()
+	if not (left and top) then return nil end
+	return left * s, physH - top * s, frame:GetWidth() * s, frame:GetHeight() * s
+end
+
+-- Your live arrow's size on the map (Settings > AddOns > Dungeon Maps, or /dmaps size 1.5)
+local ARROW_MIN, ARROW_MAX = 0.5, 2.5
+local function arrowSize()
+	local v = tonumber(DungeonMapsDB.arrowSize) or 1
+	return math.max(ARROW_MIN, math.min(ARROW_MAX, math.floor(v * 10 + 0.5) / 10))
+end
+
+-- The same number for everyone in the group: a hash of the members' GUIDs, sorted. 0 = not grouped.
+local groupKeyValue, groupKeyAt = 0, -10
+local function groupKey()
+	local now = GetTime()
+	if now - groupKeyAt < 1 then return groupKeyValue end
+	groupKeyAt = now
+	local ids = {}
+	local function add(unit)
+		local g = UnitGUID(unit)
+		if g and not (issecretvalue and issecretvalue(g)) then ids[#ids + 1] = g end
+	end
+	if IsInRaid() then
+		for i = 1, GetNumGroupMembers() do add("raid" .. i) end
+	elseif IsInGroup() then
+		add("player")
+		for i = 1, 4 do add("party" .. i) end
+	end
+	local h = 0
+	if #ids >= 2 then
+		table.sort(ids)
+		local s = table.concat(ids, ",")
+		h = 5381
+		for i = 1, #s do h = (h * 33 + s:byte(i)) % 4294967296 end -- djb2, kept exact in doubles
+		if h == 0 then h = 1 end
+	end
+	groupKeyValue = h
+	return h
+end
+
+local function beaconCells()
+	local d = inDungeon() and findDungeon() or nil
+	local bits = {}
+	local open = map and map:IsShown() and dungeon == d
+	-- indoors: the minimap's zoom differs from the outdoor zoom setting (HereBeDragons' test)
+	local zoom = plain(Minimap:GetZoom()) or 0
+	local indoors = tonumber(GetCVar("minimapZoom")) ~= zoom
+	local radius = C_Minimap and plain(call(C_Minimap.GetViewRadius)) -- yards from centre to edge
+	pushBits(bits, 3, 3) -- format version
+	pushBits(bits, open and 1 or 0, 1)
+	pushBits(bits, indoors == true and 1 or indoors == false and 2 or 0, 2)
+	pushBits(bits, GetCVar("rotateMinimap") == "1" and 1 or 0, 1)
+	pushBits(bits, zoom, 3)
+	pushBits(bits, type(radius) == "number" and radius * 4 or 0, 11)
+	pushBits(bits, d and dungeonIndex[d] or 0, 6)
+	pushBits(bits, open and floorIndex or 0, 4)
+	local lm = d and landmark and landmark.key == d.key and landmark or nil
+	local lmFloor = 0
+	if lm then
+		for i, f in ipairs(d.floors) do if f == lm.floor then lmFloor = i end end
+	end
+	pushBits(bits, landmarkCount % 64, 6)
+	pushBits(bits, lm and lm.kind or 0, 2)
+	pushBits(bits, lmFloor, 4)
+	pushBits(bits, lm and lm.u * 4095 or 0, 12)
+	pushBits(bits, lm and lm.v * 4095 or 0, 12)
+	local roomIndex = 0
+	if d then
+		local here = subzone()
+		for i, room in ipairs(ns.Rooms[d.key] or {}) do
+			if room.name == here then roomIndex = i break end
+		end
+	end
+	pushBits(bits, roomIndex, 7)
+	local bx, by = pixelRect(beacon)
+	for _, frame in ipairs({ Minimap, open and map.canvas or nil }) do
+		local x, y, w, h = pixelRect(frame)
+		if x and bx then
+			pushBits(bits, x - bx + 4096, 13)
+			pushBits(bits, y - by + 4096, 13)
+			pushBits(bits, w, 12)
+			pushBits(bits, h, 12)
+		else
+			for _ = 1, 50 do bits[#bits + 1] = 0 end
+		end
+	end
+	if not (map and open) then
+		-- (the loop above stops at the nil canvas: pad its 50 bits)
+		for _ = 1, 50 do bits[#bits + 1] = 0 end
+	end
+	-- v2: the party (so trackers in the same group find each other) and who you are (their labels)
+	pushBits(bits, groupKey(), 32)
+	local name = UnitName("player") or ""
+	if issecretvalue and issecretvalue(name) then name = "" end
+	name = name:sub(1, 24)
+	pushBits(bits, #name, 5)
+	for i = 1, 24 do pushBits(bits, name:byte(i) or 0, 8) end
+	-- v3: your arrow's size (settings) and your class colour (your dot on your friends' maps)
+	pushBits(bits, arrowSize() * 10, 5)
+	local r, g, b = classColor("player")
+	pushBits(bits, r * 31, 5)
+	pushBits(bits, g * 31, 5)
+	pushBits(bits, b * 31, 5)
+	local cells, sum = {}, 0
+	for c = 1, BEACON_CELLS - #HEADER - 1 do
+		local v = 0
+		for b = 1, 9 do v = v * 2 + (bits[(c - 1) * 9 + b] or 0) end
+		cells[c] = v
+		sum = sum + v
+	end
+	cells[#cells + 1] = sum % 512
+	return cells, d ~= nil
+end
+
+local function placeBeacon()
+	-- the very top-left corner of the game, on whole physical pixels (tiny and exact to read)
+	local _, physH = GetPhysicalScreenSize()
+	local k = physH / (UIParent:GetHeight() * UIParent:GetEffectiveScale())
+	local unit = 1 / (beacon:GetEffectiveScale() * k) -- one physical pixel in UI units
+	beacon:SetSize(BEACON_CELLS * BEACON_PX * unit, BEACON_PX * unit)
+	for i, t in ipairs(beacon.cells) do
+		t:SetSize(BEACON_PX * unit, BEACON_PX * unit)
+		t:ClearAllPoints()
+		t:SetPoint("TOPLEFT", beacon, "TOPLEFT", (i - 1) * BEACON_PX * unit, 0)
+		if t.SetSnapToPixelGrid then
+			t:SetSnapToPixelGrid(false)
+			t:SetTexelSnappingBias(0)
+		end
+	end
+	beacon:ClearAllPoints()
+	beacon:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+end
+
+local function updateBeacon()
+	local cells, active = beaconCells()
+	beacon:SetShown(active)
+	for i, v in ipairs(cells) do
+		local t = beacon.cells[#HEADER + i]
+		if t.value ~= v then
+			t.value = v
+			t:SetColorTexture(math.floor(v / 64) % 8 / 7, math.floor(v / 8) % 8 / 7, v % 8 / 7, 1)
+		end
+	end
+end
+
+-- the map opening or closing changes the beacon in that same frame (not at the next tick): the
+-- tracker's arrow must vanish the instant the map does
+local mapHooked = false
+local function hookMap()
+	if mapHooked or not map then return end
+	mapHooked = true
+	local function now()
+		if beacon and beacon:IsShown() then updateBeacon() end
+	end
+	map:HookScript("OnHide", now)
+	map:HookScript("OnShow", now)
+end
+
+local function buildBeacon()
+	if beacon or not Minimap then return end
+	beacon = CreateFrame("Frame", "DungeonMapsBeacon", UIParent)
+	beacon:SetFrameStrata("TOOLTIP")
+	beacon:SetFrameLevel(9000)
+	beacon:SetIgnoreParentAlpha(true)
+	beacon.cells = {}
+	for i = 1, BEACON_CELLS do
+		local t = beacon:CreateTexture(nil, "OVERLAY")
+		local h = HEADER[i]
+		if h then t:SetColorTexture(h[1] / 7, h[2] / 7, h[3] / 7, 1) end
+		beacon.cells[i] = t
+	end
+	placeBeacon()
+	beacon:Hide()
+	local ticker = CreateFrame("Frame")
+	local elapsed, placed = 0, 0
+	ticker:SetScript("OnUpdate", function(_, dt)
+		elapsed, placed = elapsed + dt, placed + dt
+		if elapsed < 0.03 then return end -- (the tracker reads it every frame the game draws)
+		elapsed = 0
+		if DungeonMapsDB.live == false or not inDungeon() then
+			beacon:Hide()
+			return
+		end
+		if placed > 2 then -- (UI scale, minimap moves)
+			placed = 0
+			placeBeacon()
+		end
+		hookMap()
+		updateBeacon()
+	end)
+end
+
+---------------------------------------------------------------------------------------------------
+-- Map key swap
+---------------------------------------------------------------------------------------------------
+
+local function applyBindings()
+	if InCombatLockdown() then
+		bindingsPending = true
+		return
+	end
+	bindingsPending = false
+	ClearOverrideBindings(events)
+	if not inDungeon() then return end
+	for _, key in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do
+		SetOverrideBinding(events, true, key, "DUNGEONMAPS_TOGGLE")
+	end
+end
+
+function DungeonMaps_Toggle()
+	if map and map:IsShown() then
+		map:Hide()
+	elseif inDungeon() then
+		openMap()
+	else
+		ToggleWorldMap()
+	end
+end
+
+SLASH_DUNGEONMAPS1 = "/dmaps"
+SLASH_DUNGEONMAPS2 = "/dmk"
+SlashCmdList.DUNGEONMAPS = function(input)
+	local cmd = strtrim(input or ""):lower()
+	if cmd == "diag" then
+		if not inDungeon() then
+			say("go into a dungeon first.")
+			return
+		end
+		if not (map and map:IsShown()) then openMap() end
+		local d = recordDiag()
+		say(("%s: sub-zone \"%s\", room %s, landmark %s, floor %s"):format(tostring(d.instanceName),
+			tostring(d.subzone), tostring(d.room), tostring(d.landmark), tostring(d.shownFloor)))
+		for _, line in ipairs(d.group) do say("  " .. line) end
+		say("saved for Claude.")
+	elseif cmd == "live" then
+		DungeonMapsDB.live = DungeonMapsDB.live == false
+		refreshPeople()
+		say(DungeonMapsDB.live and "live mode ON: the beacon strip by the minimap is shown and the screen tracker draws your arrow (your landmark dot is hidden)."
+			or "live mode OFF: no beacon; your dot is the last landmark again.")
+	elseif cmd:match("^size") then
+		local v = tonumber(cmd:match("^size%s+([%d%.]+)"))
+		if v then
+			DungeonMapsDB.arrowSize = math.max(ARROW_MIN, math.min(ARROW_MAX, v))
+			if ns.settingsSlider then ns.settingsSlider:SetValue(arrowSize()) end
+		end
+		say(("your arrow size: %.1fx (%.1f to %.1f: /dmaps size 1.5)"):format(arrowSize(), ARROW_MIN, ARROW_MAX))
+	elseif cmd == "settings" or cmd == "options" then
+		if ns.settingsCategory and Settings and Settings.OpenToCategory then
+			Settings.OpenToCategory(ns.settingsCategory:GetID())
+		elseif InterfaceOptionsFrame_OpenToCategory and ns.settingsPanel then
+			InterfaceOptionsFrame_OpenToCategory(ns.settingsPanel)
+		end
+	elseif cmd == "reset" then
+		local d = findDungeon()
+		if d and DungeonMapsCharDB.runs then DungeonMapsCharDB.runs[d.key] = nil end
+		refreshPeople()
+		say("boss kills cleared for this dungeon.")
+	else
+		local keys = { GetBindingKey("TOGGLEWORLDMAP") }
+		say(("map key: %s; in a dungeon now: %s. /dmaps settings = options, /dmaps size 1.5 = your arrow size, /dmaps reset = clear boss kills, /dmaps live = live tracker beacon on/off, /dmaps diag = what the game reports here."):format(
+			#keys > 0 and table.concat(keys, ", ") or "none", inDungeon() and "yes" or "no"))
+	end
+end
+
+---------------------------------------------------------------------------------------------------
+-- Settings panel (Esc > Options > AddOns > Dungeon Maps)
+---------------------------------------------------------------------------------------------------
+
+local function createSettings()
+	local panel = CreateFrame("Frame")
+	panel.name = "Dungeon Maps"
+	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", 16, -16)
+	title:SetText("Dungeon Maps")
+	local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+	sub:SetWidth(560)
+	sub:SetJustifyH("LEFT")
+	sub:SetText("Your map key opens the dungeon map inside dungeons. With the Dungeon Maps tracker running, "
+		.. "your live arrow and your group's dots are drawn on it.")
+
+	local slider = CreateFrame("Slider", "DungeonMapsArrowSize", panel, "OptionsSliderTemplate")
+	slider:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 4, -36)
+	slider:SetWidth(260)
+	slider:SetMinMaxValues(ARROW_MIN, ARROW_MAX)
+	slider:SetValueStep(0.1)
+	if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
+	-- (OptionsSliderTemplate names its labels after the slider)
+	local label, low, high = _G.DungeonMapsArrowSizeText, _G.DungeonMapsArrowSizeLow, _G.DungeonMapsArrowSizeHigh
+	if low then low:SetText(("%.1fx"):format(ARROW_MIN)) end
+	if high then high:SetText(("%.1fx"):format(ARROW_MAX)) end
+	local function show(v)
+		if label then label:SetText(("Your arrow size: %.1fx"):format(v)) end
+	end
+	slider:SetScript("OnValueChanged", function(_, v)
+		DungeonMapsDB.arrowSize = math.floor(v * 10 + 0.5) / 10
+		show(arrowSize())
+	end)
+	panel:SetScript("OnShow", function()
+		slider:SetValue(arrowSize())
+		show(arrowSize())
+	end)
+
+	local live = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+	live:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", -4, -28)
+	local liveText = live:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	liveText:SetPoint("LEFT", live, "RIGHT", 2, 1)
+	liveText:SetText("Live tracker (the small colour strip in the top-left corner the tracker reads)")
+	live:SetScript("OnClick", function(self)
+		DungeonMapsDB.live = self:GetChecked() and true or false
+		refreshPeople()
+	end)
+	panel:HookScript("OnShow", function() live:SetChecked(DungeonMapsDB.live ~= false) end)
+
+	ns.settingsSlider, ns.settingsPanel = slider, panel
+	if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
+		local category = Settings.RegisterCanvasLayoutCategory(panel, "Dungeon Maps")
+		Settings.RegisterAddOnCategory(category)
+		ns.settingsCategory = category
+	elseif InterfaceOptions_AddCategory then
+		InterfaceOptions_AddCategory(panel)
+	end
+end
+createSettings()
+
+---------------------------------------------------------------------------------------------------
+-- Events
+---------------------------------------------------------------------------------------------------
+
+if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
+	C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
+end
+
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+events:RegisterEvent("ZONE_CHANGED")
+events:RegisterEvent("ZONE_CHANGED_INDOORS")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("GROUP_ROSTER_UPDATE")
+events:RegisterEvent("ENCOUNTER_START")
+events:RegisterEvent("ENCOUNTER_END")
+events:RegisterEvent("BOSS_KILL")
+events:RegisterEvent("CHAT_MSG_ADDON")
+events:RegisterEvent("CHAT_MSG_SYSTEM")
+events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
+	if event == "PLAYER_REGEN_ENABLED" then
+		if bindingsPending then applyBindings() end
+		return
+	elseif event == "GROUP_ROSTER_UPDATE" then
+		if not channel() then members = {} end
+		send("W")
+		sendState(true)
+		refreshPeople()
+		return
+	elseif event == "CHAT_MSG_ADDON" then
+		onAddonMessage(arg1, arg2, arg4)
+		return
+	elseif event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then
+		sendState()
+		return
+	elseif event == "ENCOUNTER_START" then
+		landmarkBoss(arg1, arg2)
+		refreshPeople()
+		return
+	elseif event == "ENCOUNTER_END" or event == "BOSS_KILL" then
+		-- ENCOUNTER_END: encounterID, name, difficulty, group size, success (1 = kill)
+		if event == "BOSS_KILL" or plain(arg5) == 1 then onBossKilled(arg1, arg2) end
+		refreshPeople()
+		return
+	elseif event == "CHAT_MSG_SYSTEM" then
+		-- "<instance> has been reset.": its boss kills start over
+		local text = plain(arg1)
+		if type(text) == "string" and text:find("reset") then
+			for _, d in ipairs(ns.Dungeons) do
+				if text:find(d.name, 1, true) and DungeonMapsCharDB.runs then DungeonMapsCharDB.runs[d.key] = nil end
+			end
+		end
+		return
+	end
+	if event == "PLAYER_ENTERING_WORLD" then
+		quietRoutes()
+		C_Timer.After(2.5, quietRoutes) -- (its small map opens 2 s after the loading screen)
+		buildBackButton()
+		buildBeacon()
+		-- arg1 = initial login, arg2 = UI reload: only a real zone-in puts you at the entrance
+		if not plain(arg2) then
+			lastRoom = {}
+			landmark = nil
+			if inDungeon() and not plain(arg1) then landmarkEntrance() end
+		end
+		sendState(true)
+	end
+	applyBindings()
+	if map and map:IsShown() and not inDungeon() then map:Hide() end
+end)

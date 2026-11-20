@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="DUNGEONMAPS_TOGGLE" header="DUNGEONMAPS" category="ADDONS">
+		DungeonMaps_Toggle()
+	</Binding>
+</Bindings>

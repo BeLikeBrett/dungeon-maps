@@ -1,0 +1,6 @@
+# Dungeon Maps tracker (python -m dungeonmaps)
+numpy>=1.26
+Pillow>=10
+websockets>=14,<18
+# Windows only: window capture (Linux uses the screencast portal through GStreamer/PipeWire, system packages)
+windows-capture==2.0.1; sys_platform == "win32"

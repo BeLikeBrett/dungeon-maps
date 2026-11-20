@@ -1,0 +1,23 @@
+#!/bin/sh
+# Dungeon Maps tracker (Linux): the overlay, which runs the tracker. Stays until stopped.
+#   dungeon-maps                       run in this terminal
+#   dungeon-maps start | stop          in the background (for launcher hooks: Faugus/Lutris/Heroic
+#                                      "pre-launch" = dungeon-maps start, "post-exit" = dungeon-maps stop)
+HERE=$(dirname "$(readlink -f "$0")")
+ROOT=$(dirname "$HERE")
+PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/dungeon-maps.pid"
+unset MANGOHUD  # launchers pass the game's environment along
+
+case "$1" in
+start)
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then exit 0; fi
+	setsid -f sh -c 'echo $$ > "$1"; exec qs -p "$2/overlay" >/dev/null 2>&1' sh "$PIDFILE" "$ROOT"
+	;;
+stop)
+	[ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
+	rm -f "$PIDFILE"
+	;;
+*)
+	exec qs -p "$ROOT/overlay" "$@"
+	;;
+esac

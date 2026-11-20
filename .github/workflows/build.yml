@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - run: pip install numpy Pillow "websockets>=14,<18"
+      - name: addon loads (stubbed WoW API)
+        run: lua5.1 tests/addon_harness.lua addon | tail -1
+      - run: python tests/test_beacon.py
+      - run: python tests/test_odometry.py
+      - run: python tests/test_facing.py
+      - run: python tests/test_pipeline.py
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - name: overlay smoke test
+        run: python tests/smoke_windows.py
+      - name: DungeonMaps.exe
+        run: pyinstaller --noconfirm --distpath dist packaging/DungeonMaps.spec
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DungeonMaps-windows
+          path: dist/DungeonMaps.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: DungeonMaps-windows
+          path: dist
+      - name: addon zip + Linux tracker
+        run: |
+          (cd addon && zip -r ../dist/DungeonMaps-addon.zip DungeonMaps)
+          tar czf dist/DungeonMaps-linux.tar.gz --transform 's,^,dungeon-maps/,' \
+            dungeonmaps overlay linux requirements.txt README.md LICENSE
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/DungeonMaps.exe
+            dist/DungeonMaps-addon.zip
+            dist/DungeonMaps-linux.tar.gz
+          generate_release_notes: true

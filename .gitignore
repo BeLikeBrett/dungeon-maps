@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec.bak
+# Santiago Reyes's maps are never committed: the addon loads them from Forever Dungeon Routes
+addon/DungeonMaps/maps/
+*.blp
