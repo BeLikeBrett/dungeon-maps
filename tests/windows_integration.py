@@ -84,13 +84,13 @@ def main():
         ox, oy, _ = windows.frame_origin(hwnd)
         assert tracker.state[:4] == (ox + 100, oy + 200, 700, 460), tracker.state
         ov.update(tracker.state)
-        ov.root.update()
+        ov.pump()
         rect = wintypes.RECT()
         windows.user32.GetWindowRect(ov.hwnd, ctypes.byref(rect))
         assert (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) == tracker.state[:4]
         assert windows.user32.GetForegroundWindow() == foreground, "overlay took focus"
     result["physical_placement_and_beacon_pitches"] = [2, 3]
-    ov.root.destroy()
+    ov.close()
 
     # WGC is unavailable on some virtual display adapters; record the limitation distinctly.
     cap = windows.WindowCapture()

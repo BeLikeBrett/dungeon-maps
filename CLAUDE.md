@@ -58,3 +58,6 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Old Linux tracker was still running while WoW was open during continuation; left it untouched.
 - Tk 8.6.14 unconditionally calls SetActiveWindow on its first wrapper, even withdrawn; overlay
   windows also use Tk's `-disabled` attribute to make native activation impossible.
+- Supersedes the Tk notes above: Tk 8.6.15 still activated its withdrawn/disabled wrapper on CI.
+  Windows now uses a native `WS_EX_NOACTIVATE` layered window from creation, with Pillow rendering
+  and `UpdateLayeredWindow` (premultiplied BGRA). There is no Tk dependency in the shipped tracker.

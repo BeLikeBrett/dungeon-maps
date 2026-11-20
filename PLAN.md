@@ -44,3 +44,7 @@
   investigated using a disposable overlay. SanDisk native Windows remains a reboot option.
 - Duplicate coarse/exact friend dots: asked Brett to choose hiding, dimming, or keeping coarse dots;
   no behavior change until he chooses.
+- Correction after booting the disposable guest: the misleading `haloos-win-disk.qcow2` now boots
+  HaloOS (confirmed on tty2), not Windows. Stopped the guest. No usable local Windows guest found;
+  native Windows on sdb3 requires Brett to reboot. Added Windows-runner integration checks with a
+  synthetic game window and the built exe; these report unsupported capture separately.

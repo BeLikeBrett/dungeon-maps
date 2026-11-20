@@ -20,24 +20,25 @@ fg_before = user32.GetForegroundWindow()
 print("foreground before overlay:", foreground(), flush=True)
 ov = windows.Overlay()
 print("foreground after overlay:", foreground(), "overlay:", ov.hwnd,
-      "Tk:", ov.root.tk.call("info", "patchlevel"), flush=True)
+      "native layered window", flush=True)
 assert user32.GetForegroundWindow() == fg_before, "overlay initialization took the foreground"
 me = {"u": 0.5, "v": 0.5, "heading": 45.0, "fresh": True, "guess": False, "size": 1.5}
 friend = {"name": "Byai", "u": 0.3, "v": 0.6, "color": "#ff7c0a", "fresh": True, "guess": False}
 ov.update((100, 100, 800, 533, me, [friend]))
 for _ in range(20):
-    ov.root.update()
+    ov.pump()
     time.sleep(0.02)
 style = user32.GetWindowLongW(ov.hwnd, -20)
 assert style & 0x20 and style & 0x80000 and style & 0x8000000 and style & 0x8, hex(style)  # transparent, layered, noactivate, topmost
 assert user32.IsWindowVisible(ov.hwnd)
 assert user32.GetForegroundWindow() == fg_before, "overlay took the foreground"
-assert len(ov.canvas.find_all()) >= 4, ov.canvas.find_all()
+assert ov.image.getpixel((240, 320)) == (255, 124, 10, 255), "friend dot missing"
+assert ov.image.getbbox(), "empty overlay"
 ov.notice("Dungeon Maps smoke test", seconds=0.1)
-ov.root.update()
+ov.pump()
 assert user32.GetForegroundWindow() == fg_before, "notice took the foreground"
 ov.update(None)
-ov.root.update()
+ov.pump()
 assert not user32.IsWindowVisible(ov.hwnd)
-ov.root.destroy()
+ov.close()
 print("PASS windows overlay smoke")

@@ -1,11 +1,10 @@
-"""Windows: WoW's window through Windows Graphics Capture, the overlay drawn with Tk.
+"""Windows: WoW's window through Windows Graphics Capture, a native layered overlay.
 
   * Capture: the windows-capture package (Windows Graphics Capture) on the "World of Warcraft" window:
     keeps working while the game is covered (not while minimized). No picker, nothing to set up.
   * Placement: Windows says where the window is (DWM frame bounds), so the overlay sits exactly over
     the dungeon map; checked every frame.
-  * Overlay: a borderless, always-on-top, click-through Tk window over the map canvas (Tk comes with
-    Python). WoW must run windowed or "windowed fullscreen" (exclusive fullscreen hides overlays).
+  * Overlay: a borderless, always-on-top, click-through native window over the map canvas with per-pixel transparency. WoW must run windowed or "windowed fullscreen" (exclusive fullscreen hides overlays).
 
     DungeonMaps.exe            (or: python -m dungeonmaps)
 
@@ -31,7 +30,6 @@ from .share import Share
 WOW_TITLE = "World of Warcraft"
 MAX_FPS = 60
 LOG_FILE = os.path.join(user_dir("state"), "tracker.log")
-KEY = "#ff00fe"  # the overlay's transparent colour
 
 
 def info(*a):
@@ -71,6 +69,41 @@ if sys.platform == "win32":
                                            ctypes.c_void_p, wintypes.DWORD]
     ctypes.windll.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
     ctypes.windll.kernel32.CreateMutexW.restype = wintypes.HANDLE
+    gdi32 = ctypes.windll.gdi32
+
+    class BitmapInfoHeader(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("width", wintypes.LONG), ("height", wintypes.LONG),
+                    ("planes", wintypes.WORD), ("bits", wintypes.WORD), ("compression", wintypes.DWORD),
+                    ("image_size", wintypes.DWORD), ("xppm", wintypes.LONG), ("yppm", wintypes.LONG),
+                    ("used", wintypes.DWORD), ("important", wintypes.DWORD)]
+
+    class BlendFunction(ctypes.Structure):
+        _fields_ = [("op", ctypes.c_ubyte), ("flags", ctypes.c_ubyte),
+                    ("alpha", ctypes.c_ubyte), ("format", ctypes.c_ubyte)]
+
+    user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR,
+                                     wintypes.DWORD, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                     ctypes.c_int, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE,
+                                     ctypes.c_void_p]
+    user32.CreateWindowExW.restype = wintypes.HWND
+    user32.DestroyWindow.argtypes = [wintypes.HWND]
+    user32.UpdateLayeredWindow.argtypes = [wintypes.HWND, wintypes.HDC, ctypes.POINTER(wintypes.POINT),
+        ctypes.POINTER(wintypes.SIZE), wintypes.HDC, ctypes.POINTER(wintypes.POINT), wintypes.DWORD,
+        ctypes.POINTER(BlendFunction), wintypes.DWORD]
+    user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
+                                   wintypes.UINT, wintypes.UINT, wintypes.UINT]
+    user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    user32.DispatchMessageW.restype = ctypes.c_ssize_t
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateDIBSection.argtypes = [wintypes.HDC, ctypes.POINTER(BitmapInfoHeader), wintypes.UINT,
+                                     ctypes.POINTER(ctypes.c_void_p), wintypes.HANDLE, wintypes.DWORD]
+    gdi32.CreateDIBSection.restype = wintypes.HBITMAP
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HANDLE]
+    gdi32.SelectObject.restype = wintypes.HANDLE
+    gdi32.DeleteObject.argtypes = [wintypes.HANDLE]
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)  # physical pixels everywhere
     except Exception:
@@ -170,96 +203,119 @@ class WindowCapture:
 # ------------------------------------------------------------------------------------------------
 
 def _dim(hex_colour, k):
-    """Blend towards black (Tk has no per-item alpha)."""
+    """Blend towards black for stale or uncertain markers."""
     r, g, b = (int(hex_colour[i:i + 2], 16) for i in (1, 3, 5))
     return "#%02x%02x%02x" % (int(r * k), int(g * k), int(b * k))
 
 
-class Overlay:
-    """A click-through, always-on-top window over the dungeon map. Runs on the main thread."""
+class LayeredWindow:
+    """Native display-only surface. No toolkit ever gets an opportunity to activate it."""
 
     def __init__(self):
-        import tkinter as tk
-        self.tk = tk
-        self.root = tk.Tk()
-        self.root.withdraw()  # set no-activate styles before the first native show
-        # Tk 8.6.14 calls SetActiveWindow on its first wrapper even when withdrawn.
-        # A disabled display-only window cannot be activated; clicks still pass through.
-        self.root.attributes("-disabled", True)
-        self.root.overrideredirect(True)
-        self.root.geometry("1x1-32000-32000")
-        self.root.attributes("-topmost", True)
-        self.root.configure(bg=KEY)
-        self.root.attributes("-transparentcolor", KEY)
-        self.canvas = tk.Canvas(self.root, bg=KEY, highlightthickness=0, bd=0)
-        self.canvas.pack(fill="both", expand=True)
-        self.root.update_idletasks()
-        self.hwnd = self._click_through(self.root)
-        user32.ShowWindow(self.hwnd, 0)  # SW_HIDE
+        # WS_EX_LAYERED | TRANSPARENT | TOOLWINDOW | NOACTIVATE; WS_POPUP, initially hidden.
+        self.hwnd = user32.CreateWindowExW(0x80800a0, "STATIC", "Dungeon Maps", 0x80000000,
+                                           0, 0, 1, 1, None, None, None, None)
+        if not self.hwnd:
+            raise ctypes.WinError()
+
+    def present(self, image, x, y):
+        # UpdateLayeredWindow expects a top-down BGRA DIB with premultiplied alpha.
+        w, h = image.size
+        pixels = np.array(image, dtype=np.uint8)
+        alpha = pixels[:, :, 3:4].astype(np.uint16)
+        pixels[:, :, :3] = (pixels[:, :, :3].astype(np.uint16) * alpha // 255).astype(np.uint8)
+        raw = pixels[:, :, [2, 1, 0, 3]].tobytes()
+        header = BitmapInfoHeader(40, w, -h, 1, 32, 0, len(raw), 0, 0, 0, 0)
+        dc = gdi32.CreateCompatibleDC(None)
+        bits = ctypes.c_void_p()
+        bitmap = gdi32.CreateDIBSection(dc, ctypes.byref(header), 0, ctypes.byref(bits), None, 0)
+        if not dc or not bitmap:
+            if dc:
+                gdi32.DeleteDC(dc)
+            raise ctypes.WinError()
+        old = gdi32.SelectObject(dc, bitmap)
+        try:
+            ctypes.memmove(bits, raw, len(raw))
+            point, size, source = wintypes.POINT(round(x), round(y)), wintypes.SIZE(w, h), wintypes.POINT(0, 0)
+            blend = BlendFunction(0, 0, 255, 1)  # AC_SRC_OVER, AC_SRC_ALPHA
+            if not user32.UpdateLayeredWindow(self.hwnd, None, ctypes.byref(point), ctypes.byref(size),
+                                            dc, ctypes.byref(source), 0, ctypes.byref(blend), 2):
+                raise ctypes.WinError()
+            user32.SetWindowPos(self.hwnd, -1, 0, 0, 0, 0, 0x1 | 0x2 | 0x10 | 0x40)
+        finally:
+            gdi32.SelectObject(dc, old)
+            gdi32.DeleteObject(bitmap)
+            gdi32.DeleteDC(dc)
+
+    def close(self):
+        if self.hwnd:
+            user32.DestroyWindow(self.hwnd)
+            self.hwnd = None
+
+
+class Overlay:
+    """A click-through, never-activating Windows overlay. Runs on the main thread."""
+
+    def __init__(self):
+        self.surface = LayeredWindow()
+        self.hwnd = self.surface.hwnd
         self.shown = False
         self.geometry = None
         self.drawn = None
+        self.image = None
+        self.notices = []
+        self.fonts = {}
 
-    @staticmethod
-    def _click_through(win):
-        win.update_idletasks()
-        hwnd = user32.GetParent(win.winfo_id()) or win.winfo_id()
-        GWL_EXSTYLE = -20
-        style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-        # layered + transparent (clicks pass through) + tool window (no taskbar) + never takes focus
-        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | 0x80000 | 0x20 | 0x80 | 0x8000000)
-        return hwnd
+    def font(self, size):
+        from PIL import ImageFont
+        if size not in self.fonts:
+            path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "segoeuib.ttf")
+            try:
+                self.fonts[size] = ImageFont.truetype(path, size)
+            except OSError:
+                self.fonts[size] = ImageFont.load_default(size=size)
+        return self.fonts[size]
 
     def update(self, state):
-        """state: None (hide) or (x, y, w, h screen pixels, me, friends)."""
-        # Shown, hidden and moved with Win32 calls that never activate it: WoW keeps the keyboard.
+        """state: None (hide) or (x, y, w, h physical screen pixels, me, friends)."""
         if state is None:
             if self.shown:
-                user32.ShowWindow(self.hwnd, 0)  # SW_HIDE
+                user32.ShowWindow(self.hwnd, 0)
                 self.shown = False
             return
+        from PIL import Image, ImageDraw
         x, y, w, h, me, friends = state
         geo = (round(x), round(y), max(1, round(w)), max(1, round(h)))
-        if geo != self.geometry or not self.shown:
-            self.geometry = geo
-            # HWND_TOPMOST; SWP_NOACTIVATE | SWP_SHOWWINDOW
-            user32.SetWindowPos(self.hwnd, -1, geo[0], geo[1], geo[2], geo[3], 0x10 | 0x40)
-            self.shown = True
-        key = (round(w), round(h), repr(me), repr(friends))
-        if key == self.drawn:
-            return
-        self.drawn = key
-        c = self.canvas
-        c.delete("all")
-        for f in friends:
-            self._dot(f, w, h)
-        if me:
-            self._marker(me, w, h, "#ffd24d", "You")
+        key = (geo[2:], repr(me), repr(friends))
+        if key != self.drawn:
+            self.image = Image.new("RGBA", geo[2:], (0, 0, 0, 0))
+            self.draw = ImageDraw.Draw(self.image)
+            for friend in friends:
+                self._dot(friend, w, h)
+            if me:
+                self._marker(me, w, h, "#ffd24d", "You")
+        if key != self.drawn or geo != self.geometry or not self.shown:
+            self.surface.present(self.image, geo[0], geo[1])
+            self.geometry, self.drawn, self.shown = geo, key, True
 
     def _label(self, x, y, text, colour, w):
-        c = self.canvas
-        size = -int(max(11, 13 * w / 1002))
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)):
-            c.create_text(x + dx, y + dy, text=text, anchor="w", fill="#000001", font=("Segoe UI", size, "bold"))
-        c.create_text(x, y, text=text, anchor="w", fill=colour, font=("Segoe UI", size, "bold"))
+        size = int(max(11, 13 * w / 1002))
+        self.draw.text((x, y), text, anchor="lm", fill=colour, font=self.font(size),
+                       stroke_width=1, stroke_fill="#000000")
 
     def _dot(self, who, w, h):
-        """A friend: their class colour, black ring, name, as the addon draws group members."""
-        c = self.canvas
         d = max(9, 14 * w / 1002)
         cx, cy = who["u"] * w, who["v"] * h
         colour = who.get("color") or "#cccccc"
         if who.get("fresh") is False or who.get("guess"):
             colour = _dim(colour, 0.6)
         r = d / 2 + 2
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#000001", outline="")
+        self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill="#000000")
         r = d / 2
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, fill=colour, outline="")
+        self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=colour)
         self._label(cx + d / 2 + 5, cy, who["name"] + ("?" if who.get("guess") else ""), colour, w)
 
     def _marker(self, who, w, h, colour, label):
-        """You: the arrow, pointing where you face."""
-        c = self.canvas
         s = max(20, 26 * w / 1002) * (who.get("size") or 1)
         cx, cy = who["u"] * w, who["v"] * h
         if who.get("fresh") is False or who.get("guess"):
@@ -267,48 +323,53 @@ class Overlay:
         hd = who.get("heading")
         if hd is None:
             r = s * 0.35
-            c.create_oval(cx - r, cy - r, cx + r, cy + r, fill=colour, outline="#000000", width=2)
+            self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=colour, outline="#000000", width=2)
         else:
             a = math.radians(hd)
             ca, sa = math.cos(a), math.sin(a)
             pts = []
-            for px, py in ((0.0, -0.46), (0.38, 0.44), (0.0, 0.22), (-0.38, 0.44)):  # arrow, pointing up
+            for px, py in ((0.0, -0.46), (0.38, 0.44), (0.0, 0.22), (-0.38, 0.44)):
                 px, py = px * s, py * s
-                pts += [cx + px * ca - py * sa, cy + px * sa + py * ca]
-            c.create_polygon(pts, fill=colour, outline="#000000", width=max(2, s * 0.1), joinstyle="round")
+                pts.append((cx + px * ca - py * sa, cy + px * sa + py * ca))
+            self.draw.polygon(pts, fill=colour)
+            self.draw.line(pts + pts[:1], fill="#000000", width=max(2, round(s * 0.1)), joint="curve")
         self._label(cx + s / 2 + 3, cy, label + ("?" if who.get("guess") else ""), colour, w)
 
     def notice(self, text, seconds=6):
-        """A small note in the screen's corner for a few seconds (the tracker has no window of its own)."""
-        tk = self.tk
-        w = tk.Toplevel(self.root)
-        w.withdraw()
-        w.attributes("-disabled", True)
-        w.overrideredirect(True)
-        w.attributes("-topmost", True)
-        w.configure(bg="#1d1f24")
-        tk.Label(w, text=text, justify="left", bg="#1d1f24", fg="#f0e6c8", font=("Segoe UI", 11),
-                 padx=16, pady=12).pack()
-        w.update_idletasks()
-        w.geometry("+%d+%d" % (w.winfo_screenwidth() - w.winfo_width() - 24,
-                               w.winfo_screenheight() - w.winfo_height() - 72))
-        w.update_idletasks()
-        hwnd = self._click_through(w)
-        user32.SetWindowPos(hwnd, -1, w.winfo_x(), w.winfo_y(), w.winfo_reqwidth(),
-                            w.winfo_reqheight(), 0x10 | 0x40)
-        w.after(int(seconds * 1000), w.destroy)
+        from PIL import Image, ImageDraw
+        font = self.font(14)
+        box = ImageDraw.Draw(Image.new("RGBA", (1, 1))).multiline_textbbox((0, 0), text, font=font)
+        image = Image.new("RGBA", (box[2] - box[0] + 32, box[3] - box[1] + 24), "#1d1f24")
+        ImageDraw.Draw(image).multiline_text((16 - box[0], 12 - box[1]), text, font=font, fill="#f0e6c8")
+        surface = LayeredWindow()
+        surface.present(image, user32.GetSystemMetrics(0) - image.width - 24,
+                        user32.GetSystemMetrics(1) - image.height - 72)
+        self.notices.append((time.monotonic() + seconds, surface))
+
+    def pump(self):
+        msg = wintypes.MSG()
+        while user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
+        for deadline, surface in self.notices[:]:
+            if time.monotonic() >= deadline:
+                surface.close()
+                self.notices.remove((deadline, surface))
+
+    def close(self):
+        for _, surface in self.notices:
+            surface.close()
+        self.notices.clear()
+        self.surface.close()
 
     def run(self, get_state, should_quit=lambda: False):
-        def tick():
-            if should_quit():
-                self.root.destroy()
-                return
-            try:
+        try:
+            while not should_quit():
                 self.update(get_state())
-            finally:
-                self.root.after(4, tick)  # ~250 checks a second: hides the moment the map closes
-        tick()
-        self.root.mainloop()
+                self.pump()
+                time.sleep(0.004)
+        finally:
+            self.close()
 
 
 # ------------------------------------------------------------------------------------------------
