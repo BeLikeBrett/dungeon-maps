@@ -117,3 +117,14 @@
 - Current live repair runs with screenshot capture, stable and user-confirmed. Next manual launch
   may ask once for portal capture; failures won't ask again. No OS startup entries added.
 - Preparing v1.0.2 with the shared cache fix for Windows too; Windows uses no Linux portal/picker.
+
+## v1.0.2 verified (2026-11-20)
+- Release CI 44783249166 passed Linux tests, the new cache/portal regression, and the rebuilt Windows
+  executable integration test. Published v1.0.2 with all three assets and all 17 bundled maps.
+- Local full tracking pipeline passes. Duplicate `start` calls kept the same live overlay/worker;
+  duplicate direct capture exited 73 without a picker. Live worker stayed stable beyond eight minutes,
+  and Brett confirmed the arrow is showing. Current run is deliberately in screenshot fallback mode.
+- Existing Faugus pre/post hooks remain the launch mechanism. Normal next launch can request portal
+  selection once; failure/recovery never requests it again automatically. No OS autostart was added.
+- Windows capture, permission, overlay, tray Close, single instance and shutdown tests pass again.
+  The Linux portal UI loop has no Windows equivalent; the shared map-cache fix protects both.

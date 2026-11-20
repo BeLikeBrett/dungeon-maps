@@ -104,3 +104,8 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   Linux Python capture also holds an advisory owner lock. Keep those guards in both launch paths.
 - Current live tracker was started with DUNGEONMAPS_CAPTURE=screenshots to end the popup loop without
   another picker. Brett confirmed the arrow displays. Old pre-rename tracker was stopped by exact PID.
+- Current fix release is **v1.0.2**, commit 05e1381; release CI 44783249166 green, including Windows
+  executable checks and corrupt-cache/atomic-write/no-reprompt regressions. Keep bundled maps.
+- Do not restart the currently working Linux capture into portal mode while Brett is playing.
+  It uses screenshot fallback and was user-confirmed live. Normal game-launch hooks remain enabled;
+  next normal app launch may ask once. No repeated permission dialogs on automatic recovery.
