@@ -29,7 +29,6 @@ def main():
     result = {"platform": sys.getwindowsversion().build}
     root = tk.Tk()
     root.title("World of Warcraft")
-    root.overrideredirect(True)
     root.geometry("1100x700+40+30")
     label = tk.Label(root, bd=0, highlightthickness=0)
     label.pack()
@@ -160,8 +159,7 @@ def main():
             elapsed = time.monotonic() - closed
             assert first.returncode == 0 and "WoW closed: tracker closing" in log.read_text(), log.read_text()
             result["exe_exit_seconds_after_window_closed"] = round(elapsed, 2)
-            if result.get("wgc_capture_decode") is True:
-                assert 2.5 <= elapsed < 6, elapsed
+            assert 2.5 <= elapsed < 4.5, elapsed
             result["exe_log"] = log.read_text()
         finally:
             for process in processes:

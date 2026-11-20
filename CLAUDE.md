@@ -61,3 +61,6 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Supersedes the Tk notes above: Tk 8.6.15 still activated its withdrawn/disabled wrapper on CI.
   Windows now uses a native `WS_EX_NOACTIVATE` layered window from creation, with Pillow rendering
   and `UpdateLayeredWindow` (premultiplied BGRA). There is no Tk dependency in the shipped tracker.
+- Windows lifetime checks run independently of capture retry scheduling; do not block the worker
+  for 5-second retries or the required 3-second exit is delayed. The executable integration check
+  enforces the exit deadline even on systems where WGC cannot capture.

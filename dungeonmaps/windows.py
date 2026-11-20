@@ -434,35 +434,50 @@ class WindowsTracker:
     def worker(self):
         last = None
         started = time.monotonic()
+        gone_at = None
+        retry_at = 0.0
         while True:
-            if self.cap.finished():
-                self.cap.stop()
+            now = time.monotonic()
+            hwnd = find_wow()
+            if not hwnd:
                 self.state = None
-                self.hwnd = find_wow()
-                if not self.hwnd:
-                    if not self.seen_wow and time.monotonic() - started > GIVE_UP_WAITING:
-                        info("WoW didn't open: tracker closing")
+                if self.hwnd:
+                    self.cap.stop()
+                    self.hwnd = None
+                if not self.seen_wow and now - started >= GIVE_UP_WAITING:
+                    info("WoW didn't open: tracker closing")
+                    self.quit = True
+                    return
+                if self.seen_wow:
+                    if gone_at is None:
+                        gone_at = now
+                    if now - gone_at >= EXIT_AFTER_WOW:
+                        info("WoW closed: tracker closing")
                         self.quit = True
                         return
-                    if self.seen_wow:
-                        gone = time.monotonic()
-                        while not find_wow() and time.monotonic() - gone < EXIT_AFTER_WOW:
-                            time.sleep(0.5)
-                        if not find_wow():
-                            info("WoW closed: tracker closing")
-                            self.quit = True
-                            return
-                    time.sleep(2)
+                time.sleep(0.1)
+                continue
+            gone_at = None
+            self.seen_wow = True
+            if hwnd != self.hwnd:
+                self.cap.stop()
+                self.state = None
+                self.hwnd = hwnd
+                retry_at = 0.0
+            if self.cap.finished():
+                self.state = None
+                if now < retry_at:
+                    time.sleep(0.1)
                     continue
-                self.seen_wow = True
+                self.cap.stop()
                 try:
                     self.cap.start(self.hwnd)
                     info("capturing World of Warcraft")
                 except Exception as e:
                     info("can't capture the WoW window (%s); retrying" % e)
-                    time.sleep(5)
+                    retry_at = time.monotonic() + 5
                     continue
-            if not self.cap.new.wait(0.5):
+            if not self.cap.new.wait(0.1):
                 continue
             self.cap.new.clear()
             fr = self.cap.frame

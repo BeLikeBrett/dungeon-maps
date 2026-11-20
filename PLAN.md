@@ -48,3 +48,11 @@
   HaloOS (confirmed on tty2), not Windows. Stopped the guest. No usable local Windows guest found;
   native Windows on sdb3 requires Brett to reboot. Added Windows-runner integration checks with a
   synthetic game window and the built exe; these report unsupported capture separately.
+- Native Windows overlay passes the no-focus smoke test. Built-exe checks on Windows build 26100,
+  96 DPI verified single instance and synthetic beacon placement (2/3-pixel cells). Initial WGC on
+  the borderless fake window was unavailable; retrying with a normal decorated test window.
+- Found and fixed a shutdown timing bug: capture retry sleeps could postpone exit to 7.39 seconds.
+  Window lifetime is now checked independently every 0.1 seconds, including during capture retries.
+- Brett has not restarted WoW yet and asked to continue release work. He confirmed the intended
+  display: own arrow, everyone else dots. Explained the possible duplicate room-estimate/exact dot;
+  no coarse-dot behavior change selected. Check duplication during the live test.
