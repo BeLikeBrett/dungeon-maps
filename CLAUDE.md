@@ -109,3 +109,24 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Do not restart the currently working Linux capture into portal mode while Brett is playing.
   It uses screenshot fallback and was user-confirmed live. Normal game-launch hooks remain enabled;
   next normal app launch may ask once. No repeated permission dialogs on automatic recovery.
+
+## v1.0.3 notes (2026-11-20, Claude); these supersede the WGC-only notes above
+- **Capture choice (Windows):**
+  - WGC only when `request_borderless()` returns True.
+  - Otherwise `ScreenCapture` (DXGI duplication, windows-capture 2.0.1: 1-based EnumDisplayMonitors
+    index, checked against the monitor size) reads the screen only while WoW is foreground. In that
+    mode only, the overlay gets WDA_EXCLUDEFROMCAPTURE.
+  - Brett wanted the yellow border gone, so "never visible-screen capture" no longer holds.
+  - `DUNGEONMAPS_CAPTURE=window|screen` forces a mode.
+- **Taint:** add-on code must not call `WorldMapFrame:SetMapID` or toggle the world map in combat.
+  Use `toggleWorldMap()`.
+- **Beacon garbage:** `beaconCells()` reuses `beaconBits` / `beaconOut`. Don't allocate tables per update.
+- **Friends:**
+  - The add-on skips its coarse dot for teammates whose group message has the `L` (live) flag.
+  - The overlay's `_layout` handles gliding, the ring around your arrow, and label side.
+- **Server logs:** `ssh -p 2222 brett@192.168.0.108 'ls ~/dungeonmaps-relay/logs/'`. One file per install
+  per UTC day; each batch starts with a `===` header (time, name, version, OS, country), and a
+  `stats {...}` line shows frames, ms, minimap_read, facing_read, fix, capture and relay. Read them
+  when Brett reports a problem.
+- **Updates:** a release's exe and add-on reach Windows users on their next exe start
+  (`update.py`). Bump both version strings, or the add-on won't update.

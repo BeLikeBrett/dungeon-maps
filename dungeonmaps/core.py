@@ -11,6 +11,7 @@ All coordinates here are window pixels (the beacon's top-left = the window's top
 
 import math
 import threading
+import time
 
 from .data import MAP_H, MAP_W, MINIMAP_DIAMETER, Data
 from .facing import Facing
@@ -19,6 +20,11 @@ from .position import ParticleFilter
 from .walkmap import WalkMaps
 
 STALE_AFTER = 3.0   # seconds without a good minimap frame: your arrow fades
+# Marker sizes in pixels of the 1002-pixel-wide map (both overlays scale them to the canvas)
+ARROW_BASE, ARROW_MIN = 26, 20   # your arrow (times the add-on's "Your arrow size")
+DOT_BASE, DOT_MIN = 13, 10       # a friend's dot
+GLIDE = 0.08        # seconds: friends' dots glide between relay updates (about 15 a second)
+SNAP = 30           # map pixels: a bigger jump (a new spot, a new floor) is drawn at once
 SHARE_EVERY = 1 / 15  # seconds between position messages to the group
 
 
@@ -56,12 +62,25 @@ class Core:
         self.last_share = -math.inf
         self.name = ""
         self.colour = "#cccccc"
+        self.shown_friends = {}    # name -> [u, v, time drawn]: where each friend's dot is drawn
+        self.counts = {"frames": 0, "minimap_read": 0, "facing_read": 0, "ms": 0.0, "ms_max": 0.0}
 
     # -- per frame -----------------------------------------------------------------------------------
 
     def frame(self, b, crop, now, full_crop=None):
         """b: the decoded beacon; crop(rect) -> RGB array or None, for rectangles in beacon pixels.
         full_crop: the same for rectangles anywhere in the window (None when only crop exists)."""
+        t0 = time.perf_counter()
+        try:
+            self._frame(b, crop, now, full_crop)
+        finally:
+            ms = (time.perf_counter() - t0) * 1000
+            c = self.counts
+            c["frames"] += 1
+            c["ms"] += ms
+            c["ms_max"] = max(c["ms_max"], ms)
+
+    def _frame(self, b, crop, now, full_crop):
         f = b.fields
         self.fields, self.beacon = f, b
         self.name = b.name
@@ -86,6 +105,7 @@ class Core:
     def _minimap(self, img, mm, f, now):
         delta = self.odo.step(img)
         if delta is not None:
+            self.counts["minimap_read"] += 1
             self.last_good = now
             radius = f["radius4"] / 4
             if not radius:
@@ -101,6 +121,7 @@ class Core:
                 self.track.pop(0)
         h = self.facing.read_minimap(img, now)
         if h is not None:
+            self.counts["facing_read"] += 1
             self.heading_mm = h
         else:
             a = _travel_dir(self.track, now, 0.5)
@@ -148,6 +169,22 @@ class Core:
             sh.send({"d": key, "f": pf.floor, "u": round(float(u), 4), "v": round(float(v), 4),
                      "c": self.colour, "g": pf.source == "found by walking",
                      "ok": now - self.last_good < STALE_AFTER})
+
+    def stats(self, extra=None):
+        """A summary since the last call (sent with the logs, about once a minute)."""
+        c, n = self.counts, max(1, self.counts["frames"])
+        f, pf = self.fields or {}, self.pf
+        out = {"frames": c["frames"], "ms_avg": round(c["ms"] / n, 1), "ms_max": round(c["ms_max"], 1),
+               "minimap_read": round(c["minimap_read"] / n, 2), "facing_read": round(c["facing_read"] / n, 2),
+               "dungeon": self.data.dungeons[pf.dungeon - 1]["key"] if pf.dungeon else None,
+               "floor": pf.floor if pf.dungeon else None, "found": bool(pf.found),
+               "fix": pf.source if pf.found else None, "map_open": bool(f.get("map_open")),
+               "beacon": f.get("version"), "grouped": bool(f.get("group")),
+               "relay": None if self.share is None else bool(self.share.connected),
+               "friends": len(self.shown_friends)}
+        out.update(extra or {})
+        self.counts = {"frames": 0, "minimap_read": 0, "facing_read": 0, "ms": 0.0, "ms_max": 0.0}
+        return out
 
     # -- what to draw --------------------------------------------------------------------------------
 
@@ -197,7 +234,52 @@ class Core:
                         c = "#cccccc"
                     friends.append({"name": name[:24], "u": s["u"], "v": s["v"], "color": c,
                                     "fresh": bool(s.get("ok", True)), "guess": bool(s.get("g"))})
+        friends = self._layout(me, friends, cv[2], cv[3], now)
         if me is None and not friends:
             return None
         return {"canvas": cv, "me": me, "friends": friends}
+
+    def _layout(self, me, friends, w, h, now):
+        """Where friends' dots are drawn: gliding between relay updates, never under your arrow, and
+        with the name on the side away from you ("label": "above" or "below")."""
+        k = w / MAP_W
+        seen = set()
+        for f in friends:
+            seen.add(f["name"])
+            d = self.shown_friends.get(f["name"])
+            if d is None or math.hypot((f["u"] - d[0]) * MAP_W, (f["v"] - d[1]) * MAP_H) > SNAP:
+                d = self.shown_friends[f["name"]] = [f["u"], f["v"], now]
+            else:
+                a = 1 - math.exp(-max(0.0, now - d[2]) / GLIDE)
+                d[0] += (f["u"] - d[0]) * a
+                d[1] += (f["v"] - d[1]) * a
+                d[2] = now
+            f["u"], f["v"] = d[0], d[1]
+        for name in list(self.shown_friends):
+            if name not in seen:
+                del self.shown_friends[name]
+        if me is not None:
+            # friends standing on you go on a ring around your arrow, so both stay visible
+            arrow = max(ARROW_MIN, ARROW_BASE * k) * (me.get("size") or 1)
+            dot = max(DOT_MIN, DOT_BASE * k)
+            ring = arrow * 0.6 + dot / 2 + 2
+            mx, my = me["u"] * w, me["v"] * h
+            close = []
+            for f in friends:
+                dx, dy = f["u"] * w - mx, f["v"] * h - my
+                if math.hypot(dx, dy) < ring:
+                    a = math.atan2(dy, dx) if math.hypot(dx, dy) > 1 else math.pi / 4
+                    close.append([a, f])
+            close.sort(key=lambda c: c[0])
+            gap = (dot + 4) / ring   # radians between neighbours on the ring
+            for i in range(1, len(close)):
+                close[i][0] = max(close[i][0], close[i - 1][0] + gap)
+            for a, f in close:
+                f["u"], f["v"] = (mx + ring * math.cos(a)) / w, (my + ring * math.sin(a)) / h
+            for f in friends:
+                f["label"] = "below" if f["v"] > me["v"] else "above"
+        for f in friends:
+            f["u"], f["v"] = round(f["u"], 4), round(f["v"], 4)
+            f.setdefault("label", "above")
+        return friends
 

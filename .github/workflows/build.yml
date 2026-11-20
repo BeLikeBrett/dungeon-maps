@@ -27,6 +27,9 @@ jobs:
       - run: python tests/test_odometry.py
       - run: python tests/test_facing.py
       - run: python tests/test_pipeline.py
+      - run: python tests/test_update.py
+      - run: python tests/test_telemetry.py
+      - run: python tests/test_layout.py
 
   windows:
     runs-on: windows-latest

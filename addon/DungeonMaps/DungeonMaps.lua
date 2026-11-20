@@ -269,7 +269,9 @@ end
 
 ---------------------------------------------------------------------------------------------------
 -- Group messages: rooms of teammates (same format as Forever Dungeon Routes)
---   P <key> <room>   I am in this dungeon, in this room (English name; empty: none)
+--   P <key> <room> [L]   I am in this dungeon, in this room (English name; empty: none);
+--                        L: my live tracker mode is on (the Dungeons Maps tracker draws me exactly,
+--                        so the others don't draw a rough room dot for me; FDR ignores the extra field)
 --   W                where are you? (answered with P)
 ---------------------------------------------------------------------------------------------------
 
@@ -293,7 +295,7 @@ local function myState()
 	local d = findDungeon()
 	if not d then return "P\t\t" end
 	local room = roomNamed(d.key, subzone())
-	return "P\t" .. d.key .. "\t" .. (room and room.name or "")
+	return "P\t" .. d.key .. "\t" .. (room and room.name or "") .. (DungeonMapsDB.live ~= false and "\tL" or "")
 end
 
 local function sendState(force)
@@ -326,7 +328,7 @@ local function onAddonMessage(prefix, text, sender)
 	for field in (text .. "\t"):gmatch("([^\t]*)\t") do f[#f + 1] = field end
 	if f[1] == "P" then
 		if f[2] and byKey[f[2]] then
-			members[sender] = { key = f[2], room = f[3] ~= "" and f[3] or nil }
+			members[sender] = { key = f[2], room = f[3] ~= "" and f[3] or nil, live = f[4] == "L" }
 		else
 			members[sender] = nil
 		end
@@ -335,17 +337,21 @@ local function onAddonMessage(prefix, text, sender)
 	end
 end
 
--- Teammates' rooms in this dungeon: [short name] = room or false (no named room right now).
+-- Teammates' rooms in this dungeon: [short name] = room or false (no named room right now), and
+-- which of them are in live mode (their exact spot comes from the tracker, not from here).
 local function groupRooms()
-	local out = {}
-	if not dungeon then return out end
+	local out, live = {}, {}
+	if not dungeon then return out, live end
 	for sender, m in pairs(members) do
 		if m.key == dungeon.key then
 			local n = shortName(sender)
-			if n then out[n] = roomNamed(dungeon.key, m.room) or false end
+			if n then
+				out[n] = roomNamed(dungeon.key, m.room) or false
+				live[n] = m.live or nil
+			end
 		end
 	end
-	return out
+	return out, live
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -407,7 +413,7 @@ local function locatePeople()
 	people[1] = { name = me, unit = "player", r = 1, g = 0.82, b = 0.3, me = true, spot = mine,
 		how = mine and mine.how or "unknown", place = mine and mine.place, fresh = mine and mine.fresh,
 		room = mine and mine.room }
-	local rooms = groupRooms()
+	local rooms, live = groupRooms()
 	for _, unit in ipairs(groupUnits()) do
 		if UnitExists(unit) and not plain(UnitIsUnit(unit, "player")) then
 			local name = shortName(plain(UnitName(unit))) or "?"
@@ -419,7 +425,10 @@ local function locatePeople()
 			p.status = online == false and "offline" or dead and "dead" or nil
 			local near28 = plain(call(CheckInteractDistance, unit, 4))
 			local near40 = plain(call(UnitInRange, unit))
-			if room and now then
+			if live[name] and DungeonMapsDB.live ~= false then
+				-- live on the tracker: the tracker's overlay draws them exactly (no second, rough dot)
+				p.how, p.place, p.fresh = "live", room and room.name, true
+			elseif room and now then
 				local floor, u, v = roomPoint(room, shown)
 				if floor then p.spot = { floor = floor, u = u, v = v } end
 				p.how, p.place, p.fresh = "room", room.name, true
@@ -644,6 +653,7 @@ local function legendDetail(p)
 		return "live arrow (right-click the map where you stand to set it)"
 	end
 	if p.how == "unknown" then return p.me and "not placed yet" or "far away" end
+	if p.how == "live" then return "live on the tracker" .. (p.place and (", " .. p.place) or "") end
 	local text = p.place or "?"
 	if p.how == "landmark" then text = (p.fresh and "at " or "last seen at ") .. text end
 	if p.how == "lastroom" then text = "last: " .. text end
@@ -836,14 +846,25 @@ local function nextWing()
 	end
 end
 
--- The world map on the zone around the dungeon's entrance; Blizzard's map zooms out from there.
-local function openWorldMap()
-	if map then map:Hide() end
-	if not (WorldMapFrame and WorldMapFrame:IsShown()) then ToggleWorldMap() end
-	local zone = dungeon and ns.Zone[dungeon.key]
-	if zone and WorldMapFrame and WorldMapFrame.SetMapID then
-		pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone.map)
+-- Blizzard's world map, opened or closed from add-on code only out of combat. (Add-on code touching
+-- the world map -- above all WorldMapFrame:SetMapID -- taints it, and WoW then blocks the map's own
+-- protected updates in combat: "Interface actions failed because of this AddOn".)
+local function toggleWorldMap()
+	if InCombatLockdown() then
+		say("the world map can't be switched from here in combat; it works again after the fight.")
+		return false
 	end
+	ToggleWorldMap()
+	return true
+end
+
+-- The normal world map (Blizzard's map picks the zone itself; "Dungeon Map" on it brings you back).
+local function openWorldMap()
+	if WorldMapFrame and WorldMapFrame:IsShown() then
+		if map then map:Hide() end
+		return
+	end
+	if toggleWorldMap() and map then map:Hide() end
 end
 
 local openMap -- (below)
@@ -857,7 +878,7 @@ local function buildBackButton()
 	backButton:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMLEFT", 16, 16)
 	backButton:SetFrameStrata("FULLSCREEN_DIALOG")
 	backButton:SetScript("OnClick", function()
-		if WorldMapFrame:IsShown() then ToggleWorldMap() end
+		if WorldMapFrame:IsShown() then toggleWorldMap() end
 		openMap()
 	end)
 	local function sync() backButton:SetShown(inDungeon() and findDungeon() ~= nil) end
@@ -927,7 +948,7 @@ local function buildMap()
 	world:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
 		GameTooltip:SetText("World Map")
-		GameTooltip:AddLine("Opens the normal map on this dungeon's zone. Zoom out from there; \"Dungeon Map\" brings you back.", 1, 1, 1, true)
+		GameTooltip:AddLine("Opens the normal world map. \"Dungeon Map\" on it brings you back. (Not in combat.)", 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	world:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1025,10 +1046,10 @@ openMap = function()
 	local d = findDungeon()
 	if not d then
 		say("no map for this instance; opening the world map.")
-		ToggleWorldMap()
+		toggleWorldMap()
 		return
 	end
-	if WorldMapFrame and WorldMapFrame:IsShown() then ToggleWorldMap() end
+	if WorldMapFrame and WorldMapFrame:IsShown() and not InCombatLockdown() then ToggleWorldMap() end
 	if not map then buildMap() end
 	map:Show()
 	setDungeon(d)
@@ -1103,9 +1124,14 @@ local function groupKey()
 	return h
 end
 
+-- (reused on every update: the beacon is redrawn ~33 times a second, so fresh tables would churn
+-- hundreds of KB of garbage a second)
+local beaconBits, beaconOut = {}, {}
+
 local function beaconCells()
 	local d = inDungeon() and findDungeon() or nil
-	local bits = {}
+	local bits = beaconBits
+	for i = #bits, 1, -1 do bits[i] = nil end
 	local open = map and map:IsShown() and dungeon == d
 	-- indoors: the minimap's zoom differs from the outdoor zoom setting (HereBeDragons' test)
 	local zoom = plain(Minimap:GetZoom()) or 0
@@ -1138,8 +1164,11 @@ local function beaconCells()
 	end
 	pushBits(bits, roomIndex, 7)
 	local bx, by = pixelRect(beacon)
-	for _, frame in ipairs({ Minimap, open and map.canvas or nil }) do
-		local x, y, w, h = pixelRect(frame)
+	-- the minimap's rectangle, then the dungeon map canvas's (zeros when it isn't open)
+	for k = 1, 2 do
+		local frame = k == 1 and Minimap or (open and map and map.canvas) or nil
+		local x, y, w, h
+		if frame then x, y, w, h = pixelRect(frame) end
 		if x and bx then
 			pushBits(bits, x - bx + 4096, 13)
 			pushBits(bits, y - by + 4096, 13)
@@ -1148,10 +1177,6 @@ local function beaconCells()
 		else
 			for _ = 1, 50 do bits[#bits + 1] = 0 end
 		end
-	end
-	if not (map and open) then
-		-- (the loop above stops at the nil canvas: pad its 50 bits)
-		for _ = 1, 50 do bits[#bits + 1] = 0 end
 	end
 	-- v2: the party (so trackers in the same group find each other) and who you are (their labels)
 	pushBits(bits, groupKey(), 32)
@@ -1166,14 +1191,14 @@ local function beaconCells()
 	pushBits(bits, r * 31, 5)
 	pushBits(bits, g * 31, 5)
 	pushBits(bits, b * 31, 5)
-	local cells, sum = {}, 0
+	local cells, sum = beaconOut, 0
 	for c = 1, BEACON_CELLS - #HEADER - 1 do
 		local v = 0
 		for b = 1, 9 do v = v * 2 + (bits[(c - 1) * 9 + b] or 0) end
 		cells[c] = v
 		sum = sum + v
 	end
-	cells[#cells + 1] = sum % 512
+	cells[BEACON_CELLS - #HEADER] = sum % 512
 	return cells, d ~= nil
 end
 
@@ -1266,7 +1291,7 @@ local function applyBindings()
 	end
 	bindingsPending = false
 	ClearOverrideBindings(events)
-	if not inDungeon() then return end
+	if not (inDungeon() and findDungeon()) then return end
 	for _, key in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do
 		SetOverrideBinding(events, true, key, "DUNGEONMAPS_TOGGLE")
 	end
@@ -1278,7 +1303,7 @@ function DungeonMaps_Toggle()
 	elseif inDungeon() then
 		openMap()
 	else
-		ToggleWorldMap()
+		toggleWorldMap()
 	end
 end
 

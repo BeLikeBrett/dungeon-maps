@@ -182,10 +182,42 @@ def main():
             Image.fromarray(fr.crop(0, 0, fr.w, fr.rows.shape[0])).save("windows-capture.png")
         cap.stop()
 
+    # Screen capture (DXGI desktop duplication): the no-border mode for Windows 10 / denied
+    # borderless permission. Same decode and placement as window capture, only while foreground.
+    windows.user32.SetForegroundWindow(hwnd)
+    screen = windows.ScreenCapture()
+    try:
+        screen.start(hwnd)
+        until = time.monotonic() + 10
+        decoded = None
+        while time.monotonic() < until:
+            paint(3)
+            fr = screen.frame
+            if fr:
+                decoded = beacon.find(fr.crop(0, 0, fr.w, 160))
+                if decoded:
+                    tracker.process(fr, time.monotonic())
+                    break
+            time.sleep(0.05)
+        assert decoded and tracker.state, "screen capture produced no decodable synthetic frame"
+        client = wintypes.POINT(0, 0)
+        windows.user32.ClientToScreen(hwnd, ctypes.byref(client))
+        expected = (client.x + 100, client.y + 200, 700, 420)
+        assert all(abs(a - b) <= 1 for a, b in zip(tracker.state[:4], expected)), (tracker.state, expected)
+        result["screen_capture_decode_and_alignment"] = True
+    except Exception as error:
+        result["screen_capture_decode_and_alignment"] = str(error)
+        if "--allow-no-capture" not in sys.argv:
+            raise
+        print("UNVERIFIED screen capture:", error, flush=True)
+    finally:
+        result["screen_frame_count"] = screen.serial
+        screen.stop()
+
     # Exercise the actual one-file executable, including its bootloader and named mutex.
     processes = []
     with tempfile.TemporaryDirectory(prefix="dungeonmaps-test-") as state:
-        env = dict(os.environ, LOCALAPPDATA=state, DUNGEONMAPS_RELAY="off")
+        env = dict(os.environ, LOCALAPPDATA=state, DUNGEONMAPS_RELAY="off", DUNGEONMAPS_UPDATE="off")
         log = Path(state) / "DungeonMaps" / "state" / "tracker.log"
         try:
             consent_answer = 7

@@ -94,11 +94,13 @@ ShellRoot {
             border.color: "#000000"
             border.width: 2
         }
+        // (no "You" label: the gold arrow is you; "?" while the spot is only a guess)
         Text {
+            visible: m.who.guess === true
             anchors.left: parent.right
-            anchors.leftMargin: 3
+            anchors.leftMargin: 2
             anchors.verticalCenter: parent.verticalCenter
-            text: m.label + (m.who.guess === true ? "?" : "")
+            text: "?"
             color: m.fill
             font.pixelSize: Math.max(12, 13 * m.mapW / 1002)
             font.bold: true
@@ -107,14 +109,15 @@ ShellRoot {
         }
     }
 
-    // a friend: a dot in their class colour with a black ring and their name, as the addon draws
-    // group members (14 map pixels across, on the 1002-pixel-wide map)
+    // a friend: a dot in their class colour (black ring, light rim, like a raid blip) with their name
+    // in a small dark tag above or below it, on the side away from your arrow (core.py lays this out)
     component FriendDot: Item {
         id: fd
         required property var who
         required property real mapW
         required property real mapH
-        readonly property real d: Math.max(9, 14 * mapW / 1002)
+        readonly property real d: Math.max(10, 13 * mapW / 1002)
+        readonly property color c: who.color || "#cccccc"
         width: d
         height: d
         x: who.u * mapW - width / 2
@@ -122,28 +125,42 @@ ShellRoot {
         opacity: who.fresh === false || who.guess === true ? 0.55 : 1
         Rectangle {
             anchors.centerIn: parent
-            width: fd.d + 4
+            width: fd.d + 6
             height: width
             radius: width / 2
-            color: "#000000"
+            color: "#e8ffffff"
             Rectangle {
                 anchors.centerIn: parent
-                width: fd.d
+                width: fd.d + 3
                 height: width
                 radius: width / 2
-                color: fd.who.color || "#cccccc"
+                color: "#000000"
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: fd.d
+                    height: width
+                    radius: width / 2
+                    color: fd.c
+                }
             }
         }
-        Text {
-            anchors.left: parent.right
-            anchors.leftMargin: 3
-            anchors.verticalCenter: parent.verticalCenter
-            text: fd.who.name + (fd.who.guess === true ? "?" : "")
-            color: fd.who.color || "#cccccc"
-            font.pixelSize: Math.max(11, 13 * fd.mapW / 1002)
-            font.bold: true
-            style: Text.Outline
-            styleColor: "#000000"
+        Rectangle {
+            id: tag
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: fd.who.label === "below" ? fd.d + 5 : -height - 5
+            width: name.implicitWidth + 10
+            height: name.implicitHeight + 2
+            radius: height / 2
+            color: "#b3101010"
+            border.color: "#40000000"
+            Text {
+                id: name
+                anchors.centerIn: parent
+                text: fd.who.name + (fd.who.guess === true ? "?" : "")
+                color: fd.c
+                font.pixelSize: Math.max(11, 12 * fd.mapW / 1002)
+                font.bold: true
+            }
         }
     }
 

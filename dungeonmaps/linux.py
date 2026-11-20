@@ -22,7 +22,8 @@ import time
 
 import numpy as np
 
-from . import beacon
+from . import __version__, beacon
+from . import telemetry as tele
 from .core import Core
 from .data import user_dir
 from .share import Share
@@ -37,6 +38,7 @@ DEBUG = "--debug" in sys.argv
 
 
 def info(*a):
+    tele.telemetry.record(" ".join(str(x) for x in a))
     print(*a, file=sys.stderr, flush=True)
     try:  # also kept in a file (the overlay swallows stderr into its own log)
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
@@ -639,6 +641,15 @@ class LinuxTracker:
                 time.sleep(max(0.0, SCREEN_FRAME - (time.monotonic() - now)) if self.screen else 0.25)
 
 
+def start_telemetry(tracker):
+    """Logs and a stats line a minute to the relay (see telemetry.py); off with DUNGEONMAPS_LOGS=off."""
+    t = tele.setup()
+    t.name = lambda: tracker.core.name
+    t.stats = lambda: tracker.core.stats({"capture": "portal" if tracker.portal else "screenshots"})
+    t.start()
+    return t
+
+
 def main():
     import fcntl
     # One capture owner even when started manually or while a launcher hook is also firing.
@@ -650,10 +661,15 @@ def main():
     except BlockingIOError:
         owner.close()
         raise SystemExit(73)
+    tracker = LinuxTracker(use_portal="--screenshots" not in sys.argv and os.environ.get("DUNGEONMAPS_CAPTURE") != "screenshots",
+                           share="--no-share" not in sys.argv)
+    t = start_telemetry(tracker)
+    info("Dungeon Maps tracker %s started (%s)" % (__version__, tele.system()))
     try:
-        LinuxTracker(use_portal="--screenshots" not in sys.argv and os.environ.get("DUNGEONMAPS_CAPTURE") != "screenshots",
-                     share="--no-share" not in sys.argv).run()
+        tracker.run()
     except KeyboardInterrupt:
         pass
     finally:
+        info("tracker stopped")
+        t.flush(timeout=3)
         owner.close()

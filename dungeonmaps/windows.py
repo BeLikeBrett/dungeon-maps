@@ -24,7 +24,8 @@ import time
 
 import numpy as np
 
-from . import beacon
+from . import __version__, beacon
+from . import telemetry as tele
 from .core import Core
 from .data import user_dir
 from .share import Share
@@ -35,6 +36,7 @@ LOG_FILE = os.path.join(user_dir("state"), "tracker.log")
 
 
 def info(*a):
+    tele.telemetry.record(" ".join(str(x) for x in a))
     try:
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
         with open(LOG_FILE, "a", encoding="utf-8") as fh:
@@ -249,6 +251,138 @@ class WindowCapture:
         self.frame = None
 
 
+def window_rect(hwnd):
+    """The window's DWM frame bounds on the screen (what window capture delivers), physical pixels."""
+    r = wintypes.RECT()
+    if dwmapi.DwmGetWindowAttribute(hwnd, 9, ctypes.byref(r), ctypes.sizeof(r)) != 0:
+        user32.GetWindowRect(hwnd, ctypes.byref(r))
+    return r.left, r.top, r.right, r.bottom
+
+
+def monitors():
+    """[(HMONITOR, (left, top, right, bottom))] in EnumDisplayMonitors order (windows-capture's
+    monitor numbering, from 1)."""
+    out = []
+    proc_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
+                                   ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
+
+    def found(handle, _dc, rect, _data):
+        r = rect.contents
+        out.append((handle, (r.left, r.top, r.right, r.bottom)))
+        return True
+    user32.EnumDisplayMonitors(None, None, proc_type(found), 0)
+    return out
+
+
+class ScreenCapture:
+    """WoW's window cut out of its monitor's picture (DXGI desktop duplication, what screen
+    recorders use): Windows draws no yellow border and asks no permission, but only sees the game
+    while it is actually on screen, so frames are taken only while WoW is the foreground window.
+    Used when Windows won't capture the window without its border (Windows 10 and older 11 builds,
+    or the Screenshot borders permission off). Same interface as WindowCapture."""
+
+    def __init__(self):
+        self.frame = None
+        self.full = None
+        self.serial = 0
+        self.top = 400
+        self.want_full = False
+        self.new = threading.Event()
+        self.closed = False
+        self.thread = None
+        self.running = False
+
+    def start(self, hwnd):
+        from windows_capture import DxgiDuplicationSession  # windows-capture 2.0.x
+        user32.MonitorFromWindow.restype = wintypes.HMONITOR
+        mon = user32.MonitorFromWindow(hwnd, 2)  # MONITOR_DEFAULTTONEAREST
+        mons = monitors()
+        order = [i for i, (h, _) in enumerate(mons) if h == mon] + list(range(len(mons)))
+        session, rect = None, None
+        for i in dict.fromkeys(order):   # the window's monitor first; check the numbering by size
+            try:
+                candidate = DxgiDuplicationSession(i + 1)
+                fr = None
+                until = time.monotonic() + 0.5
+                while fr is None and time.monotonic() < until:
+                    fr = candidate.acquire_frame(50)
+            except Exception as e:
+                info("desktop duplication on monitor %d unavailable: %r" % (i + 1, e))
+                continue
+            l, t, r, b = mons[i][1]
+            if fr is None or (fr.width, fr.height) == (r - l, b - t):
+                session, rect = candidate, mons[i][1]
+                if mons[i][0] == mon:
+                    break
+        if session is None:
+            raise RuntimeError("desktop duplication unavailable")
+        self.closed, self.running = False, True
+        self.thread = threading.Thread(target=self._run, args=(hwnd, session, rect), daemon=True)
+        self.thread.start()
+
+    def _run(self, hwnd, session, mon):
+        errors, last = 0, 0.0
+        while self.running:
+            if user32.GetForegroundWindow() != hwnd or user32.IsIconic(hwnd):
+                time.sleep(0.05)   # covered or minimized: the screen doesn't show the game
+                continue
+            try:
+                fr = session.acquire_frame(20)
+            except Exception as e:  # mode change, UAC prompt, display sleep: start over
+                errors += 1
+                info("desktop duplication lost (%r)" % e)
+                if errors > 20:
+                    break
+                time.sleep(0.5)
+                try:
+                    session.recreate()
+                except Exception:
+                    pass
+                continue
+            errors = 0
+            if fr is None:
+                continue          # nothing on screen changed
+            now = time.monotonic()
+            if now - last < 1 / MAX_FPS and not self.want_full:
+                continue
+            last = now
+            l, t, r, b = window_rect(hwnd)
+            ox, oy, w, h = l - mon[0], t - mon[1], r - l, b - t
+            x0, y0 = max(0, ox), max(0, oy)
+            x1, y1 = min(fr.width, ox + w), min(fr.height, oy + h)
+            if x1 - x0 < 64 or y1 - y0 < 64 or (x0, y0) != (ox, oy):
+                continue          # the window's top-left is off this monitor
+            full = self.want_full
+            self.want_full = False
+            n = (y1 - y0) if full else min(y1 - y0, self.top)
+            bpp = fr.bytes_per_pixel
+            raw = fr._raw_buffer()[y0:y0 + n, x0 * bpp:x1 * bpp]
+            if fr.color_format == "rgba16f":
+                px = raw.copy().view(np.float16).reshape(n, x1 - x0, 4)
+                px = (np.clip(px.astype(np.float32), 0, 1) * 255).astype(np.uint8)[..., [2, 1, 0, 3]]
+            else:
+                px = np.array(raw).reshape(n, x1 - x0, 4)
+                if fr.color_format == "rgba8":
+                    px = px[..., [2, 1, 0, 3]]
+            self.serial += 1
+            self.frame = Frame(px, x1 - x0, y1 - y0, self.serial)
+            if full:
+                self.full = self.frame
+            self.new.set()
+        self.closed = True
+        self.new.set()
+
+    def finished(self):
+        return self.thread is None or self.closed or not self.thread.is_alive()
+
+    def stop(self):
+        self.running = False
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(timeout=1)
+        self.thread = None
+        self.frame = None
+
+
 # ------------------------------------------------------------------------------------------------
 # Overlay
 # ------------------------------------------------------------------------------------------------
@@ -262,12 +396,16 @@ def _dim(hex_colour, k):
 class LayeredWindow:
     """Native display-only surface. No toolkit ever gets an opportunity to activate it."""
 
-    def __init__(self):
+    def __init__(self, exclude_from_capture=False):
         # WS_EX_LAYERED | TRANSPARENT | TOOLWINDOW | NOACTIVATE; WS_POPUP, initially hidden.
         self.hwnd = user32.CreateWindowExW(0x80800a0, "STATIC", "Dungeon Maps", 0x80000000,
                                            0, 0, 1, 1, None, None, None, None)
         if not self.hwnd:
             raise ctypes.WinError()
+        if exclude_from_capture:
+            # WDA_EXCLUDEFROMCAPTURE (Windows 10 2004+): when the tracker reads the screen it must
+            # never read back its own drawings (only then: streams and recordings still show them)
+            user32.SetWindowDisplayAffinity(self.hwnd, 0x11)
 
     def present(self, image, x, y):
         # UpdateLayeredWindow expects a top-down BGRA DIB with premultiplied alpha.
@@ -362,6 +500,15 @@ class Tray:
             return 0
         return user32.DefWindowProcW(hwnd, message, wparam, lparam)
 
+    def notify(self, title, text):
+        """A quiet tray notification (never takes focus)."""
+        self.data.flags = 0x10  # NIF_INFO
+        self.data.title = title[:63]
+        self.data.info = text[:255]
+        self.data.info_flags = 0x1 | 0x10  # NIIF_INFO | NIIF_NOSOUND
+        shell32.Shell_NotifyIconW(1, ctypes.byref(self.data))  # NIM_MODIFY
+        self.data.flags = 7
+
     def close(self):
         if self.hwnd:
             shell32.Shell_NotifyIconW(2, ctypes.byref(self.data))
@@ -376,8 +523,8 @@ class Tray:
 class Overlay:
     """A click-through, never-activating Windows overlay. Runs on the main thread."""
 
-    def __init__(self):
-        self.surface = LayeredWindow()
+    def __init__(self, exclude_from_capture=False):
+        self.surface = LayeredWindow(exclude_from_capture)
         self.hwnd = self.surface.hwnd
         self.shown = False
         self.geometry = None
@@ -424,16 +571,23 @@ class Overlay:
                        stroke_width=1, stroke_fill="#000000")
 
     def _dot(self, who, w, h):
-        d = max(9, 14 * w / 1002)
+        """A friend: class-coloured dot (black ring, light rim) and a name tag on the side away from
+        your arrow, as laid out by core.py (the Linux overlay draws the same)."""
+        d = max(10, 13 * w / 1002)
         cx, cy = who["u"] * w, who["v"] * h
         colour = who.get("color") or "#cccccc"
         if who.get("fresh") is False or who.get("guess"):
             colour = _dim(colour, 0.6)
-        r = d / 2 + 2
-        self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill="#000000")
-        r = d / 2
-        self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=colour)
-        self._label(cx + d / 2 + 5, cy, who["name"] + ("?" if who.get("guess") else ""), colour, w)
+        for r, fill in ((d / 2 + 3, (255, 255, 255, 232)), (d / 2 + 1.5, "#000000"), (d / 2, colour)):
+            self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
+        text = who["name"] + ("?" if who.get("guess") else "")
+        font = self.font(int(max(11, 12 * w / 1002)))
+        l, t, r, b = self.draw.textbbox((0, 0), text, font=font)
+        tw, th = r - l + 10, b - t + 4
+        ty = cy + d / 2 + 5 if who.get("label") == "below" else cy - d / 2 - 5 - th
+        self.draw.rounded_rectangle((cx - tw / 2, ty, cx + tw / 2, ty + th), radius=th / 2,
+                                    fill=(16, 16, 16, 179))
+        self.draw.text((cx, ty + th / 2), text, anchor="mm", fill=colour, font=font)
 
     def _marker(self, who, w, h, colour, label):
         s = max(20, 26 * w / 1002) * (who.get("size") or 1)
@@ -453,7 +607,8 @@ class Overlay:
                 pts.append((cx + px * ca - py * sa, cy + px * sa + py * ca))
             self.draw.polygon(pts, fill=colour)
             self.draw.line(pts + pts[:1], fill="#000000", width=max(2, round(s * 0.1)), joint="curve")
-        self._label(cx + s / 2 + 3, cy, label + ("?" if who.get("guess") else ""), colour, w)
+        if who.get("guess"):  # (no "You" label: the gold arrow is you)
+            self._label(cx + s / 2 + 2, cy, "?", colour, w)
 
     def notice(self, text, seconds=6):
         from PIL import Image, ImageDraw
@@ -501,9 +656,16 @@ GIVE_UP_WAITING = 600.0    # seconds to wait for WoW to open at all
 
 
 class WindowsTracker:
-    def __init__(self, share=True):
+    def __init__(self, share=True, borderless=True, release=None, note=None):
         self.core = Core(share=Share(log=info) if share else None, info=info)
-        self.cap = WindowCapture()
+        # Window capture keeps tracking while WoW is covered, but Windows draws a yellow border
+        # around the game unless it allows borderless capture; then the screen is read instead.
+        mode = os.environ.get("DUNGEONMAPS_CAPTURE") or ("window" if borderless else "screen")
+        self.cap = ScreenCapture() if mode == "screen" else WindowCapture()
+        self.capture_failures = 0
+        info("capture mode:", "screen (no border)" if mode == "screen" else "window")
+        self.release, self.note = release, note   # (update.py: the latest release; a note to show)
+        self.wow_exe = None
         self.state = None        # what the overlay shows (set by the worker, read by the overlay)
         self.win = None          # beacon in frames: (x, y, pitch)
         self.hwnd = None
@@ -577,6 +739,8 @@ class WindowsTracker:
                 continue
             gone_at = None
             self.seen_wow = True
+            if self.wow_exe is None:
+                self.found_wow_exe(hwnd)
             if hwnd != self.hwnd:
                 self.cap.stop()
                 self.state = None
@@ -590,9 +754,14 @@ class WindowsTracker:
                 self.cap.stop()
                 try:
                     self.cap.start(self.hwnd)
+                    self.capture_failures = 0
                     info("capturing World of Warcraft")
                 except Exception as e:
                     info("can't capture the WoW window (%s); retrying" % e)
+                    self.capture_failures += 1
+                    if isinstance(self.cap, ScreenCapture) and self.capture_failures >= 3:
+                        info("screen capture keeps failing: using window capture (Windows may show a border)")
+                        self.cap = WindowCapture()
                     retry_at = time.monotonic() + 5
                     continue
             if not self.cap.new.wait(0.1):
@@ -607,6 +776,33 @@ class WindowsTracker:
             except Exception as e:  # keep going: one bad frame must not end the tracker
                 info("frame skipped: %r" % e)
 
+    def found_wow_exe(self, hwnd):
+        """Where WoW: Forever is installed (from its process): remembered for the add-on updates, and
+        the add-on there is brought up to date now if the start-up check didn't know this folder."""
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid.value)  # QUERY_LIMITED_INFORMATION
+        self.wow_exe = ""
+        if not h:
+            return
+        try:
+            buf, n = ctypes.create_unicode_buffer(1024), wintypes.DWORD(1024)
+            if ctypes.windll.kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)):
+                self.wow_exe = buf.value
+        finally:
+            ctypes.windll.kernel32.CloseHandle(h)
+        if not self.wow_exe:
+            return
+        from . import update
+        d = update.remember_addons_dir(self.wow_exe)
+        have = update.addon_version(d)
+        if self.release and (have is None or have < self.release["version"]):
+            def work():
+                note = update.update_addon(self.release, info, [d])
+                if note:
+                    self.note = note
+            threading.Thread(target=work, daemon=True).start()
+
     def overlay_state(self):
         # Keep reading WGC frames while covered, but never draw the map arrow over another app.
         if not self.hwnd or user32.GetForegroundWindow() != self.hwnd or user32.IsIconic(self.hwnd):
@@ -614,12 +810,18 @@ class WindowsTracker:
         return self.state
 
     def run(self):
-        ov = Overlay()
+        ov = Overlay(exclude_from_capture=isinstance(self.cap, ScreenCapture))
         tray = Tray(lambda: setattr(self, "quit", True))
+        self.tray = tray
         worker = threading.Thread(target=self.worker, daemon=True)
         worker.start()
         try:
-            ov.run(self.overlay_state, lambda: self.quit)
+            def tick():
+                if self.note:
+                    note, self.note = self.note, None
+                    tray.notify("Dungeon Maps", note)
+                return self.quit
+            ov.run(self.overlay_state, tick)
         finally:
             self.quit = True
             worker.join(timeout=1)
@@ -633,12 +835,33 @@ def single_instance():
     return ctypes.windll.kernel32.GetLastError() != 183  # ERROR_ALREADY_EXISTS
 
 
+def start_telemetry(tracker):
+    """Logs and a stats line a minute to the relay (see telemetry.py); off with DUNGEONMAPS_LOGS=off."""
+    t = tele.setup()
+    t.name = lambda: tracker.core.name
+    t.stats = lambda: tracker.core.stats({"capture": "screen" if isinstance(tracker.cap, ScreenCapture) else "window"})
+    t.start()
+    return t
+
+
 def main():
+    from . import update
+    update.wait_for_previous()   # (just updated: the old copy still holds the single-instance lock)
     if not single_instance():
         return
+    exit_now, note = update.run(info)
+    if exit_now:
+        return                   # the new version is starting
+    release = update.last_release
     from .windows_permissions import ask_capture, request_borderless
     if not ask_capture(info):
         return
-    request_borderless(info)
-    info("Dungeon Maps tracker started")
-    WindowsTracker(share="--no-share" not in sys.argv).run()
+    borderless = request_borderless(info)
+    tracker = WindowsTracker(share="--no-share" not in sys.argv, borderless=borderless, release=release, note=note)
+    t = start_telemetry(tracker)
+    info("Dungeon Maps tracker %s started (%s)" % (__version__, tele.system()))
+    try:
+        tracker.run()
+    finally:
+        info("tracker stopped")
+        t.flush(timeout=3)

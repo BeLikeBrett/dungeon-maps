@@ -9,7 +9,7 @@ a = Analysis(
     pathex=[ROOT],
     datas=[(os.path.join(ROOT, "dungeonmaps", "data"), os.path.join("dungeonmaps", "data")),
            (os.path.join(ROOT, "packaging", "icon.ico"), "dungeonmaps")],
-    hiddenimports=["windows_capture", "websockets.sync.client"],
+    hiddenimports=["windows_capture", "websockets.sync.client", "dungeonmaps.update", "dungeonmaps.telemetry"],
     excludes=["gi", "matplotlib", "scipy", "pandas"],
 )
 pyz = PYZ(a.pure)

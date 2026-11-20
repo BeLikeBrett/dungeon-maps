@@ -128,3 +128,38 @@
   selection once; failure/recovery never requests it again automatically. No OS autostart was added.
 - Windows capture, permission, overlay, tray Close, single instance and shutdown tests pass again.
   The Linux portal UI loop has no Windows equivalent; the shared map-cache fix protects both.
+
+## v1.0.3: Brett's fix list (2026-11-20, Claude)
+- **Duplicate friend dots:** the add-on drew a coarse dot (room, landmark or "~28 yards") as well as
+  the overlay's exact one, so a friend could show twice (one at the entrance). Group messages now
+  carry an `L` flag when live mode is on; the add-on draws no coarse dot for live teammates
+  (legend: "live on the tracker").
+- **Overlap with your arrow:** `core._layout` glides friends between relay updates (snapping on
+  jumps over 30 map px), pushes friends standing on you onto a ring around your arrow, and puts
+  their name tag on the side away from you. Both overlays draw a white-rimmed dot plus a dark
+  name pill.
+- **Yellow border (Windows):** WGC is used only when Windows grants borderless capture. Otherwise
+  `ScreenCapture` (DXGI desktop duplication) crops WoW out of its monitor while WoW is foreground.
+  The overlay is excluded from capture in that mode only (WDA_EXCLUDEFROMCAPTURE). After 3 failed
+  starts it falls back to WGC. The "open Screenshot borders settings" dialog was removed.
+- **Auto-update (Windows exe):** `dungeonmaps/update.py` checks the latest GitHub release on every
+  start.
+  - A newer exe is downloaded, SHA-256-checked against GitHub's digest, swapped in via a
+    rename to `.old`, and relaunched with `--updated-from=<pid>`.
+  - The add-on in `_forever_/Interface/AddOns` (found from the remembered Wow.exe path, Program
+    Files, or the registry) is replaced all-or-nothing. A tray balloon says /reload.
+  - `DUNGEONMAPS_UPDATE=off` turns it off.
+- **Taint ("Interface actions failed because of this AddOn: 34"):**
+  - Add-on code no longer calls `WorldMapFrame:SetMapID`.
+  - It never toggles the world map in combat.
+  - The map key is only overridden in dungeons that have a map.
+  - Waiting on Brett: if the count still climbs, `/console taintLog 1`, reproduce, then read
+    `_forever_/Logs/taint.log`.
+- **Memory (44 MB):** the beacon redraws ~33×/s and made ~11 KB of garbage each time. It now
+  reuses its tables (~2 KB, most of that from the test harness's stubs).
+- **Logs on the server:** `dungeonmaps/telemetry.py` sends log lines, crashes and a per-minute
+  stats line (`Core.stats()`) to the relay. They are stored in brettserver
+  `~/dungeonmaps-relay/logs/<UTC day>/<install id>.log`.
+  - Caps: 4 MB per install per day, 1 GB in total, 30 days.
+  - `DUNGEONMAPS_LOGS=off` turns it off.
+  - The relay was redeployed and tested through the public route; position sharing was re-verified.

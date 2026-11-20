@@ -32,10 +32,13 @@ That's enough for the maps. Bosses, group dots and right-click "I'm here" all wo
 - WoW must be in **Windowed** or **Windowed (Fullscreen)** mode, because exclusive fullscreen hides
   overlays.
 - Windows SmartScreen may warn about an unknown app the first time: click "More info", then "Run anyway".
-- It requests Windows' permission to hide the yellow capture border. If Windows requires a Settings
-  change, it offers to open **Screenshot borders** for you. Windows may still require the border if
-  permission is denied or unavailable on your Windows version. Capture keeps working when another
-  window covers WoW, but pauses while WoW is minimized.
+- No yellow border: where Windows allows borderless window capture, it uses that (tracking keeps
+  going while another window covers WoW). Otherwise (Windows 10, or the permission off) it reads the
+  screen instead, which only sees WoW while it's the active window. Either way the arrows only show
+  over WoW.
+- **Updates itself:** each time it opens it checks GitHub for a newer release, swaps in the new exe
+  and updates the add-on in your `_forever_` folder. A tray message tells you to `/reload` if WoW
+  is open. `DUNGEONMAPS_UPDATE=off` turns this off.
 
 **Linux (Wayland):** needs Python 3 with `numpy`, `Pillow` and `websockets`, GStreamer with the
 PipeWire plug-in plus `python-gobject` (for window capture), `grim`, and
@@ -72,6 +75,13 @@ the relay at `dungeonmaps.brettj.dev`:
 - your spot on the map and your class colour.
 
 The relay passes these straight on to the trackers of people in the same group and keeps nothing.
+
+**Logs:** to help fix problems, the tracker also sends its log to the relay about once a minute:
+the same lines as `tracker.log`, crash reports, and a stats line (frames, time per frame, how your
+position was found, capture mode). With them go a random install id, your character name, the
+tracker version and your OS. No pictures. They are kept for 30 days. `DUNGEONMAPS_LOGS=off` turns
+this off.
+
 To turn sharing off, set the environment variable `DUNGEONMAPS_RELAY=off`, or run the tracker with
 `--no-share`. To use your own relay, set `DUNGEONMAPS_RELAY=wss://your.host` (the server is in
 `relay/`).
