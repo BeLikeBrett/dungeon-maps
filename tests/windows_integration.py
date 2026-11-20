@@ -134,6 +134,7 @@ def main():
         env = dict(os.environ, LOCALAPPDATA=state, DUNGEONMAPS_RELAY="off")
         log = Path(state) / "DungeonMaps" / "state" / "tracker.log"
         try:
+            foreground = windows.user32.GetForegroundWindow()
             first = subprocess.Popen([exe, "--no-share"], env=env)
             processes.append(first)
             deadline = time.monotonic() + 30
@@ -153,7 +154,6 @@ def main():
                     break
             assert tray and not windows.user32.IsWindowVisible(tray), "silent tray startup failed"
             result["exe_silent_tray_startup"] = True
-            foreground = windows.user32.GetForegroundWindow()
             pump(2, 3)
             assert first.poll() is None
             second = subprocess.Popen([exe, "--no-share"], env=env)
