@@ -93,3 +93,14 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   were verified. Bundled maps are included in the public add-on zip and require no FDR installation.
 - Brett's installed add-on was verified byte-for-byte against all 24 source files (17 maps), version
   1.0.1; old DungeonMapKey is absent from active AddOns. Full WoW restart and live dungeon check remain.
+
+## Picker-loop regression and repair (2026-11-20)
+- Cache PNGs must be written atomically and fully decoded under a lock. A truncated `213.png` caused
+  the live tracker to crash on every move and QML to reopen the picker every 3 s. Never let damaged
+  cache files terminate tracking; discard them and recapture. Diagnostic previews are optional.
+- Capture permission is once per manual app launch: stream failure falls back without re-prompting,
+  and QML recovery passes --screenshots. Exit 73 means another capture owner; never restart for it.
+- `linux/dungeon-maps start` serializes launches and validates the PID's executable/overlay path.
+  Linux Python capture also holds an advisory owner lock. Keep those guards in both launch paths.
+- Current live tracker was started with DUNGEONMAPS_CAPTURE=screenshots to end the popup loop without
+  another picker. Brett confirmed the arrow displays. Old pre-rename tracker was stopped by exact PID.

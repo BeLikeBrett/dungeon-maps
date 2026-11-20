@@ -8,13 +8,37 @@ ROOT=$(dirname "$HERE")
 PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/dungeon-maps.pid"
 unset MANGOHUD  # launchers pass the game's environment along
 
+valid_pid() {
+    python3 - "$PIDFILE" "$ROOT/overlay" <<'PY'
+import os, pathlib, sys
+try:
+    pid = int(pathlib.Path(sys.argv[1]).read_text().strip())
+    args = pathlib.Path('/proc/%d/cmdline' % pid).read_bytes().split(b'\0')
+    assert pathlib.Path(os.fsdecode(args[0])).name in ('qs', 'quickshell')
+    assert b'-p' in args and os.path.realpath(os.fsdecode(args[args.index(b'-p') + 1])) == os.path.realpath(sys.argv[2])
+    print(pid)
+except (OSError, ValueError, AssertionError, IndexError):
+    sys.exit(1)
+PY
+}
+
 case "$1" in
 start)
-	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then exit 0; fi
-	setsid -f sh -c 'echo $$ > "$1"; exec qs -p "$2/overlay" >/dev/null 2>&1' sh "$PIDFILE" "$ROOT"
+	exec 9>"${PIDFILE%.pid}-launch.lock"
+	flock 9
+	if valid_pid >/dev/null 2>&1; then exit 0; fi
+	rm -f "$PIDFILE"
+	setsid -f sh -c 'echo $$ > "$1"; exec qs -p "$2/overlay" >/dev/null 2>&1' sh "$PIDFILE" "$ROOT" 9>&-
+	# Keep simultaneous launcher hooks serialized until the child has published its real PID.
+	i=0
+	while [ "$i" -lt 40 ]; do
+		valid_pid >/dev/null 2>&1 && break
+		i=$((i + 1))
+		sleep 0.05
+	done
 	;;
 stop)
-	[ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
+	pid=$(valid_pid 2>/dev/null) && kill "$pid" 2>/dev/null
 	rm -f "$PIDFILE"
 	;;
 *)

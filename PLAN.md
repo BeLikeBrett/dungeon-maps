@@ -102,3 +102,18 @@
   Win10 border behavior, and granted borderless permission still need a live check.
 - Relay public two-client exchange verified; two-person in-game sharing and Linux live checks after
   restart remain pending. No hide/dim change to coarse group dots was selected.
+
+## Live Linux repair (2026-11-20)
+- Brett restarted WoW and confirmed the live arrow now displays after repair.
+- Root cause: an interrupted/non-atomic PNG cache write left `floors/213.png` truncated. Loading it
+  crashed the tracker; QML restarted it every 3 s, reopening the portal picker each time. An old
+  pre-rename tracker was also still running. Stopped the old/new looping copies by verified exact
+  PIDs, preserved the bad PNG, and started one screenshot-mode tracker; cache rebuilt successfully.
+- Permanent fix: atomic PNG writes, serialized cache readers/writers, damaged-cache discard/recapture,
+  and nonfatal cache/preview errors. Linux stream failure falls back without reopening the picker;
+  QML crash recovery uses screenshot mode. Retain portal connection/session and close resources.
+- Launches serialized and PID-validated; a capture-owner lock prevents duplicate workers. Repeated
+  `start` calls preserved the live PID; a duplicate worker exited 73 before asking permission.
+- Current live repair runs with screenshot capture, stable and user-confirmed. Next manual launch
+  may ask once for portal capture; failures won't ask again. No OS startup entries added.
+- Preparing v1.0.2 with the shared cache fix for Windows too; Windows uses no Linux portal/picker.

@@ -31,7 +31,6 @@ SCREEN_FRAME = 1 / 30         # screenshot mode: seconds between frames
 SEARCH_EVERY = 1.0            # seconds between screen searches for the beacon (to place the overlay)
 PLACE_CHECK_EVERY = 0.4       # seconds between checks that the game didn't move on the screen
 MAX_FPS = 60                  # frames a second taken from the window stream
-MAX_FAILURES = 2              # broken streams before giving up on the portal for this session
 TOKEN_FILE = os.path.join(user_dir("state"), "portal.json")
 LOG_FILE = os.path.join(user_dir("state"), "tracker.log")
 DEBUG = "--debug" in sys.argv
@@ -223,6 +222,9 @@ class PortalWindow:
         self.full = None           # the whole frame asked for with want_full
         self.serial = 0
         self.pipeline = None
+        self.bus = None
+        self.session = None
+        self.remote_fd = None
         self.top = 400             # rows copied from each frame (set to the minimap's bottom)
         self.want_full = False
         self.failures = 0
@@ -266,6 +268,7 @@ class PortalWindow:
         Gst.init(None)
         self.Gst = Gst
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self.bus = bus  # keep the session's owning connection alive after the setup thread returns
         n = [0]
 
         def tok():
@@ -276,6 +279,7 @@ class PortalWindow:
         t = tok()
         session = self._request(bus, "CreateSession", "(a{sv})",
                                 ({"handle_token": V("s", t), "session_handle_token": V("s", tok())},), t, 10)["session_handle"]
+        self.session = session
         modes = bus.call_sync("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
                               "org.freedesktop.DBus.Properties", "Get",
                               V("(ss)", ("org.freedesktop.portal.ScreenCast", "AvailableCursorModes")),
@@ -299,6 +303,8 @@ class PortalWindow:
             "org.freedesktop.portal.ScreenCast", "OpenPipeWireRemote", V("(oa{sv})", (session, {})),
             GLib.VariantType("(h)"), Gio.DBusCallFlags.NONE, -1, None, None)
         fd = fds.get(ret.unpack()[0])
+        self.remote_fd = fd
+        stream_fd = os.dup(fd)  # PipeWire owns the descriptor handed to its stream
         # GPU buffers (DMA-BUF) onto the GPU, to RGBA and down into memory, at most MAX_FPS a second
         # (extra frames are dropped before any of that); only the newest frame is kept
         pipeline = Gst.parse_launch(
@@ -306,7 +312,7 @@ class PortalWindow:
              "! videorate max-rate=%d drop-only=true "
              "! glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! gldownload "
              "! video/x-raw,format=RGBA "
-             "! appsink name=sink max-buffers=1 drop=true sync=false emit-signals=true") % (fd, node, MAX_FPS))
+             "! appsink name=sink max-buffers=1 drop=true sync=false emit-signals=true") % (stream_fd, node, MAX_FPS))
         pipeline.get_by_name("sink").connect("new-sample", self._on_sample)
         pipeline.set_state(Gst.State.PLAYING)
         self.pipeline = pipeline
@@ -357,6 +363,7 @@ class PortalWindow:
                 self.state = "starting"
                 self._setup()
             except Exception as e:  # cancelled, no portal, no pipewire...
+                self.stop()
                 self.state = "failed"
                 info("window capture unavailable (%s); using screenshots" % e)
         threading.Thread(target=run, daemon=True).start()
@@ -366,9 +373,25 @@ class PortalWindow:
             self.pipeline.set_state(self.Gst.State.NULL)
             self.pipeline = None
         self.frame = None
+        self.full = None
+        if self.bus is not None and self.session is not None:
+            try:
+                from gi.repository import Gio
+                self.bus.call_sync("org.freedesktop.portal.Desktop", self.session,
+                                   "org.freedesktop.portal.Session", "Close", None, None,
+                                   Gio.DBusCallFlags.NONE, 1000, None)
+            except Exception:
+                pass
+        self.session = self.bus = None
+        if self.remote_fd is not None:
+            try:
+                os.close(self.remote_fd)
+            except OSError:
+                pass
+            self.remote_fd = None
 
     def check(self):
-        """Notice a broken stream: back to idle (start() asks again) or, after MAX_FAILURES, failed."""
+        """A broken stream falls back to screenshots, never another unsolicited picker."""
         if self.pipeline is None or self.state != "running":
             return
         Gst = self.Gst
@@ -378,8 +401,8 @@ class PortalWindow:
         why = msg.parse_error()[0].message if msg.type == Gst.MessageType.ERROR else "stream ended"
         self.stop()
         self.failures += 1
-        self.state = "failed" if self.failures >= MAX_FAILURES else "idle"
-        info("window capture stopped (%s)%s" % (why, "; using screenshots" if self.state == "failed" else ""))
+        self.state = "failed"
+        info("window capture stopped (%s); using screenshots without asking again" % why)
 
     def wait(self, timeout):
         got = self.new.wait(timeout)
@@ -617,7 +640,20 @@ class LinuxTracker:
 
 
 def main():
+    import fcntl
+    # One capture owner even when started manually or while a launcher hook is also firing.
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or user_dir("state")
+    os.makedirs(runtime, exist_ok=True)
+    owner = open(os.path.join(runtime, "dungeon-maps-capture.lock"), "a")
     try:
-        LinuxTracker(use_portal="--screenshots" not in sys.argv, share="--no-share" not in sys.argv).run()
+        fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        owner.close()
+        raise SystemExit(73)
+    try:
+        LinuxTracker(use_portal="--screenshots" not in sys.argv and os.environ.get("DUNGEONMAPS_CAPTURE") != "screenshots",
+                     share="--no-share" not in sys.argv).run()
     except KeyboardInterrupt:
         pass
+    finally:
+        owner.close()

@@ -12,6 +12,8 @@ yards outside it (a jump down a ledge stays possible, a walk through a wall does
 """
 
 import os
+import tempfile
+import threading
 from collections import deque
 
 import numpy as np
@@ -24,6 +26,19 @@ WALL_SIGMA = 3.0     # yards: how fast the weight falls off outside a path
 FLOOR_WEIGHT = 0.02  # never quite zero (the art can be wrong; ledges)
 UNKNOWN_WEIGHT = 0.6
 MAX_DIST = 40        # map pixels the distance field looks out to
+
+
+def _save_png(image, path):
+    """Publish only complete images: readers must never see an in-progress PNG."""
+    temp = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=os.path.dirname(path), suffix=".tmp", delete=False) as fh:
+            temp = fh.name
+            image.save(fh, format="PNG")
+        os.replace(temp, path)
+    finally:
+        if temp and os.path.exists(temp):
+            os.unlink(temp)
 
 
 def _blur(img, r):
@@ -144,6 +159,7 @@ class WalkMaps:
     def __init__(self, data):
         self.data = data
         self.maps = {}
+        self.lock = threading.RLock()
         os.makedirs(CACHE, exist_ok=True)
 
     def art_path(self, floor):
@@ -176,16 +192,33 @@ class WalkMaps:
         img = Image.fromarray(art)
         if img.size != (MAP_W, MAP_H):
             img = img.resize((MAP_W, MAP_H), Image.LANCZOS)
-        img.save(self.art_path(floor))
-        self.maps.pop(floor, None)
-        return self.get(floor)
+        with self.lock:
+            _save_png(img, self.art_path(floor))
+            self.maps.pop(floor, None)
+            return self.get(floor)
 
     def get(self, floor):
+        with self.lock:
+            return self._get(floor)
+
+    def _get(self, floor):
         if floor in self.maps:
             return self.maps[floor]
         if not self.has_art(floor) or floor not in self.data.floors:
             return None
-        art = np.array(Image.open(self.art_path(floor)).convert("RGB"))
+        try:
+            with Image.open(self.art_path(floor)) as image:
+                art = np.array(image.convert("RGB"))
+            if art.shape != (MAP_H, MAP_W, 3):
+                raise ValueError("invalid cached map dimensions")
+        except (OSError, ValueError, SyntaxError):
+            # A cache is disposable. Discard damage and let the next frame recapture the map,
+            # instead of terminating the tracker (and reopening the Linux permission picker).
+            try:
+                os.unlink(self.art_path(floor))
+            except OSError:
+                pass
+            return None
         seeds, markers = self._seeds(floor)
         walk, unknown = segment(art, seeds, markers)
         if walk.sum() < 500:  # nothing sensible found: don't constrain
@@ -196,6 +229,9 @@ class WalkMaps:
         vis = art.copy()
         vis[walk] = (0.5 * vis[walk] + [0, 110, 0]).astype(np.uint8)
         vis[unknown] = (0.5 * vis[unknown] + [0, 0, 110]).astype(np.uint8)
-        Image.fromarray(vis).save(os.path.join(CACHE, "%d-walk.png" % floor))
+        try:
+            _save_png(Image.fromarray(vis), os.path.join(CACHE, "%d-walk.png" % floor))
+        except OSError:
+            pass  # the diagnostic preview must never interrupt tracking
         self.maps[floor] = wm
         return wm

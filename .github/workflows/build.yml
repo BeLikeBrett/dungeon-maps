@@ -23,6 +23,7 @@ jobs:
         run: lua5.1 tests/addon_harness.lua addon | tail -1
       - run: python tests/test_beacon.py
       - run: python tests/test_maps.py
+      - run: python tests/test_cache_recovery.py
       - run: python tests/test_odometry.py
       - run: python tests/test_facing.py
       - run: python tests/test_pipeline.py

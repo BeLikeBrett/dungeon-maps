@@ -18,10 +18,11 @@ ShellRoot {
     // { show, screen, cx, cy, cw, ch, me: { u, v, heading, fresh, guess, size } | null,
     //   friends: [ { name, u, v, color, fresh, guess } ] }
     property var st: ({ show: false })
+    property bool screenshotRecovery: false
 
     Process {
         id: tracker
-        command: ["python3", "-B", "-m", "dungeonmaps"]
+        command: ["python3", "-B", "-m", "dungeonmaps"].concat(root.screenshotRecovery ? ["--screenshots"] : [])
         workingDirectory: Quickshell.shellDir + "/.."
         running: true
         stdout: SplitParser {
@@ -32,6 +33,8 @@ ShellRoot {
         stderr: SplitParser { onRead: line => console.log("tracker:", line) }
         onExited: function (exitCode, exitStatus) {
             root.st = { show: false }
+            if (exitCode === 73) return // another tracker already owns capture; don't restart
+            root.screenshotRecovery = true // recovery must never reopen the permission picker
             restart.start()
         }
     }

@@ -47,6 +47,8 @@ dungeon-maps/linux/dungeon-maps          # or: dungeon-maps start / stop, e.g. a
 ```
 
 When WoW is open a "share a window" dialog appears: pick World of Warcraft.
+If that stream fails, it falls back to screenshots of the visible game without asking again.
+Automatic crash recovery also uses screenshots, so it won't repeatedly reopen the picker.
 
 ## Using it
 

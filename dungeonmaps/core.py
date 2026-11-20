@@ -128,6 +128,8 @@ class Core:
             try:
                 wm = self.walkmaps.save_art(floor, art)
                 self.info("saved the map of floor %d: %s" % (floor, "paths found" if wm else "no paths found"))
+            except (OSError, ValueError) as error:
+                self.info("map cache unavailable:", repr(error))
             finally:
                 self.art_busy = False
         threading.Thread(target=work, daemon=True).start()
