@@ -293,12 +293,22 @@ class ScreenCapture:
         self.running = False
 
     def start(self, hwnd):
+        # (a DXGI session belongs to the thread that made it: it is opened, used and dropped there)
+        self.closed, self.running = False, True
+        ready, result = threading.Event(), []
+        self.thread = threading.Thread(target=self._run, args=(hwnd, ready, result), daemon=True)
+        self.thread.start()
+        if not ready.wait(10) or result[0] is not None:
+            self.running = False
+            raise RuntimeError(result[0] if result else "desktop duplication didn't start")
+
+    @staticmethod
+    def _open(hwnd):
         from windows_capture import DxgiDuplicationSession  # windows-capture 2.0.x
         user32.MonitorFromWindow.restype = wintypes.HMONITOR
         mon = user32.MonitorFromWindow(hwnd, 2)  # MONITOR_DEFAULTTONEAREST
         mons = monitors()
         order = [i for i, (h, _) in enumerate(mons) if h == mon] + list(range(len(mons)))
-        session, rect = None, None
         for i in dict.fromkeys(order):   # the window's monitor first; check the numbering by size
             try:
                 candidate = DxgiDuplicationSession(i + 1)
@@ -306,21 +316,26 @@ class ScreenCapture:
                 until = time.monotonic() + 0.5
                 while fr is None and time.monotonic() < until:
                     fr = candidate.acquire_frame(50)
-            except Exception as e:
+            except BaseException as e:   # (the native side can raise PanicException, a BaseException)
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    raise
                 info("desktop duplication on monitor %d unavailable: %r" % (i + 1, e))
                 continue
             l, t, r, b = mons[i][1]
             if fr is None or (fr.width, fr.height) == (r - l, b - t):
-                session, rect = candidate, mons[i][1]
-                if mons[i][0] == mon:
-                    break
-        if session is None:
-            raise RuntimeError("desktop duplication unavailable")
-        self.closed, self.running = False, True
-        self.thread = threading.Thread(target=self._run, args=(hwnd, session, rect), daemon=True)
-        self.thread.start()
+                return candidate, mons[i][1]
+        return None, None
 
-    def _run(self, hwnd, session, mon):
+    def _run(self, hwnd, ready, result):
+        try:
+            session, mon = self._open(hwnd)
+        except BaseException as e:
+            session, mon = None, repr(e)
+        result.append(None if session else (mon or "desktop duplication unavailable"))
+        ready.set()
+        if session is None:
+            self.closed = True
+            return
         errors, last = 0, 0.0
         while self.running:
             if user32.GetForegroundWindow() != hwnd or user32.IsIconic(hwnd):
@@ -328,7 +343,9 @@ class ScreenCapture:
                 continue
             try:
                 fr = session.acquire_frame(20)
-            except Exception as e:  # mode change, UAC prompt, display sleep: start over
+            except BaseException as e:  # mode change, UAC prompt, display sleep: start over
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    raise
                 errors += 1
                 info("desktop duplication lost (%r)" % e)
                 if errors > 20:
@@ -336,8 +353,9 @@ class ScreenCapture:
                 time.sleep(0.5)
                 try:
                     session.recreate()
-                except Exception:
-                    pass
+                except BaseException as e:
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
                 continue
             errors = 0
             if fr is None:
