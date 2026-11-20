@@ -49,3 +49,10 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 - Push a `vX.Y.Z` tag. CI tests, builds DungeonMaps.exe (PyInstaller), and attaches the exe, the
   add-on zip and the Linux tarball.
 - Bump the version in `DungeonMaps.toc` and `dungeonmaps/__init__.py` first.
+
+## Continuation notes (2026-11-20)
+- Run Windows smoke directly as `python tests/smoke_windows.py`; it now inserts the repo root.
+  Foreground assertions must start BEFORE constructing the overlay and cover notices too.
+- Tk windows start withdrawn; apply no-activate styles before showing via Win32.
+- Declare ctypes HWND/HANDLE signatures explicitly; default c_int can truncate 64-bit handles.
+- Old Linux tracker was still running while WoW was open during continuation; left it untouched.

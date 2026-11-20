@@ -32,3 +32,15 @@
 ## Ideas
 - Linux: an option to skip the portal picker (screenshot mode only).
 - Show friends on other floors as a count or an edge marker.
+
+## Continuation (2026-11-20)
+- CI 44770396045: Windows smoke failed before exercising the overlay because the test did not put
+  the repository on `sys.path`. Fixed the import; strengthened checks to cover overlay construction
+  and the startup notice, and made their first native show non-activating. Win32 handles now have
+  explicit ctypes signatures for 64-bit Python.
+- Public relay check: `dungeonmaps.brettj.dev` does not resolve yet; live sharing remains pending.
+- Windows availability: libvirt system daemon unavailable, session has no guests. Historical
+  `/satassd/winiso` images are gone; `/satassd/haloos-vm/haloos-win-disk.qcow2` exists and is being
+  investigated using a disposable overlay. SanDisk native Windows remains a reboot option.
+- Duplicate coarse/exact friend dots: asked Brett to choose hiding, dimming, or keeping coarse dots;
+  no behavior change until he chooses.

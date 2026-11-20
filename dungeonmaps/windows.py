@@ -53,6 +53,24 @@ if sys.platform == "win32":
     from ctypes import wintypes
     user32 = ctypes.windll.user32
     dwmapi = ctypes.windll.dwmapi
+    # ctypes otherwise assumes a 32-bit int, truncating HWNDs/handles on 64-bit Windows.
+    user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
+    user32.FindWindowW.restype = wintypes.HWND
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.GetParent.argtypes = [wintypes.HWND]
+    user32.GetParent.restype = wintypes.HWND
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.LONG]
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int,
+                                  ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.UINT]
+    for name in ("IsWindowVisible", "IsIconic"):
+        getattr(user32, name).argtypes = [wintypes.HWND]
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    dwmapi.DwmGetWindowAttribute.argtypes = [wintypes.HWND, wintypes.DWORD,
+                                           ctypes.c_void_p, wintypes.DWORD]
+    ctypes.windll.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    ctypes.windll.kernel32.CreateMutexW.restype = wintypes.HANDLE
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)  # physical pixels everywhere
     except Exception:
@@ -164,8 +182,9 @@ class Overlay:
         import tkinter as tk
         self.tk = tk
         self.root = tk.Tk()
+        self.root.withdraw()  # set no-activate styles before the first native show
         self.root.overrideredirect(True)
-        self.root.geometry("1x1+-32000+-32000")  # mapped once, off screen, at start (before the game matters)
+        self.root.geometry("1x1-32000-32000")
         self.root.attributes("-topmost", True)
         self.root.configure(bg=KEY)
         self.root.attributes("-transparentcolor", KEY)
@@ -260,15 +279,19 @@ class Overlay:
         """A small note in the screen's corner for a few seconds (the tracker has no window of its own)."""
         tk = self.tk
         w = tk.Toplevel(self.root)
+        w.withdraw()
         w.overrideredirect(True)
         w.attributes("-topmost", True)
         w.configure(bg="#1d1f24")
-        self._click_through(w)
         tk.Label(w, text=text, justify="left", bg="#1d1f24", fg="#f0e6c8", font=("Segoe UI", 11),
                  padx=16, pady=12).pack()
         w.update_idletasks()
         w.geometry("+%d+%d" % (w.winfo_screenwidth() - w.winfo_width() - 24,
                                w.winfo_screenheight() - w.winfo_height() - 72))
+        w.update_idletasks()
+        hwnd = self._click_through(w)
+        user32.SetWindowPos(hwnd, -1, w.winfo_x(), w.winfo_y(), w.winfo_reqwidth(),
+                            w.winfo_reqheight(), 0x10 | 0x40)
         w.after(int(seconds * 1000), w.destroy)
 
     def run(self, get_state, should_quit=lambda: False):
