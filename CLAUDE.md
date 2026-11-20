@@ -89,3 +89,7 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   code/data licensing is unchanged. Do not require FDR just to load these bundled pictures.
 - `tests/test_maps.py` decodes every bundled BLP and checks the crop; `addon_harness.lua` opens every
   picture floor through the real add-on and checks its texture path with FDR/discovery APIs absent.
+- Current release is **v1.0.1**, commit 7604d48; CI 44780176787 passed and all three release downloads
+  were verified. Bundled maps are included in the public add-on zip and require no FDR installation.
+- Brett's installed add-on was verified byte-for-byte against all 24 source files (17 maps), version
+  1.0.1; old DungeonMapKey is absent from active AddOns. Full WoW restart and live dungeon check remain.

@@ -88,3 +88,17 @@
   The add-on loads its own `DungeonMaps/maps/` files directly; FDR and discovery APIs aren't required.
 - Preparing v1.0.1: all 17 BLPs decode, crop correctly, and the Lua harness opens every corresponding
   floor and verifies the exact bundled texture path without Forever Dungeon Routes installed.
+
+## v1.0.1 ready to share (2026-11-20)
+- Published https://github.com/BeLikeBrett/dungeon-maps/releases/tag/v1.0.1 (release CI 44780176787
+  green). All three downloaded assets match GitHub's SHA-256 digests and expected versions/layouts.
+  The add-on zip contains all 17 original map images plus credits; standalone paths verified.
+- Brett's installed `_forever_/Interface/AddOns/DungeonMaps` is v1.0.1: all 24 files match the release
+  source byte-for-byte, including every map. DungeonMapKey is absent from the active AddOns folder.
+  A full WoW restart is still required; current game/old tracker were left untouched.
+- Windows: verified real CI capture/decode/physical placement, tracking while covered with overlay
+  hidden over other apps, consent rejection/acceptance, tray Close during capture, single instance,
+  and ~3.4-second automatic exit. No usable local Windows VM; actual WoW, other Windows DPI settings,
+  Win10 border behavior, and granted borderless permission still need a live check.
+- Relay public two-client exchange verified; two-person in-game sharing and Linux live checks after
+  restart remain pending. No hide/dim change to coarse group dots was selected.
