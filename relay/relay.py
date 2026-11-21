@@ -1,4 +1,4 @@
-"""Dungeon Maps relay: passes live positions between trackers in the same group. Stores nothing.
+"""Dungeon Maps relay: passes live positions; privately retains bounded diagnostic contributions.
 
 A tracker connects, sends {"t": "join", "room": "<8 hex>", "name": "<character>", "app": "dungeonmaps/1"},
 then {"t": "pos", ...} about 15 times a second. Every pos is sent on to the others in the room with
@@ -13,6 +13,10 @@ Logs (for fixing problems): a tracker may instead open with one {"t": "log", "id
 <logs>/<YYYY-MM-DD>/<id>.log. Caps: 4 MB per install per day, 120 log messages a minute in all,
 1 GB in all (the oldest days go first), 30 days kept. --logs '' turns this off.
 
+Manual correction samples use t=sample and a persisted sample_ack. samples.py validates compact
+minimap-only reports and retains 20 per installation/dungeon, 2 GB total. --samples '' disables.
+There is no public dataset read endpoint. Upload writes run off the party relay's event loop.
+
     python3 relay.py [--port 8105]      (behind the Cloudflare tunnel: wss://dungeonmaps.brettj.dev)
 """
 
@@ -26,11 +30,13 @@ import shutil
 import time
 
 from websockets.asyncio.server import serve
+from samples import MAX_MESSAGE as SAMPLE_MAX_MSG, SampleStore
 
 ROOM_RE = re.compile(r"^[0-9a-f]{8}$")
 ID_RE = re.compile(r"^[0-9a-f]{32}$")
 LOG_MAX_MSG, LOG_PER_DAY, LOG_PER_MIN, LOG_TOTAL, LOG_DAYS = 128 * 1024, 4 << 20, 120, 1 << 30, 30
 LOG_DIR = None
+SAMPLES = None
 log_window = [0.0, 0]  # (minute start, messages)
 MAX_ROOM, MAX_CLIENTS, RATE, MAX_AGE = 40, 2000, 30, 6 * 3600
 rooms = {}  # room -> {websocket: name}
@@ -43,11 +49,23 @@ async def handler(ws):
         await ws.close(1013, "busy")
         return
     try:
-        hello = json.loads(await asyncio.wait_for(ws.recv(), 10))
+        raw_hello = await asyncio.wait_for(ws.recv(), 10)
+        hello = json.loads(raw_hello)
     except Exception:
         return
     if isinstance(hello, dict) and hello.get("t") == "log":
-        save_log(hello, ws)
+        if len(raw_hello) <= LOG_MAX_MSG:
+            save_log(hello, ws)
+        await ws.close()
+        return
+    if isinstance(hello, dict) and hello.get("t") == "sample":
+        try:
+            if SAMPLES is None:
+                raise ValueError("samples disabled")
+            sample_id = await asyncio.to_thread(SAMPLES.save, hello)
+            await ws.send(json.dumps({"t": "sample_ack", "ok": True, "sample_id": sample_id}))
+        except (ValueError, OSError):
+            await ws.send(json.dumps({"t": "sample_ack", "ok": False}))
         await ws.close()
         return
     if not isinstance(hello, dict):
@@ -168,7 +186,7 @@ async def pruner():
 
 async def main(port):
     asyncio.get_running_loop().create_task(pruner())
-    async with serve(handler, "0.0.0.0", port, max_size=LOG_MAX_MSG, ping_interval=20, ping_timeout=20,
+    async with serve(handler, "0.0.0.0", port, max_size=SAMPLE_MAX_MSG, ping_interval=20, ping_timeout=20,
                      server_header="DungeonMapsRelay"):
         log.info("relay on port %d", port)
         await asyncio.get_running_loop().create_future()
@@ -178,7 +196,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8105)
     ap.add_argument("--logs", default="/logs", help="folder for the trackers' logs ('' = don't keep them)")
+    ap.add_argument("--samples", default="/samples", help="private correction dataset ('' = disabled)")
     args = ap.parse_args()
     LOG_DIR = args.logs or None
+    SAMPLES = SampleStore(args.samples) if args.samples else None
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     asyncio.run(main(args.port))

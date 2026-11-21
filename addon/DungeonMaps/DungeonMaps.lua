@@ -59,6 +59,7 @@ local landmark         -- { key, floor, u, v, label, t, kind }: where you were l
 local landmarkCount = 0 -- goes up with every new landmark (the live tracker watches it)
 local wingPick = {}    -- [instanceID] = dungeon key picked (instances with several wings)
 local members = {}     -- [sender] = { key, room name } from group messages
+local activeEncounter -- { key, index }: only while an encounter is active
 
 -- A size setting (Settings / the map's gear menu): 0.5x to 2.5x, in tenths.
 local function sizeOf(key)
@@ -226,13 +227,48 @@ local function bossDone(key, index)
 end
 
 -- The boss of a dungeon an encounter belongs to: index, boss.
+local function bossLabel(boss)
+	local id = boss.encounters and boss.encounters[1]
+	local locale = GetLocale and GetLocale() or "enUS"
+	return (id and DungeonMapsDB.bossNames and DungeonMapsDB.bossNames[locale .. ":" .. id]) or boss.name
+end
+
 local function bossFor(key, encounterID, encounterName)
 	for i, b in ipairs(ns.Bosses[key] or {}) do
-		if type(encounterName) == "string" and b.name == encounterName then return i, b end
+		if type(encounterName) == "string" and (b.name == encounterName or bossLabel(b) == encounterName) then return i, b end
+		for _, alias in ipairs(b.aliases or {}) do
+			if alias == encounterName then return i, b end
+		end
+	end
+	for i, b in ipairs(ns.Bosses[key] or {}) do
 		for _, id in ipairs(b.encounters or {}) do
 			if id == encounterID then return i, b end
 		end
 	end
+end
+
+local function learnBossLabel()
+	-- Prefer the client's actual boss-unit name when one encounter identifies
+	-- exactly one map pin and exactly one boss unit. Multi-boss events keep their
+	-- curated individual names. No target/add names or fuzzy matching are used.
+	local a = activeEncounter
+	if not a then return end
+	local count, boss = 0, nil
+	for _, b in ipairs(ns.Bosses[a.key] or {}) do
+		for _, id in ipairs(b.encounters or {}) do
+			if id == a.id then count = count + 1; boss = b; break end
+		end
+	end
+	if count ~= 1 then return end
+	local name, units = nil, 0
+	for i = 1, 8 do
+		local n = plain(UnitName("boss" .. i))
+		if type(n) == "string" and n ~= "" then units = units + 1; name = n end
+	end
+	if units ~= 1 then return end
+	local locale = GetLocale and GetLocale() or "enUS"
+	DungeonMapsDB.bossNames = DungeonMapsDB.bossNames or {}
+	DungeonMapsDB.bossNames[locale .. ":" .. boss.encounters[1]] = name
 end
 
 local function onBossKilled(encounterID, encounterName)
@@ -270,7 +306,8 @@ local function landmarkBoss(encounterID, encounterName)
 	encounterID, encounterName = plain(encounterID), plain(encounterName)
 	local d = findDungeon()
 	if not d then return end
-	local _, b = bossFor(d.key, encounterID, encounterName)
+	local i, b = bossFor(d.key, encounterID, encounterName)
+	activeEncounter = b and { key = d.key, index = i, id = encounterID } or nil
 	if b then setLandmark(d.key, b.floor, b.x, b.y, b.name, LM_BOSS) end
 end
 
@@ -542,9 +579,12 @@ local function drawBosses(floor)
 			b.num:SetText(tostring(i))
 			b.icon:SetDesaturated(done)
 			b:SetAlpha(done and 0.6 or 1)
-			b.tipTitle = boss.name
+			b.tipTitle = bossLabel(boss)
 			b.tipR, b.tipG, b.tipB = 1, 0.3, 0.3
 			b.tipLines = { ("Boss %d"):format(i) .. (done and "  -  |cff88ff88defeated|r" or "") }
+			if boss.encounterName and boss.encounterName ~= b.tipTitle then
+				table.insert(b.tipLines, "Encounter: " .. boss.encounterName)
+			end
 			if boss.note and boss.note ~= "" then table.insert(b.tipLines, boss.note) end
 			b:Show()
 		end
@@ -1083,7 +1123,7 @@ end
 --   cells 6-26: 9 bits each (3 per colour channel), the fields below, then a checksum
 ---------------------------------------------------------------------------------------------------
 
-local BEACON_CELLS, BEACON_PX = 54, 2 -- cells, physical pixels per cell side
+local BEACON_CELLS, BEACON_PX = 58, 2 -- cells, physical pixels per cell side
 local HEADER = { { 7, 0, 7 }, { 0, 7, 0 }, { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 0 } }
 local beacon
 
@@ -1153,7 +1193,7 @@ local function beaconCells()
 	local zoom = plain(Minimap:GetZoom()) or 0
 	local indoors = tonumber(GetCVar("minimapZoom")) ~= zoom
 	local radius = C_Minimap and plain(call(C_Minimap.GetViewRadius)) -- yards from centre to edge
-	pushBits(bits, 4, 3) -- format version
+	pushBits(bits, 6, 3) -- format version
 	pushBits(bits, open and 1 or 0, 1)
 	pushBits(bits, indoors == true and 1 or indoors == false and 2 or 0, 2)
 	pushBits(bits, GetCVar("rotateMinimap") == "1" and 1 or 0, 1)
@@ -1209,6 +1249,16 @@ local function beaconCells()
 	pushBits(bits, b * 31, 5)
 	-- v4: how big the tracker draws your teammates' dots
 	pushBits(bits, sizeOf("dotSize") * 10, 5)
+	-- v5: cheap run context; boss indexes follow ns.Bosses, exactly as the tracker data.
+	pushBits(bits, d and activeEncounter and activeEncounter.key == d.key and activeEncounter.index or 0, 6)
+	local mask = 0
+	if d then
+		for i = 1, math.min(32, #(ns.Bosses[d.key] or {})) do
+			if bossDone(d.key, i) then mask = mask + 2 ^ (i - 1) end
+		end
+	end
+	pushBits(bits, mask, 32)
+	pushBits(bits, DungeonMapsDB.contribute ~= false and 1 or 0, 1)
 	local cells, sum = beaconOut, 0
 	for c = 1, BEACON_CELLS - #HEADER - 1 do
 		local v = 0
@@ -1450,6 +1500,8 @@ local function addSettingsControls(parent, x, y, width)
 		function() return DungeonMapsDB.showOthers == true end, function(v) DungeonMapsDB.showOthers = v end)
 	check("Live tracker (the small colour strip in the top-left corner the tracker reads)",
 		function() return DungeonMapsDB.live ~= false end, function(v) DungeonMapsDB.live = v end)
+	check("Share Shift+click corrections and minimap pictures to improve maps (20 per dungeon)",
+		function() return DungeonMapsDB.contribute ~= false end, function(v) DungeonMapsDB.contribute = v end)
 	slider("Your arrow", "arrowSize")
 	slider("Teammate dots", "dotSize")
 	slider("Boss icons", "bossSize")
@@ -1545,6 +1597,7 @@ events:RegisterEvent("ZONE_CHANGED_INDOORS")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:RegisterEvent("ENCOUNTER_START")
+events:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
 events:RegisterEvent("ENCOUNTER_END")
 events:RegisterEvent("BOSS_KILL")
 events:RegisterEvent("CHAT_MSG_ADDON")
@@ -1567,9 +1620,15 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		return
 	elseif event == "ENCOUNTER_START" then
 		landmarkBoss(arg1, arg2)
+		learnBossLabel()
+		refreshPeople()
+		return
+	elseif event == "INSTANCE_ENCOUNTER_ENGAGE_UNIT" then
+		learnBossLabel()
 		refreshPeople()
 		return
 	elseif event == "ENCOUNTER_END" or event == "BOSS_KILL" then
+		activeEncounter = nil
 		-- ENCOUNTER_END: encounterID, name, difficulty, group size, success (1 = kill)
 		if event == "BOSS_KILL" or plain(arg5) == 1 then onBossKilled(arg1, arg2) end
 		refreshPeople()
@@ -1585,6 +1644,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		return
 	end
 	if event == "PLAYER_ENTERING_WORLD" then
+		activeEncounter = nil
+		if not DungeonMapsDB.samplesNotice then
+			say("Shift+click corrections share small minimap pictures to improve maps (up to 20 per dungeon). Turn sharing off in /dmaps settings.")
+			DungeonMapsDB.samplesNotice = true
+		end
 		quietRoutes()
 		C_Timer.After(2.5, quietRoutes) -- (its small map opens 2 s after the loading screen)
 		buildBackButton()

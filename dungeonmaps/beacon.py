@@ -1,8 +1,8 @@
-"""Reads the Dungeon Maps addon's beacon: a strip of 54 coloured cells (2 x 2 pixels each) the addon
+"""Reads the Dungeon Maps addon's beacon: a strip of 58 coloured cells (2 x 2 pixels each) the addon
 draws in the game's top-left corner.
 
 Cells 1-2 are magenta and green (to find the strip), cells 3-5 hold the 8 colour levels (0..7 per
-channel, measured here so gamma or colour settings can't confuse the decoder), cells 6-54 carry
+channel, measured here so gamma or colour settings can't confuse the decoder), cells 6-58 carry
 9 bits each (3 per channel), the last one a checksum. Field layout: DungeonMaps.lua, beaconCells().
 """
 
@@ -11,9 +11,9 @@ from dataclasses import dataclass
 import numpy as np
 
 HEADER = 5
-CELLS = 54
+CELLS = 58
 PX = 2  # cell side in pixels (BEACON_PX in the addon)
-FORMAT_VERSION = 4
+FORMAT_VERSION = 6
 
 # (name, bits) in the order the addon pushes them
 FIELDS = [
@@ -29,6 +29,8 @@ FIELDS = [
     ("arrow_size", 5), ("cr", 5), ("cg", 5), ("cb", 5),
     # v4: how big your teammates' dots are drawn (tenths, the addon's "Teammate dots" setting)
     ("dot_size", 5),
+    ("active_boss", 6), ("boss_mask", 32),
+    ("contribute", 1),
 ]
 
 
@@ -92,6 +94,8 @@ def decode_at(img, x, y, pitch):
     for i in range(CELLS):
         cx, cy = int(round(x + i * pitch)), int(round(y))
         if not (0 <= cx < w and 0 <= cy < h):
+            if i >= 54:
+                break  # v4 can still be read before the user reloads the updated addon
             return None
         pts.append(img[cy, cx].astype(np.float32))
     if not (_magenta(pts[0][None, :]).all() and _green(pts[1][None, :]).all()):
@@ -109,6 +113,11 @@ def decode_at(img, x, y, pitch):
     values = []
     for p in pts[HEADER:]:
         values.append(level(p[0]) * 64 + level(p[1]) * 8 + level(p[2]))
+    version = values[0] >> 6
+    cells = 54 if version == 4 else CELLS
+    if version not in (4, 5, FORMAT_VERSION) or len(pts) < cells:
+        return None
+    values = values[:cells - HEADER]
     data, check = values[:-1], values[-1]
     if sum(data) % 512 != check:
         return None
@@ -116,14 +125,16 @@ def decode_at(img, x, y, pitch):
     for v in data:
         bits.extend((v >> (8 - k)) & 1 for k in range(9))
     fields, pos = {}, 0
-    for name, n in FIELDS:
+    layout = FIELDS[:-3] if version == 4 else FIELDS[:-1] if version == 5 else FIELDS
+    for name, n in layout:
         v = 0
         for b in bits[pos:pos + n]:
             v = v * 2 + b
         fields[name] = v
         pos += n
-    if fields["version"] != FORMAT_VERSION:
-        return None
+    fields.setdefault("active_boss", 0)
+    fields.setdefault("boss_mask", 0)
+    fields.setdefault("contribute", 0)  # older addons haven't displayed the new disclosure/setting
     return Beacon(x, y, pitch, fields)
 
 

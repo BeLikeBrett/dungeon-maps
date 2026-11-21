@@ -33,6 +33,7 @@ class Data:
         self.rooms = d["rooms"]
         self.bosses = d.get("bosses", {})
         self.entry = d.get("entry", {})
+        self.routes = d.get("routes", {})
 
     def to_map(self, floor, n, w):
         """World (north, west yards) -> map (u, v) on a floor (FDR's DR:WorldToFloor)."""

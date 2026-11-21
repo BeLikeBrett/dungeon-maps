@@ -43,11 +43,13 @@ DT = 1 / 60
 def encode(fields):
     """Python twin of the addon's beaconCells(): fields -> the cell colours."""
     bits = []
-    for name, n in beacon.FIELDS:
+    legacy = fields.get("version") == 4
+    layout = beacon.FIELDS[:-3] if legacy else beacon.FIELDS[:-1] if fields.get("version") == 5 else beacon.FIELDS
+    for name, n in layout:
         v = max(0, min(2 ** n - 1, int(math.floor(fields.get(name, 0) + 0.5))))
         bits += [(v >> (n - 1 - i)) & 1 for i in range(n)]
     cells = []
-    for c in range(beacon.CELLS - beacon.HEADER - 1):
+    for c in range((54 if legacy else beacon.CELLS) - beacon.HEADER - 1):
         v = 0
         for b in (bits[c * 9:(c + 1) * 9] + [0] * 9)[:9]:
             v = v * 2 + b
@@ -173,6 +175,8 @@ def make_tracker(game, walk=True, share=None):
     wm = game.walk_map() if walk else None
     c.walkmaps.get = lambda floor: wm
     c.pf.rng = np.random.default_rng(7)
+    c.pf.routes.enabled = False  # synthetic geography has no relation to the real RFC guide
+    c.recording.enabled = False  # tested separately; synthetic runs aren't local player evidence
     t.sync_place = True
     t.emitted = []
     t.emit = lambda msg: t.emitted.append(msg)

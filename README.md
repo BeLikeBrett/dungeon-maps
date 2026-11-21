@@ -63,6 +63,12 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
     it's sure, the arrow is dimmed and labelled "You?".
 - **Friends:** anyone in your party or raid who also runs the tracker shows up on your map, and you
   on theirs. Nothing to set up. Solo, nothing is sent.
+- The tracker uses guide routes and their connections in the background to help tell nearby
+  passages apart. It draws no route lines, allows backtracking and shortcuts, and checks room
+  changes and active boss encounters too. The arrow is labelled "You?" when its accuracy is uncertain.
+- Boss labels use the creature's name where the encounter title differs; hover to see that title.
+  For an unambiguous single-boss encounter, the addon also remembers the game's actual boss-unit
+  name in your language.
 - **Settings:** Esc → Options → AddOns → Dungeon Maps (or `/dmaps settings`) has your arrow's size
   and the live-tracker switch. `/dmaps` lists the other commands.
 
@@ -82,8 +88,32 @@ position was found, capture mode). With them go a random install id, your charac
 tracker version and your OS. No pictures. They are kept for 30 days. `DUNGEONMAPS_LOGS=off` turns
 this off.
 
-To turn sharing off, set the environment variable `DUNGEONMAPS_RELAY=off`, or run the tracker with
-`--no-share`. To use your own relay, set `DUNGEONMAPS_RELAY=wss://your.host` (the server is in
+**Local tracking evidence:** the tracker keeps up to one minute of minimap crops and tracking
+context in a bounded memory buffer (30 MB). Shift+click corrections, large position corrections,
+and atlas relocations save that buffer to `state/recordings/trace-*.zip` beside the local log.
+It retains at most 10 recordings and 100 MB. Full recordings stay on your computer. If the arrow
+is wrong, Shift+click your known position while you're there:
+the saved lead-up includes the old estimate and your correction for comparison. Set
+`DUNGEONMAPS_RECORDING=off` to disable this. `python tools/replay_trace.py <trace.zip>` reprocesses
+sampled minimaps with isolated caches; it starts from the recorded estimate, so this is an
+approximate comparison, not an exact replay or independent proof of every position.
+
+**Community corrections:** with the current addon and tracker, Shift+click also contributes a
+compact correction sample to Brett's server. Each sample has your map correction, the old estimate,
+movement/confidence context, the data version, and up to six 128×128 minimap pictures from the preceding
+minute. Metadata excludes character names, GUIDs, group hashes, and local paths; pictures contain
+only the minimap rectangle, resized to 128×128, never the full screen.
+Samples use the existing random installation ID (one installation is not a verified unique person).
+The server keeps up to **20 recent samples per installation per dungeon**, subject to a 2 GB total
+storage cap; samples are private to the server owner. Manual clicks are approximate observations,
+not automatically trusted universal map fixes. Upload failures retry from a bounded 40 MB local outbox.
+The addon displays a one-time notice. Disable **Share Shift+click corrections and minimap pictures**
+in `/dmaps settings`, or set `DUNGEONMAPS_SAMPLES=off`. `DUNGEONMAPS_LOGS=off`,
+`DUNGEONMAPS_RECORDING=off`, and `DUNGEONMAPS_RELAY=off` also prevent new sample uploads.
+Older addons do not contribute pictures until updated/reloaded.
+
+To turn all relay communication off, set `DUNGEONMAPS_RELAY=off`. The `--no-share` switch disables
+live party positions. To use your own relay, set `DUNGEONMAPS_RELAY=wss://your.host` (the server is in
 `relay/`).
 
 ## Credits

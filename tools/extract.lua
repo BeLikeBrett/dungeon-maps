@@ -2,7 +2,7 @@
 -- usage: lua5.1 extract.lua <FDR dir> <addon Data.lua out> <tracker JSON out>
 local fdr, out, jsonOut = arg[1], arg[2], arg[3]
 local DR = {}
-for _, f in ipairs({ "Dungeons", "Floors", "DefaultRoutes", "Rooms", "Pictures", "Minimaps", "Entrances" }) do
+for _, f in ipairs({ "Dungeons", "Floors", "DefaultRoutes", "Rooms", "Pictures", "Minimaps", "Entrances", "Encounters" }) do
   local chunk = assert(loadfile(fdr .. "/Data/" .. f .. ".lua"))
   setfenv(chunk, {})                 -- plain tables only: no globals reachable
   chunk("ForeverDungeonRoutes", DR)
@@ -32,6 +32,19 @@ local function ser(v, ind)
 end
 
 local D = { Dungeons = {}, Floors = {}, MinimapArt = {}, Rooms = {}, Bosses = {}, Entry = {}, Zone = {} }
+-- Creature names documented by the source's in-game guide notes differ from
+-- DungeonEncounter titles. Preserve the titles as aliases for event matching.
+local creatureNames = {
+  [3355] = "The Baron", [3495] = "Magmatus", [3451] = "Overlord Mugg",
+  [3478] = "Deathless Marrow", -- the encounter title names the adds; source note names the boss
+  [3301] = "Arcanic Enigma",
+}
+local encounters = {}
+for _, list in pairs(DR.Encounters) do
+  for _, e in ipairs(list) do
+    for _, id in ipairs(e.ids) do encounters[id] = e end
+  end
+end
 local usedFloors = {}
 for _, d in ipairs(DR.Dungeons) do
   table.insert(D.Dungeons, { key = d.key, instanceID = d.instanceID, floors = d.floors, name = d.name, raid = d.raid })
@@ -59,7 +72,36 @@ for key, route in pairs(DR.DefaultRoutes) do
   local bosses = {}
   for _, s in ipairs(route.stops or {}) do
     if s.kind == "boss" and s.floor and s.x and s.y then
-      table.insert(bosses, { floor = s.floor, x = s.x, y = s.y, name = s.name, encounters = s.encounters, note = s.note })
+      local aliases, seen = {}, {}
+      local name = s.name
+      for _, id in ipairs(s.encounters or {}) do name = creatureNames[id] or name end
+      local encounterName
+      local function alias(n)
+        if n and n ~= name and not seen[n] then
+          -- A shared encounter can contain two separately positioned bosses.
+          for _, other in ipairs(route.stops or {}) do
+            if other ~= s and other.name == n then return end
+          end
+          seen[n] = true; aliases[#aliases + 1] = n
+        end
+      end
+      alias(s.name)
+      for _, id in ipairs(s.encounters or {}) do
+        local e = assert(encounters[id], "unknown boss encounter " .. id)
+        local shared = false
+        for _, other in ipairs(route.stops or {}) do
+          if other ~= s then
+            for _, oid in ipairs(other.encounters or {}) do if oid == id then shared = true end end
+          end
+        end
+        if not shared or e.name == s.name then
+          if e.name ~= name then encounterName = e.name end
+          for k, n in pairs(e) do if type(n) == "string" and k:match("^name") then alias(n) end end
+        end
+      end
+      table.sort(aliases)
+      table.insert(bosses, { floor = s.floor, x = s.x, y = s.y, name = name,
+        aliases = aliases, encounterName = encounterName, encounters = s.encounters, note = s.note })
     end
   end
   if #bosses > 0 then D.Bosses[key] = bosses end
@@ -95,7 +137,7 @@ local function json(v)
   return "{" .. table.concat(parts, ",") .. "}"
 end
 if jsonOut then
-  local T = { dungeons = {}, floors = {}, rooms = {} }
+  local T = { dungeons = {}, floors = {}, rooms = {}, routes = {} }
   for _, d in ipairs(DR.Dungeons) do table.insert(T.dungeons, { key = d.key, name = d.name, floors = d.floors }) end
   for f in pairs(usedFloors) do
     local info = DR.Floors[f]
@@ -104,7 +146,17 @@ if jsonOut then
   T.bosses, T.entry = {}, {}
   for key, list in pairs(D.Bosses) do
     T.bosses[key] = {}
-    for _, b in ipairs(list) do table.insert(T.bosses[key], { floor = b.floor, x = b.x, y = b.y, name = b.name }) end
+    for _, b in ipairs(list) do table.insert(T.bosses[key], { floor = b.floor, x = b.x, y = b.y, name = b.name,
+      encounters = b.encounters, aliases = b.aliases, encounterName = b.encounterName, note = b.note }) end
+  end
+  for key, r in pairs(DR.DefaultRoutes) do
+    local paths = {}
+    for _, p in ipairs(r.paths or {}) do
+      if p.floor and p.pts and #p.pts >= 4 then
+        paths[#paths + 1] = { floor = p.floor, kind = p.kind, pts = p.pts }
+      end
+    end
+    T.routes[key] = { paths = paths, links = r.links, source = r.source }
   end
   for key, e in pairs(D.Entry) do T.entry[key] = { floor = e.floor, x = e.x, y = e.y } end
   for key, rooms in pairs(D.Rooms) do

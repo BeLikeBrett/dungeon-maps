@@ -164,4 +164,30 @@ for _, d in ipairs(ns.Dungeons) do
 end
 assert(pictures == 17, "expected all 17 bundled map pictures, got " .. pictures)
 print("OK 17 bundled pictures loaded without Forever Dungeon Routes")
+-- Creature display names and encounter titles must both resolve to the same pin.
+GetInstanceInfo = function() return "Ruins of Lordaeron", "party", 1, "", 5, 0, false, 2999 end
+C_Map.GetBestMapForUnit = function() return 1029991 end
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+fire("ENCOUNTER_END", 0, "The Butcher", 1, 5, 1)
+assert(DungeonMapsCharDB.runs.ruinsoflordaeron.killed[2])
+local originalUnitName = UnitName
+UnitName = function(u) if u == "boss1" then return "The Baron (live)" end return originalUnitName(u) end
+fire("ENCOUNTER_START", 3355, "The Butcher")
+assert(DungeonMapsDB.bossNames["enUS:3355"] == "The Baron (live)")
+assert(DungeonMapsFrame.bosses[2].tipTitle == "The Baron (live)")
+fire("ENCOUNTER_END", 3355, "The Butcher", 1, 5, 0)
+UnitName = originalUnitName
+-- A shared encounter must not replace two individual boss names with one unit's name.
+GetInstanceInfo = function() return "Scarlet Monastery", "party", 1, "", 5, 0, false, 189 end
+GetSubZoneText = function() return "Crusader's Chapel" end
+C_Map.GetBestMapForUnit = function() return 305 end
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+fire("ENCOUNTER_END", 450, "High Inquisitor Whitemane", 1, 5, 1)
+assert(DungeonMapsCharDB.runs.sm_cathedral.killed[2], "exact name wins over shared encounter ID")
+assert(not DungeonMapsCharDB.runs.sm_cathedral.killed[1], "shared ID must not select Mograine first")
+UnitName = function(u) if u == "boss1" then return "Only one visible unit" end return originalUnitName(u) end
+fire("ENCOUNTER_START", 450, "High Inquisitor Whitemane")
+assert(not DungeonMapsDB.bossNames["enUS:450"], "shared encounter must not rename individual pins")
+UnitName = originalUnitName
+print("OK boss aliases, live creature labels, and shared-encounter identity")
 print("OK no runtime errors")

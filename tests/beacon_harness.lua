@@ -119,6 +119,10 @@ local beacon = DungeonMapsBeacon
 place(beacon, 0.75, 0, 0, #beacon.cells * 2, 2)  -- the game's top-left corner
 local ticker
 for i, f in ipairs(ALLFRAMES) do if f == beacon then ticker = ALLFRAMES[i + 1] end end
+if arg[2] == "context" then
+  fire("BOSS_KILL", 2732, "Oggleflint")
+  fire("ENCOUNTER_START", 2733, "Taragaman the Hungerer")
+end
 rawget(ticker, "_scripts").OnUpdate(ticker, 5)
 io.write("{\"cells\":[")
 for i, t in ipairs(beacon.cells) do

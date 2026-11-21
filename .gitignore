@@ -6,3 +6,6 @@ dist/
 # Bundled add-on maps are intentional assets; ignore other BLP copies.
 *.blp
 !addon/DungeonMaps/maps/*.blp
+relay/logs/
+relay/samples/
+relay/backups/

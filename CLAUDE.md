@@ -1,5 +1,76 @@
 # Dungeon Maps: working notes
 
+## Latest: v1.0.6 correction learning and community dataset (2026-11-21)
+- Explicit Shift+click fixes now REPLACE conflicting pixels in the visible minimap footprint
+  instead of blending weight-4 corrections with old weight-12 texture. Entrance estimates retain
+  the previous gentle behavior. Unknown/masked pixels remain intact. Latest age guards still apply.
+- Brett's first private trace was a castle spiral staircase: circling while climbing indoors.
+  Kept privately at ~/.local/share/dungeon-maps/research/castle-20261121/. Do not commit recordings.
+  Its 14.4-yard correction is useful evidence, not proof that elevation caused the drift. Recreated
+  wrong-atlas experiment using the real image: blended correction retained 14.4 yd offset; replacing
+  the footprint learned the corrected reference (~0.03 yd numerical alignment, not live accuracy).
+- Recorder now retains walked distance and raw net odometry in future samples, so stair loops can
+  be distinguished from earlier translation bias. Local archives remain bounded and private.
+- Community uploads: native settings checkbox + one-time local notice; beacon **v6, still 58 cells**
+  adds contribute (1 bit). Decode v4/v5 too, default contribute=0 until the new addon loads.
+  samples.py sends ONLY manual marks: <=6 128x128 minimap PNGs + selected non-identifying metadata,
+  current data SHA, approximate correction, random installation ID. One installation != unique human.
+  Opt-out via checkbox, DUNGEONMAPS_SAMPLES/LOGS/RECORDING/RELAY=off. Pending outbox <=40 MB,
+  20 per dungeon, retries every 30 s / max one successful report per 10 s; require persisted ack.
+- Relay deployed at ~/dungeonmaps-relay on brettserver, existing public WSS unchanged. New private
+  samples volume: samples/<dungeon>/<install-id>/<sample-id>.json, <=20 per bucket, <=2 GB total,
+  8 uploads/install/min and 60/min total, <=512 KB payload. No public read API. Keep .dockerignore
+  so data/logs/backups never enter image builds. samples_report.py reports per-dungeon coverage.
+- Actual castle sample e90e0335ae328271d84a64129e8a835c acknowledged over PUBLIC WSS and verified
+  on the server; uploaded capture version 1.0.5, one manual reference, six thumbnails (~266 KB).
+  Owner annotation records spiral-staircase context. No other users' data was accessed/published.
+- Server tests exercise malformed uploads, ID/path isolation, quotas, retry/ack, opt-out and party
+  relay coexistence. New samples test added to CI; existing Linux + Windows jobs remain required.
+- All 13 Linux test scripts + Lua harness passed for v1.0.6. Installed addon byte-verified and
+  restarted exactly once in screenshot mode. Re-taught only the castle's stationary final minimap
+  footprint at its manual reference; preserved the rest of the learned atlas. Backup:
+  ~/.local/share/wow-addon-backups/dungeonmaps-v105-20261121-082523/. /reload needed for beacon v6.
+
+## v1.0.5 tracking context (2026-11-21; supersedes older beacon/trust notes)
+- Hidden guide context: `routes.py` samples the 122 imported route traces into small floor graphs.
+  Run every 3 yards, soft weights only when >=65% of particle mass is near a known trace; no route
+  drawing, forced boss order, hard walls, or penalty for disconnected guide scraps.
+- Repeated room hints every 5 yards; a room exclusive to a different floor triggers a new search.
+  Active boss hints have a wide radius and expire after 40 yards of movement. Kills alone never
+  locate the player. Beacon **v5, 58 cells** adds active_boss (6 bits) and boss_mask (32 bits).
+  Tracker still reads v4 until the addon reloads. Encoder twins and Lua harnesses cover both.
+- Independent uncertainty grows with distance since a real fix; atlas agreement cannot reset that
+  trust. Boss spawn pins cannot calibrate scale or repaint an atlas as an exact player position.
+- All atlas searches exclude recent writes (including repaints and their interpolated edges).
+  Whole-floor and large-jump relocations require 3 consistent matches across >=5 yards. Background
+  results are invalidated by dungeon, landmark, room, minimap settings, or encounter changes.
+- Audited all 212 existing boss pins against FDR's client DungeonEncounter IDs (70862). Five known
+  creature/encounter differences corrected: The Baron/3355, Magmatus/3495, Arcanic Enigma/3301,
+  Overlord Mugg/3451, Deathless Marrow/3478. Basis: FDR guide notes explicitly naming the creatures.
+  Retain known creature labels (Sneed's Shredder, Gelihast, Ras Frostwhisper) and client encounter
+  titles as aliases. Shared encounters resolve exact names before IDs (Mograine/Whitemane).
+  `bossLabel` learns native boss-unit names per locale/encounter only for one pin + one boss unit;
+  no target/add-based renaming. New/missing boss positions are not invented.
+- Test with `python tests/test_context.py` plus the existing CI suite. Its microbenchmark measures
+  both tracking (500 particles) and global search (4000); synthetic pipeline geography disables real
+  guide routes deliberately. Both generated data files still come from one extractor invocation.
+- Added bounded, local-only diagnostic evidence at Brett's request: `recording.py` retains native
+  minimap crops at 2 Hz for <=60 s / 30 MB RAM; manual/large corrections and atlas relocations
+  save PNGs plus beacon/position/confidence/odometry-score/route context. Background ZIP writes,
+  10 s throttle, <=10 archives / 100 MB retained in state/recordings. No screenshots are uploaded.
+  DUNGEONMAPS_RECORDING=off disables. `tools/replay_trace.py` uses isolated caches, the recorded
+  starting estimate, and sampled minimaps: approximate comparison, not exact full-frequency replay.
+  `tests/test_recording.py` checks lossless crops, real correction callback, replay, and limits.
+- Validation: all existing Linux CI tests passed, plus context/recorder regressions and Lua harnesses.
+  The stricter global search initially broke reacquisition; corrected by using a unique global seed
+  followed by motion-consistent local matches. Final full atlas test passed: mid-run reacquisition
+  <8 s / <5 yd; learned-atlas drift <4 yd. Route checks ~2 ms / 500 particles every 3 yards.
+- Installed v1.0.5 byte-verified into Brett's active Faugus addon. Restarted the Linux tracker once
+  in screenshot mode (no permission picker); startup log confirms v1.0.5, exactly one overlay/worker.
+  Brett must /reload for new addon labels and beacon v5 context; tracker reads the current v4 meanwhile.
+  Backup of previous addon, atlas, calibration: ~/.local/share/wow-addon-backups/
+  dungeonmaps-before-route-context-20261121-075232/. No public release/push in this task.
+
 Add-on (Lua, WoW: Forever, Interface 16001) + live tracker (Python) + relay (Python, brettserver).
 Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
 

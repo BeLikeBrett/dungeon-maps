@@ -20,6 +20,7 @@ from .data import MAP_H, MAP_W, MINIMAP_DIAMETER, Data
 from .facing import Facing
 from .odometry import Odometry
 from .position import N as N_PARTICLES, ParticleFilter
+from .recording import Recorder
 from .walkmap import WalkMaps
 
 STALE_AFTER = 3.0   # seconds without a good minimap frame: your arrow fades
@@ -65,9 +66,13 @@ class Core:
         self.atlas_busy = False
         self.track_at = -math.inf  # (a position line in the log every few seconds)
         self.atlas_found = None    # a whole-floor match from the background search, to apply
+        self.context_key = None
+        self.context_epoch = 0
+        self.pending_match = None
         self.trail = []            # [(odo yards, floor, north, west, yd/px, picture)] since the last fix
         self.trail_start = 0.0     # odo yards at the last fix
         self.pf.on_fix = self._on_fix
+        self.recording = Recorder(log=info)
         self.odo = Odometry()
         self.facing = Facing()
         self.share = share
@@ -104,7 +109,18 @@ class Core:
 
     def _frame(self, b, crop, now, full_crop):
         f = b.fields
+        context = (f["dungeon"], f["lm_count"], f["zoom"], f["radius4"], f["indoors"],
+                   f["room"], f.get("active_boss", 0), f.get("boss_mask", 0))
+        if context != self.context_key:
+            if self.context_key and context[0] != self.context_key[0]:
+                self.trail = []
+                self.trail_start = self.odo_yards
+                self.recording.clear()
+            self.context_key = context
+            self.context_epoch += 1
+            self.atlas_found = self.pending_match = None
         self.fields, self.beacon = f, b
+        self.recording.upload.set_allowed(f.get("contribute", 0) == 1)
         self.name = b.name
         self.colour = b.colour
         mm = b.rect("mm")
@@ -148,6 +164,7 @@ class Core:
             self.north += d_north
             self.odo_yards += math.hypot(d_east, d_north)
             self._atlas(now, ypp * img.shape[1] / self.odo.mask.shape[1])
+            self.recording.add(img, f, self.pf, now, self.odo.score)
             self.track.append((now, self.east, self.north))
             while self.track and now - self.track[0][0] > 1.0:
                 self.track.pop(0)
@@ -194,18 +211,22 @@ class Core:
                     c["atlas_locks"] += 1
                     if math.hypot(N - n, W - w) <= 3 * max(LOCK_SIGMA, pf.spread):
                         pf.observe(N, W, LOCK_SIGMA)
-                    elif score >= JUMP_SCORE and score - second >= JUMP_MARGIN:
+                    elif (score >= JUMP_SCORE and score - second >= JUMP_MARGIN
+                          and self._confirm_match(floor, N, W)):
                         c["atlas_jumps"] += 1
+                        self.recording.trigger("atlas relocation", {
+                            "floor": floor, "before": [float(n), float(w)], "match": [float(N), float(W)],
+                            "score": score, "second": second})
                         self.info("the minimap matches the atlas %.0f yards from the arrow: moved there (%.2f, next best %.2f)" % (
                             math.hypot(N - n, W - w), score, second))
                         pf._init(floor, (N, W), 2.0, N_PARTICLES, "matched")
-        if (pf.found and pf.floor == floor and pf.source != "found by walking" and pf.spread < 8
+        if (pf.found and pf.floor == floor and not pf.guessed and pf.spread < 8
                 and (not self.trail or self.odo_yards - self.trail[-1][0] >= TRAIL_EVERY)):
             n, w = pf.est
             self.trail.append((self.odo_yards, floor, n, w, ypp_s, np.clip(gray, 0, 255).astype(np.uint8)))
             if len(self.trail) > TRAIL_MAX:
                 self.trail.pop(0)
-        if pf.found and pf.floor == floor and pf.spread < 5 and pf.source != "found by walking":
+        if pf.found and pf.floor == floor and pf.spread < 5 and not pf.guessed:
             # Only the entrance or your own click may repaint what the atlas already knows (and outweighs
             # it, healing a wrong patch); anything else only fills in parts not seen yet, or the atlas
             # would follow the drift it is there to correct.
@@ -213,7 +234,8 @@ class Core:
             weight = 4.0 if hard else math.exp(-pf.trust / 80.0)
             if weight > 0.1:
                 n, w = pf.est
-                a.paste(gray, mask, n, w, ypp_s, weight, self.odo_yards, fill_only=not hard)
+                a.paste(gray, mask, n, w, ypp_s, weight, self.odo_yards, fill_only=not hard,
+                        replace=hard and pf.source == "marked")
                 c["pasted"] += 1
         if now - self.atlas_saved > 60:
             self.atlas_saved = now
@@ -227,6 +249,11 @@ class Core:
         (fix - before). The drift grew along the way, so the pictures of the stretch are pasted again
         with their share of the correction (a loop closure) and outweigh what was pasted on the way.
         That's how the first run of a dungeon teaches a straight atlas for the next ones."""
+        if why == "marked" or (before is not None and math.hypot(fix[0] - before[0], fix[1] - before[1]) >= 10):
+            self.recording.trigger("position correction", {
+                "floor": floor, "before": list(before) if before is not None else None,
+                "fix": list(fix), "kind": why, "sigma": sigma,
+                "error_yards": math.hypot(fix[0] - before[0], fix[1] - before[1]) if before is not None else None})
         trail, start = self.trail, self.trail_start
         self.trail, self.trail_start = [], self.odo_yards
         if before is None or sigma > 15 or not trail:
@@ -260,14 +287,35 @@ class Core:
         self.atlas_busy = True
         self.atlas_search_at = now
         moved_from = (self.north, self.east)
+        epoch, odo = self.context_epoch, self.odo_yards
+        pending = self.pending_match
+        predicted = None
+        if pending is not None and pending[0] == a.floor:
+            _, pn, pw, north, east, _, _ = pending
+            predicted = (pn + self.north - north, pw - self.east + east)
 
         def work():
             try:
-                r = a.locate_anywhere(gray, mask, ypp)
+                r = None
+                # Once one picture uniquely identifies a place on the whole
+                # floor, validate its predicted continuation locally. Requiring
+                # every later picture to be globally unique rejects ordinary
+                # corridors even when the movement history disambiguates them.
+                if predicted is not None:
+                    candidate = a.locate(gray, mask, *predicted, ypp, 12.0, odo)
+                    if candidate is not None:
+                        _, _, score, second, share = candidate
+                        if score >= FIND_SCORE and score - second >= 0.02 and share >= FIND_SHARE:
+                            r = candidate
+                if r is None:
+                    candidate = a.locate_anywhere(gray, mask, ypp, odo)
+                    if candidate is not None:
+                        _, _, score, second, share = candidate
+                        if score >= FIND_SCORE and score - second >= FIND_MARGIN and share >= FIND_SHARE:
+                            r = candidate
                 if r is not None:
                     N, W, score, second, share = r
-                    if score >= FIND_SCORE and score - second >= FIND_MARGIN and share >= FIND_SHARE:
-                        self.atlas_found = (a.floor, N, W, score, second, moved_from)
+                    self.atlas_found = (a.floor, N, W, score, second, moved_from, epoch)
             except Exception as e:  # (a background helper must never stop tracking)
                 self.info("atlas search failed:", repr(e))
             finally:
@@ -275,14 +323,32 @@ class Core:
         threading.Thread(target=work, daemon=True).start()
 
     def _apply_found(self):
-        floor, N, W, score, second, (n0, e0) = self.atlas_found
+        floor, N, W, score, second, (n0, e0), epoch = self.atlas_found
         self.atlas_found = None
         pf = self.pf
+        if epoch != self.context_epoch or floor not in pf.floors:
+            return  # a room/fix/dungeon/zoom changed while the worker was searching
         if pf.found and pf.searching is None:
             return
         N, W = N + (self.north - n0), W - (self.east - e0)   # (you kept walking meanwhile)
+        if not self._confirm_match(floor, N, W):
+            return
+        self.recording.trigger("atlas reacquisition", {
+            "floor": floor, "match": [float(N), float(W)], "score": score, "second": second})
         self.info("found you with the minimap atlas (%.2f, next best %.2f)" % (score, second))
         pf._init(floor, (N, W), 3.0, N_PARTICLES, "matched")
+
+    def _confirm_match(self, floor, n, w):
+        """A relocation needs consistent pictures along a short walk, not one peak."""
+        old = self.pending_match
+        if old is not None:
+            fl, pn, pw, north, east, start, count = old
+            expected = (pn + self.north - north, pw - self.east + east)
+            if fl == floor and math.hypot(n - expected[0], w - expected[1]) <= 6.0:
+                self.pending_match = (floor, n, w, self.north, self.east, start, count + 1)
+                return count >= 2 and self.odo_yards - start >= 5.0
+        self.pending_match = (floor, n, w, self.north, self.east, self.odo_yards, 1)
+        return False
 
     def _walk_from_atlas(self, floor):
         """Floor the atlas has seen joins the walk map (in the background)."""
@@ -334,7 +400,7 @@ class Core:
             key = self.data.dungeons[pf.dungeon - 1]["key"]
             u, v = self.data.to_map(pf.floor, *pf.est)
             sh.send({"d": key, "f": pf.floor, "u": round(float(u), 4), "v": round(float(v), 4),
-                     "c": self.colour, "g": pf.source == "found by walking",
+                     "c": self.colour, "g": pf.guessed,
                      "ok": now - self.last_good < STALE_AFTER})
 
     def stats(self, extra=None):
@@ -349,6 +415,9 @@ class Core:
                "pasted": c["pasted"], "repasted": c["repasted"], "atlas_yd2": cov, "scale": round(pf.scale, 3),
                "trust": None if pf.trust == math.inf else round(pf.trust),
                "spread": None if pf.spread == math.inf else round(pf.spread, 1),
+               "uncertainty": round(pf.uncertainty, 1) if pf.found else None,
+               "active_boss": pf.active_boss, "boss_mask": pf.boss_mask,
+               "route_checks": pf.route_checks, "route_used": pf.route_used,
                "minimap_read": round(c["minimap_read"] / n, 2), "facing_read": round(c["facing_read"] / n, 2),
                "dungeon": self.data.dungeons[pf.dungeon - 1]["key"] if pf.dungeon else None,
                "floor": pf.floor if pf.dungeon else None, "found": bool(pf.found),
@@ -398,7 +467,7 @@ class Core:
                 me = {"u": round(float(u), 4), "v": round(float(v), 4),
                       "heading": round(hd, 1) if hd is not None else None,
                       "fresh": now - self.last_good < STALE_AFTER,
-                      "guess": pf.source == "found by walking", "size": self.beacon.arrow_size}
+                      "guess": pf.guessed, "size": self.beacon.arrow_size}
         friends = []
         if self.share is not None:
             key = self.data.dungeons[pf.dungeon - 1]["key"]

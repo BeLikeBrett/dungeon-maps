@@ -1,5 +1,30 @@
 # Dungeon Maps: plan and status
 
+## v1.0.6 (2026-11-21)
+- Manual fixes replace conflicting learned pixels; entrances remain approximate. Castle staircase
+  trace retained privately for further comparisons; height-related drift remains unconfirmed.
+- Compact correction contributions from each installation: 20 recent samples per dungeon, six
+  minimap thumbnails each, private server storage with a 2 GB global cap. Native opt-out/notice,
+  retry outbox and acknowledgement; v6 beacon keeps backward decoding for v4/v5.
+- Public relay deployment and real castle upload verified. Private report CLI installed on server.
+
+## v1.0.5 (2026-11-21)
+- Hidden route context from all 122 imported guide traces; cached floor connections, no route lines
+  or forced boss order. Soft weights every 3 yards, permissive when most guesses leave the guide.
+- Ongoing room context, named-floor transitions, and short-lived broad active-boss hints. Beacon v5
+  sends active boss and kill mask; tracker remains compatible with the installed v4 addon.
+- Atlas recent-write safeguards apply to local and global matching, including corrected pixels and
+  interpolation boundaries. Relocations require three matches across five yards; stale async
+  results are discarded. Independent uncertainty is distinct from particle agreement. Boss spawn
+  pins do not train scale or repaint the learned atlas as ground truth.
+- Audited 212 existing boss pins against imported client encounter IDs. Corrected five known
+  creature names, retained encounter/localized aliases, and fixed shared-ID name matching. Single
+  boss encounters learn native boss-unit names per locale; multi-boss pins keep individual labels.
+- Regression coverage: tests/test_context.py plus real Lua addon/beacon harnesses and existing suite.
+- Local diagnostic recorder and isolated sampled-minimap replay added at Brett's request; up to
+  60 s / 30 MB RAM and 10 archives / 100 MB retained. Shift+click corrections capture evidence;
+  pictures stay local. All Linux tests, full pipeline/atlas tests, context and recorder tests pass.
+
 ## Done in v1.0.4 (2026-11-20)
 - **Shift+click** the map where you stand to place your arrow; the map says so.
 - **Gear on the map** (top right): show teammates without Dungeon Maps (off by default), live

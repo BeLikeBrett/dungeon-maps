@@ -8,5 +8,6 @@ services:
       - "127.0.0.1:8105:8105"   # the Cloudflare tunnel reaches it on localhost only
     volumes:
       - ./logs:/logs            # trackers' logs: logs/<day>/<install id>.log (relay.py has the caps)
+      - ./samples:/samples      # private: dungeon/install-id/sample-id.json (20 per bucket, 2 GB total)
     read_only: true
     mem_limit: 128m

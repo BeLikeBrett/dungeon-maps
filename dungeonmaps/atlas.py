@@ -125,7 +125,7 @@ class FloorAtlas:
         """World (north, west) yards -> atlas (row, column), floats."""
         return (self.n_max - n) / RES, (self.w_max - w) / RES
 
-    def _sample(self, arr, r, c):
+    def _sample(self, arr, r, c, newer_than=None):
         """Bilinear samples of arr at float rows/columns (0 outside)."""
         h, w = arr.shape
         r0, c0 = np.floor(r).astype(int), np.floor(c).astype(int)
@@ -134,12 +134,15 @@ class FloorAtlas:
         for dr, dc, k in ((0, 0, (1 - fr) * (1 - fc)), (0, 1, (1 - fr) * fc), (1, 0, fr * (1 - fc)), (1, 1, fr * fc)):
             rr, cc = r0 + dr, c0 + dc
             ok = (rr >= 0) & (rr < h) & (cc >= 0) & (cc < w)
-            out[ok] += arr[rr[ok], cc[ok]] * k[ok]
+            values = arr[rr[ok], cc[ok]]
+            if newer_than is not None:
+                values = values > newer_than
+            out[ok] += values * k[ok]
         return out
 
     # -- paste and match -----------------------------------------------------------------------------
 
-    def paste(self, gray, mask, n, w, ypp, weight=1.0, odo=0.0, fill_only=False):
+    def paste(self, gray, mask, n, w, ypp, weight=1.0, odo=0.0, fill_only=False, replace=False):
         """gray: SIZE x SIZE minimap luminance centred on you at (n, w); ypp yards per pixel of it.
         odo: the session's yards walked (marks new pixels); fill_only: only parts not known yet."""
         size = gray.shape[0]
@@ -168,7 +171,14 @@ class FloorAtlas:
         unknown = t < MIN_WEIGHT
         if fill_only:
             k = k * unknown
-        o[unknown & (k > 0)] = odo
+        if replace:
+            # Explicit user corrections override stale, misregistered texture.
+            # Blending a new weight-4 fix with old weight-12 data mostly keeps
+            # the old error. Only replace pixels actually seen through the mask.
+            seen = k > 0
+            s[seen] = 0
+            t[seen] = 0
+        o[k > 0] = odo  # the last write, including corrections: never match a fresh repaint
         s += g * k
         t += k
         over = t > MAX_WEIGHT
@@ -191,8 +201,9 @@ class FloorAtlas:
         s = self._sample(self.sum, r, cl)
         mask = wt >= MIN_WEIGHT
         if odo is not None:
-            age = odo - self._sample(self.odo, r, cl)
-            mask &= age >= MIN_AGE
+            # A bilinear timestamp blends unknown (-1e9) with fresh pixels and
+            # makes their edges appear ancient. Exclude any fresh contributor.
+            mask &= self._sample(self.odo, r, cl, newer_than=odo - MIN_AGE) < 1e-6
         mask = mask.astype(np.float32)
         return np.where(mask > 0, s / np.maximum(wt, 1e-6), 0).astype(np.float32), mask
 

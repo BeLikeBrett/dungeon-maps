@@ -22,6 +22,7 @@ import os
 import numpy as np
 
 from .data import MAP_H, MAP_W, box_extent, room_main_floor, user_dir
+from .routes import Routes
 
 CALIB_FILE = os.path.join(user_dir("state"), "calibration.json")
 FIX_SIGMA = {"entrance": 3.0, "marked": 4.0, "boss": 15.0, "matched": 2.0}  # (you pull a boss from range)
@@ -97,6 +98,7 @@ class ParticleFilter:
         self.info = info or log
         self.calib = calib if calib is not None else ScaleCalibration(log=self.info)
         self.dungeon = 0
+        self.routes = Routes(data)
         self.reset()
         self.on_fix = None      # (floor, estimate before or None, fix, why, sigma) -> None (set by the core)
 
@@ -117,6 +119,13 @@ class ParticleFilter:
         self.walked = 0.0       # yards walked since the last fix
         self.raw = np.zeros(2)  # odometry since the last fix, before any scale correction
         self.anchor = None      # (floor, north, west, sigma) of the last fix
+        self.route_previous = None
+        self.route_travel = self.context_travel = 0.0
+        self.current_room = None
+        self.active_boss = 0
+        self.boss_mask = 0
+        self.boss_context_travel = 0.0
+        self.route_checks = self.route_used = 0
 
     # -- set up ------------------------------------------------------------------------------------
 
@@ -127,6 +136,16 @@ class ParticleFilter:
     @property
     def found(self):
         return self.est is not None and self.spread <= FOUND_SPREAD and self.searching is None
+
+    @property
+    def uncertainty(self):
+        """Include accumulated bias: identical particles can still all be wrong."""
+        base = self.anchor[3] if self.anchor else 5.0
+        return max(self.spread, base + 0.015 * min(self.trust, 2000.0))
+
+    @property
+    def guessed(self):
+        return self.source == "found by walking" or self.uncertainty > 12.0
 
     def scale_prior(self, n):
         m, sd = self.calib.get()
@@ -157,8 +176,15 @@ class ParticleFilter:
         self.source = why
         self.off_path = 0.0
         self.searching = None
-        if why in ("entrance", "marked", "matched"):
+        if why in ("entrance", "marked"):
             self.trust = 0.0
+        elif why == "matched":
+            # An atlas relocation is not a new independent ground-truth anchor.
+            self.trust = max(80.0, self.trust) if math.isfinite(self.trust) else 80.0
+        elif why == "boss":
+            self.trust = max(800.0, self.trust)  # a spawn pin is only a broad recovery hint
+        self.route_previous = None
+        self.route_travel = self.context_travel = 0.0
         self._estimate()
         self.log("position ->", why, "floor", floor)
 
@@ -172,7 +198,7 @@ class ParticleFilter:
             self.info("fix (%s): the arrow was %.1f yards off after %.0f yards walked (scale %.3f)" % (
                 why, err, self.walked, self.scale))
         a = self.anchor
-        if a is not None and a[0] == floor and why != "matched":
+        if a is not None and a[0] == floor and why not in ("matched", "boss"):
             true = np.array([n - a[1], w - a[2]])
             dt, dr = float(np.hypot(*true)), float(np.hypot(*self.raw))
             if dt >= CALIB_MIN_YARDS and dr >= CALIB_MIN_YARDS:
@@ -185,6 +211,12 @@ class ParticleFilter:
                         ratio, ang, k, sd))
                 else:
                     self.info("minimap scale: stretch ignored (x%.2f, turn %.0f deg)" % (ratio, ang))
+        if why == "boss":
+            # A spawn pin is not the player's location: ranged pulls and patrols
+            # must not calibrate scale or repaint the atlas as ground truth.
+            if self.on_fix:
+                self.on_fix(floor, None, (n, w), why, sigma)  # discard a discontinuous trail
+            return
         if why != "matched":
             if self.on_fix:  # (the atlas re-pastes the stretch since the last fix, corrected)
                 same = self.est is not None and self.floor == floor and self.searching is None
@@ -220,6 +252,8 @@ class ParticleFilter:
         self.s = self.scale_prior(len(p))
         self.w = np.full(len(p), 1 / len(p))
         self.source = "searching"
+        self.route_previous = None
+        self.route_travel = self.context_travel = 0.0
         self.searching = (floor, room)
         self.held = 0.0
         self._estimate()
@@ -257,8 +291,23 @@ class ParticleFilter:
                         self.fix(floor, u, v, "boss", BOSS_SPREAD)
         rooms = self.data.rooms.get(key, [])
         room = rooms[f["room"] - 1] if 0 < f["room"] <= len(rooms) else None
+        self.current_room = room
+        active = f.get("active_boss", 0)
+        mask = f.get("boss_mask", 0)
+        if mask != self.boss_mask:
+            self.info("boss progress:", bin(mask))
+        self.boss_mask = mask
+        if active != self.active_boss:
+            self.active_boss = active
+            self.boss_context_travel = 0.0
         if f["room"] != self.room:
             self.room = f["room"]
+            if room is not None and self.floor is not None and not any(b[0] == self.floor for b in room["boxes"]):
+                # The game names a room exclusive to another floor. Discard the
+                # old-floor estimate; search the new room rather than guessing its centre.
+                self.floor, self.p, self.est = room_main_floor(room), None, None
+                self.searching = None
+                self.route_previous = None
             if room is not None and self.p is not None:
                 self._room_hint(room)
         if self.p is None:
@@ -270,7 +319,7 @@ class ParticleFilter:
             if floor is not None:
                 self.search_floor(floor, room)
 
-    def _room_hint(self, room):
+    def _room_hint(self, room, outside=0.1):
         """The game says which named room you are in: guesses outside it lose most of their weight."""
         if not any(b[0] == self.floor for b in room["boxes"]):
             return
@@ -278,7 +327,7 @@ class ParticleFilter:
         px = ROOM_MARGIN * self.data.px_per_yard(self.floor)
         inside = _box_contains(self.data, self.floor, room["boxes"], u, v, px)
         if inside.any():
-            self.w = self.w * np.where(inside, 1.0, 0.1)
+            self.w = self.w * np.where(inside, 1.0, outside)
             self.w /= self.w.sum()
             self._resample_if_needed()
             self._estimate()
@@ -308,6 +357,26 @@ class ParticleFilter:
                     # evidence per yard walked, not per frame (frames come 100+ a second)
                     self.w = self.w * like ** min(1.0, dist / 0.5)
                     self.w /= self.w.sum()
+            self.route_travel += dist
+            self.context_travel += dist
+            if self.route_travel >= 3.0:
+                graph = self.routes.get(self.floor)
+                if graph is not None:
+                    self.route_checks += 1
+                    like, near = graph.weights(self.p, self.route_previous, self.route_travel)
+                    if (near * self.w).sum() >= 0.65:
+                        self.route_used += 1
+                        self.w *= like ** min(1.0, self.route_travel / 3.0)
+                        self.w /= self.w.sum()
+                self.route_previous = self.p.copy()
+                self.route_travel = 0.0
+            if self.context_travel >= 5.0:
+                # Recheck while walking, rather than applying a frame-rate-dependent
+                # stream of repeated observations. Named rooms are approximate too.
+                if self.current_room is not None:
+                    self._room_hint(self.current_room, outside=0.8)
+                self._boss_hint(self.context_travel)
+                self.context_travel = 0.0
         self._resample_if_needed()
         self._estimate()
         if self.searching is not None:
@@ -316,6 +385,28 @@ class ParticleFilter:
                 self.searching = None
                 self.source = "found by walking"
                 self.log("found you by walking")
+
+    def _boss_hint(self, distance):
+        # A fight says "near this boss", never "at its spawn point". Only use
+        # the opening 40 yards: bosses can be kited or patrol away from the pin.
+        if not self.active_boss or self.boss_context_travel >= 40 or not self.dungeon:
+            return
+        if self.boss_mask & (1 << (self.active_boss - 1)):
+            return  # a defeated boss cannot keep pulling the estimate toward its pin
+        self.boss_context_travel += distance
+        key = self.data.dungeons[self.dungeon - 1]["key"]
+        bosses = self.data.bosses.get(key, [])
+        if not 0 < self.active_boss <= len(bosses):
+            return
+        boss = bosses[self.active_boss - 1]
+        if boss["floor"] != self.floor:
+            return
+        centre = np.asarray(self.data.to_world(self.floor, boss["x"], boss["y"]))
+        d = np.linalg.norm(self.p - centre, axis=1)
+        if not (d < 60).any():
+            return  # patrols/guide positions may be wrong; don't crush every guess
+        self.w *= 0.5 + 0.5 * np.exp(-0.5 * (d / 40.0) ** 2)
+        self.w /= self.w.sum()
 
     def observe(self, n, w, sigma, why="matched"):
         """An outside measurement of where you are (the atlas matched the minimap there).
@@ -333,7 +424,7 @@ class ParticleFilter:
         if self.searching is not None and self.spread <= FOUND_SPREAD:
             self.searching = None
             self.source = "found by the minimap"
-            self.trust = 0.0
+            self.trust = max(80.0, self.trust) if math.isfinite(self.trust) else 80.0
         # (a match while tracking holds the arrow on the atlas but doesn't make it a sure fix: the
         # atlas is only as good as the runs that taught it)
         return True
@@ -348,6 +439,8 @@ class ParticleFilter:
             pos = (self.rng.random() + np.arange(m)) / m
             idx = np.minimum(np.searchsorted(np.cumsum(self.w), pos), n - 1)
             self.p, self.s = self.p[idx].copy(), self.s[idx].copy()
+            if self.route_previous is not None:
+                self.route_previous = self.route_previous[idx].copy()
             self.w = np.full(m, 1 / m)
             if self.searching is not None:
                 # fresh guesses keep a wrong early answer from locking in
@@ -356,6 +449,8 @@ class ParticleFilter:
                 if fresh is not None and len(fresh) == k:
                     j = self.rng.choice(m, k, replace=False)
                     self.p[j] = fresh
+                    if self.route_previous is not None:
+                        self.route_previous[j] = fresh
                     self.s[j] = 1 + self.rng.normal(0, SCALE_SPREAD, k)
 
     def _estimate(self):
