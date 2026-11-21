@@ -10,6 +10,11 @@ replaced) so the overlay placement is checked too.
   4. no starting point at all: the guesses spread over the paths must find you by walking;
   5. friends: positions arriving from the relay are drawn when they are on the shown floor.
 """
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import json
 import math
 import os
@@ -242,24 +247,38 @@ def main():
     assert shown and calls == [False] and t.emitted[-1] == {"show": False}
 
     # 3. a boss pull far from the estimate moves you there; a near one doesn't
-    tu, tv = game.data.to_map(RFC, game.N + 80, game.W)  # "the boss spot" 80 yards north
+    # (the truth is teleported below without moving the minimap picture: no atlas here, it would object)
+    t.core.atlases.get = lambda floor: None
+    # (toward the middle of the map, so the spots stay on it: the beacon clamps them to its edges)
+    cn, cw = game.data.to_world(RFC, 0.5, 0.5)
+    k = 80 / max(math.hypot(cn - game.N, cw - game.W), 1e-6)
+    dn, dw = (cn - game.N) * k, (cw - game.W) * k            # "the boss spot" 80 yards inwards
+    tu, tv = game.data.to_map(RFC, game.N + dn, game.W + dw)
     game.lm_u, game.lm_v, game.lm_count, game.lm_kind = tu, tv, 2, 2
-    game.N += 80   # (the truth is moved to the boss spot to compare)
-    game.N0 += 80  # keep the picture where it was
+    game.N += dn   # (the truth is moved to the boss spot to compare)
+    game.W += dw
+    game.N0 += dn  # keep the picture where it was
+    game.W0 += dw
     now, _, _ = run(t, game, DT, now)
-    before = t.core.pf.est.copy()
     assert t.core.pf.source == "boss", t.core.pf.source
-    game.lm_u, game.lm_v = game.data.to_map(RFC, game.N + 20, game.W)
-    game.lm_count = 3
+    # a near boss pull while you are tracked (here: just after your Shift+click) doesn't move you
+    game.lm_u, game.lm_v = game.data.to_map(RFC, game.N, game.W)
+    game.lm_count, game.lm_kind = 3, 3
+    now, _, _ = run(t, game, DT, now)
+    assert t.core.pf.found, t.core.pf.spread
+    before = t.core.pf.est.copy()
+    game.lm_u, game.lm_v = game.data.to_map(RFC, game.N + 0.25 * dn, game.W + 0.25 * dw)  # 20 yards away
+    game.lm_count, game.lm_kind = 4, 2
     now, _, _ = run(t, game, DT, now)
     moved = math.hypot(*(t.core.pf.est - before))
-    print("far boss pull -> snapped (source %s); near boss pull -> moved %.1f yards (kept tracking)" % (t.core.pf.source, moved))
+    print("far boss pull -> snapped (source boss); near boss pull -> moved %.1f yards (kept tracking)" % moved)
     assert moved < 3, moved
 
     # 4. no starting point: tracker started inside the dungeon
     game = FakeGame(seed=11)
     game.lm_count, game.lm_kind = 0, 0
     t = make_tracker(game)
+    t.core.atlases.get = lambda floor: None   # (found by walking; the atlas search is test_atlas's)
     found_at = None
     for k in range(120):
         now, last, _ = run(t, game, 1.0, now)

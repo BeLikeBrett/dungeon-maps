@@ -3,6 +3,11 @@
 Run after building: python tests/windows_integration.py dist/DungeonMaps.exe
 CI may pass --allow-no-capture: unsupported WGC is reported explicitly, never as verified.
 """
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import ctypes
 import json
 import os

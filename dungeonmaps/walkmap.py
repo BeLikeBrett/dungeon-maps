@@ -22,8 +22,8 @@ from PIL import Image, ImageFilter
 from .data import MAP_H, MAP_W, user_dir
 
 CACHE = os.path.join(user_dir("data"), "floors")
-WALL_SIGMA = 3.0     # yards: how fast the weight falls off outside a path
-FLOOR_WEIGHT = 0.02  # never quite zero (the art can be wrong; ledges)
+WALL_SIGMA = 5.0     # yards: how fast the weight falls off outside a path (hand-drawn art misses lanes)
+FLOOR_WEIGHT = 0.08  # never near zero: the art can miss a lane (Ragefire's ramps) or a ledge
 UNKNOWN_WEIGHT = 0.6
 MAX_DIST = 40        # map pixels the distance field looks out to
 
@@ -137,6 +137,12 @@ class WalkMap:
         w[unknown] = UNKNOWN_WEIGHT
         self.weight = w.astype(np.float32)
 
+    def add_floor(self, floor_mask):
+        """Where the minimap atlas has seen floor is walkable too (the art may not show it as a path)."""
+        if not hasattr(self, "base"):
+            self.base = self.weight.copy()
+        self.weight = np.where(floor_mask, np.float32(1.0), self.base).astype(np.float32)
+
     def weights(self, u, v):
         """Weight at map points (arrays of u, v in 0..1); outside the map: the floor weight."""
         x = np.round(np.asarray(u) * MAP_W).astype(int)
@@ -186,6 +192,18 @@ class WalkMaps:
                     if box[0] == floor:
                         seeds.append((box[1], box[2]))
         return seeds, markers
+
+    def add_floor(self, floor, floor_mask):
+        """Atlas floor (MAP_H x MAP_W bool) joins the floor's walk map; with no art, it IS the walk map."""
+        with self.lock:
+            wm = self._get(floor)
+            if wm is None:
+                if floor_mask.sum() < 500:
+                    return
+                wm = WalkMap(floor_mask, np.zeros_like(floor_mask), self.data.px_per_yard(floor))
+                self.maps[floor] = wm
+                self.atlas_only = getattr(self, "atlas_only", set()) | {floor}
+            wm.add_floor(floor_mask)
 
     def save_art(self, floor, art):
         """art: the canvas as captured (any size): stored at MAP_W x MAP_H; rebuilds the walk map."""

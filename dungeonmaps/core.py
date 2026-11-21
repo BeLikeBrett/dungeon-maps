@@ -13,10 +13,13 @@ import math
 import threading
 import time
 
+import numpy as np
+
+from .atlas import Atlases
 from .data import MAP_H, MAP_W, MINIMAP_DIAMETER, Data
 from .facing import Facing
 from .odometry import Odometry
-from .position import ParticleFilter
+from .position import N as N_PARTICLES, ParticleFilter
 from .walkmap import WalkMaps
 
 STALE_AFTER = 3.0   # seconds without a good minimap frame: your arrow fades
@@ -26,6 +29,15 @@ DOT_BASE, DOT_MIN = 13, 10       # a friend's dot
 GLIDE = 0.08        # seconds: friends' dots glide between relay updates (about 15 a second)
 SNAP = 30           # map pixels: a bigger jump (a new spot, a new floor) is drawn at once
 SHARE_EVERY = 1 / 15  # seconds between position messages to the group
+# The minimap atlas (atlas.py): match the minimap against it, paste the minimap into it
+ATLAS_EVERY = 0.2
+TRAIL_EVERY = 2.5      # yards walked between two minimap pictures kept for the stretch since the last fix
+TRAIL_MAX = 320        # (about 800 yards; older ones are dropped)     # seconds between matches
+LOCK_SCORE, LOCK_MARGIN, LOCK_SHARE = 0.62, 0.08, 0.35   # a match that nudges the estimate
+LOCK_SIGMA = 3.0      # yards
+JUMP_SCORE, JUMP_MARGIN = 0.75, 0.12   # a match far from every guess: moves you there
+FIND_SCORE, FIND_MARGIN, FIND_SHARE = 0.75, 0.15, 0.5    # no position: found on the whole floor
+WALK_FROM_ATLAS_EVERY = 30.0  # seconds: what the atlas knows as floor joins the walk map
 
 
 def _travel_dir(track, now, span):
@@ -46,11 +58,20 @@ class Core:
         self.log, self.info = log, info
         self.data = Data()
         self.walkmaps = WalkMaps(self.data)
-        self.pf = ParticleFilter(self.data, self.walkmaps, log=log)
+        self.pf = ParticleFilter(self.data, self.walkmaps, log=log, info=info)
+        self.atlases = Atlases(self.data)
+        self.odo_yards = 0.0       # yards walked this session (the atlas's clock)
+        self.atlas_at = self.atlas_saved = self.atlas_search_at = self.atlas_walk_at = -math.inf
+        self.atlas_busy = False
+        self.track_at = -math.inf  # (a position line in the log every few seconds)
+        self.atlas_found = None    # a whole-floor match from the background search, to apply
+        self.trail = []            # [(odo yards, floor, north, west, yd/px, picture)] since the last fix
+        self.trail_start = 0.0     # odo yards at the last fix
+        self.pf.on_fix = self._on_fix
         self.odo = Odometry()
         self.facing = Facing()
         self.share = share
-        self.fields = None
+        self.fields = self.beacon = None
         self.mm_key = None
         self.last_good = -math.inf
         self.track = []            # (time, east, north) yards travelled, last second
@@ -63,7 +84,8 @@ class Core:
         self.name = ""
         self.colour = "#cccccc"
         self.shown_friends = {}    # name -> [u, v, time drawn]: where each friend's dot is drawn
-        self.counts = {"frames": 0, "minimap_read": 0, "facing_read": 0, "ms": 0.0, "ms_max": 0.0}
+        self.counts = {"frames": 0, "minimap_read": 0, "facing_read": 0, "ms": 0.0, "ms_max": 0.0,
+                       "atlas_tries": 0, "atlas_locks": 0, "atlas_jumps": 0, "pasted": 0, "repasted": 0}
 
     # -- per frame -----------------------------------------------------------------------------------
 
@@ -93,6 +115,7 @@ class Core:
                 self.facing.reset()
             self.mm_key = key
             self.odo.reset()
+        self.pf.calib.key = "i%dz%d" % (f["indoors"], f["zoom"])
         self.pf.on_beacon(f)
         if mm and not f["rotate"] and self.pf.dungeon:
             img = crop(mm)
@@ -101,6 +124,13 @@ class Core:
         if f["map_open"]:
             self._capture_art(f, b, full_crop or crop)
         self._share(f, now)
+        if now - self.track_at >= 5 and self.pf.dungeon and self.pf.est is not None:
+            self.track_at = now
+            pf = self.pf
+            u, v = self.data.to_map(pf.floor, *pf.est)
+            self.info("at map %.0f,%.0f floor %s spread %.1f trust %s scale %.3f (%s)" % (
+                u * MAP_W, v * MAP_H, pf.floor, pf.spread, "-" if pf.trust == math.inf else "%.0f" % pf.trust,
+                pf.scale, pf.source))
 
     def _minimap(self, img, mm, f, now):
         delta = self.odo.step(img)
@@ -116,6 +146,8 @@ class Core:
             self.pf.move(d_north, -d_east)
             self.east += d_east
             self.north += d_north
+            self.odo_yards += math.hypot(d_east, d_north)
+            self._atlas(now, ypp * img.shape[1] / self.odo.mask.shape[1])
             self.track.append((now, self.east, self.north))
             while self.track and now - self.track[0][0] > 1.0:
                 self.track.pop(0)
@@ -127,6 +159,141 @@ class Core:
             a = _travel_dir(self.track, now, 0.5)
             if a and a[0] > 2.0:
                 self.heading_mm = a[1]   # arrow covered: the way you are moving
+
+    # -- the minimap atlas ---------------------------------------------------------------------------
+
+    def _atlas(self, now, ypp_s):
+        """ypp_s: yards per pixel of the odometry's SIZE x SIZE minimap picture (before correction)."""
+        pf = self.pf
+        if self.atlas_found is not None:
+            self._apply_found()
+        if now - self.atlas_at < ATLAS_EVERY:
+            return
+        self.atlas_at = now
+        gray = getattr(self.odo, "gray", None)
+        floors = pf.floors
+        floor = pf.floor if pf.floor is not None else (floors[0] if len(floors) == 1 else None)
+        if gray is None or floor is None:
+            return
+        a = self.atlases.get(floor)
+        if a is None:
+            return
+        mask = self.odo.mask
+        ypp_s *= pf.scale
+        c = self.counts
+        if pf.p is None or pf.searching is not None or not pf.found:
+            self._atlas_search(a, gray.copy(), mask.copy(), ypp_s, now)
+        elif pf.walked >= 8 or pf.source not in ("entrance", "marked"):
+            # (just after the entrance or your click, those win: the atlas may be what's wrong there)
+            n, w = pf.est
+            c["atlas_tries"] += 1
+            r = a.locate(gray, mask, n, w, ypp_s, min(40.0, 10.0 + 0.25 * pf.trust), self.odo_yards)
+            if r is not None:
+                N, W, score, second, share = r
+                if score >= LOCK_SCORE and score - second >= LOCK_MARGIN and share >= LOCK_SHARE:
+                    c["atlas_locks"] += 1
+                    if math.hypot(N - n, W - w) <= 3 * max(LOCK_SIGMA, pf.spread):
+                        pf.observe(N, W, LOCK_SIGMA)
+                    elif score >= JUMP_SCORE and score - second >= JUMP_MARGIN:
+                        c["atlas_jumps"] += 1
+                        self.info("the minimap matches the atlas %.0f yards from the arrow: moved there (%.2f, next best %.2f)" % (
+                            math.hypot(N - n, W - w), score, second))
+                        pf._init(floor, (N, W), 2.0, N_PARTICLES, "matched")
+        if (pf.found and pf.floor == floor and pf.source != "found by walking" and pf.spread < 8
+                and (not self.trail or self.odo_yards - self.trail[-1][0] >= TRAIL_EVERY)):
+            n, w = pf.est
+            self.trail.append((self.odo_yards, floor, n, w, ypp_s, np.clip(gray, 0, 255).astype(np.uint8)))
+            if len(self.trail) > TRAIL_MAX:
+                self.trail.pop(0)
+        if pf.found and pf.floor == floor and pf.spread < 5 and pf.source != "found by walking":
+            # Only the entrance or your own click may repaint what the atlas already knows (and outweighs
+            # it, healing a wrong patch); anything else only fills in parts not seen yet, or the atlas
+            # would follow the drift it is there to correct.
+            hard = pf.walked < 8 and pf.source in ("entrance", "marked")
+            weight = 4.0 if hard else math.exp(-pf.trust / 80.0)
+            if weight > 0.1:
+                n, w = pf.est
+                a.paste(gray, mask, n, w, ypp_s, weight, self.odo_yards, fill_only=not hard)
+                c["pasted"] += 1
+        if now - self.atlas_saved > 60:
+            self.atlas_saved = now
+            self.atlases.save()
+        if now - self.atlas_walk_at > WALK_FROM_ATLAS_EVERY:
+            self.atlas_walk_at = now
+            self._walk_from_atlas(floor)
+
+    def _on_fix(self, floor, before, fix, why, sigma):
+        """A fix (entrance, boss, your click) after a stretch of dead reckoning: the arrow was off by
+        (fix - before). The drift grew along the way, so the pictures of the stretch are pasted again
+        with their share of the correction (a loop closure) and outweigh what was pasted on the way.
+        That's how the first run of a dungeon teaches a straight atlas for the next ones."""
+        trail, start = self.trail, self.trail_start
+        self.trail, self.trail_start = [], self.odo_yards
+        if before is None or sigma > 15 or not trail:
+            return
+        dn, dw = fix[0] - before[0], fix[1] - before[1]
+        span = max(self.odo_yards - start, 1e-6)
+        if math.hypot(dn, dw) > 0.35 * span + 3 * sigma:
+            self.info("fix (%s) is %.0f yards from the arrow after %.0f yards: the stretch isn't re-pasted" % (
+                why, math.hypot(dn, dw), span))
+            return
+        a = self.atlases.get(floor)
+        if a is None:
+            return
+        weight = 4.0 if sigma <= 5 else 1.0
+        mask = self.odo.mask
+        k = 0
+        for odo, fl, n, w, ypp, gray in trail:
+            if fl != floor:
+                continue
+            f = min(1.0, max(0.0, (odo - start) / span))
+            a.paste(gray.astype(np.float32), mask, n + f * dn, w + f * dw, ypp, weight, odo)
+            k += 1
+        self.counts["repasted"] += k
+        self.info("atlas: %d minimap pictures of the last %.0f yards re-pasted with the fix's correction "
+                  "(%.1f yards at the end)" % (k, span, math.hypot(dn, dw)))
+
+    def _atlas_search(self, a, gray, mask, ypp, now):
+        """No position yet: look for the minimap on the whole floor (in the background: it takes a moment)."""
+        if self.atlas_busy or now - self.atlas_search_at < 2.0 or a.coverage() < 3000:
+            return
+        self.atlas_busy = True
+        self.atlas_search_at = now
+        moved_from = (self.north, self.east)
+
+        def work():
+            try:
+                r = a.locate_anywhere(gray, mask, ypp)
+                if r is not None:
+                    N, W, score, second, share = r
+                    if score >= FIND_SCORE and score - second >= FIND_MARGIN and share >= FIND_SHARE:
+                        self.atlas_found = (a.floor, N, W, score, second, moved_from)
+            except Exception as e:  # (a background helper must never stop tracking)
+                self.info("atlas search failed:", repr(e))
+            finally:
+                self.atlas_busy = False
+        threading.Thread(target=work, daemon=True).start()
+
+    def _apply_found(self):
+        floor, N, W, score, second, (n0, e0) = self.atlas_found
+        self.atlas_found = None
+        pf = self.pf
+        if pf.found and pf.searching is None:
+            return
+        N, W = N + (self.north - n0), W - (self.east - e0)   # (you kept walking meanwhile)
+        self.info("found you with the minimap atlas (%.2f, next best %.2f)" % (score, second))
+        pf._init(floor, (N, W), 3.0, N_PARTICLES, "matched")
+
+    def _walk_from_atlas(self, floor):
+        """Floor the atlas has seen joins the walk map (in the background)."""
+        def work():
+            try:
+                fm = self.atlases.floor_on_map(floor)
+                if fm is not None:
+                    self.walkmaps.add_floor(floor, fm)
+            except Exception as e:
+                self.info("atlas walk map failed:", repr(e))
+        threading.Thread(target=work, daemon=True).start()
 
     def _capture_art(self, f, b, crop):
         """Keep a copy of each floor's map art (once): the walkable paths come from it."""
@@ -174,7 +341,14 @@ class Core:
         """A summary since the last call (sent with the logs, about once a minute)."""
         c, n = self.counts, max(1, self.counts["frames"])
         f, pf = self.fields or {}, self.pf
+        cov = None
+        if pf.floor is not None and pf.floor in self.atlases.atlases:
+            cov = round(self.atlases.atlases[pf.floor].coverage())
         out = {"frames": c["frames"], "ms_avg": round(c["ms"] / n, 1), "ms_max": round(c["ms_max"], 1),
+               "atlas_tries": c["atlas_tries"], "atlas_locks": c["atlas_locks"], "atlas_jumps": c["atlas_jumps"],
+               "pasted": c["pasted"], "repasted": c["repasted"], "atlas_yd2": cov, "scale": round(pf.scale, 3),
+               "trust": None if pf.trust == math.inf else round(pf.trust),
+               "spread": None if pf.spread == math.inf else round(pf.spread, 1),
                "minimap_read": round(c["minimap_read"] / n, 2), "facing_read": round(c["facing_read"] / n, 2),
                "dungeon": self.data.dungeons[pf.dungeon - 1]["key"] if pf.dungeon else None,
                "floor": pf.floor if pf.dungeon else None, "found": bool(pf.found),
@@ -183,7 +357,8 @@ class Core:
                "relay": None if self.share is None else bool(self.share.connected),
                "friends": len(self.shown_friends)}
         out.update(extra or {})
-        self.counts = {"frames": 0, "minimap_read": 0, "facing_read": 0, "ms": 0.0, "ms_max": 0.0}
+        self.counts = {k: 0 for k in self.counts}
+        self.counts["ms"] = self.counts["ms_max"] = 0.0
         return out
 
     # -- what to draw --------------------------------------------------------------------------------
@@ -214,7 +389,7 @@ class Core:
         if pf.p is None and not self.hinted:
             self.hinted = True
             self.info("no starting point yet (you reloaded or started the tracker inside the dungeon): "
-                      "walk a little, or right-click the dungeon map where you stand")
+                      "walk a little, or Shift+click the dungeon map where you stand")
         me = None
         if pf.found and pf.floor == shown:
             u, v = self.data.to_map(pf.floor, *pf.est)
@@ -237,6 +412,8 @@ class Core:
         friends = self._layout(me, friends, cv[2], cv[3], now)
         if me is None and not friends:
             return None
+        for f in friends:
+            f["size"] = self.beacon.dot_size   # (the addon's "Teammate dots" setting)
         return {"canvas": cv, "me": me, "friends": friends}
 
     def _layout(self, me, friends, w, h, now):
@@ -261,7 +438,7 @@ class Core:
         if me is not None:
             # friends standing on you go on a ring around your arrow, so both stay visible
             arrow = max(ARROW_MIN, ARROW_BASE * k) * (me.get("size") or 1)
-            dot = max(DOT_MIN, DOT_BASE * k)
+            dot = max(DOT_MIN, DOT_BASE * k) * self.beacon.dot_size if self.beacon else max(DOT_MIN, DOT_BASE * k)
             ring = arrow * 0.6 + dot / 2 + 2
             mx, my = me["u"] * w, me["v"] * h
             close = []

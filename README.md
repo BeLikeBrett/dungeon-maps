@@ -20,7 +20,7 @@ in the top-left corner). It never reads or touches the game's memory or files.
 3. Fully restart WoW. Santiago Reyes's hand-drawn maps for all 17 Forever floors are included;
    **Forever Dungeon Routes is not required**.
 
-That's enough for the maps. Bosses, group dots and right-click "I'm here" all work without the tracker.
+That's enough for the maps. Bosses, group dots and Shift+click "I'm here" all work without the tracker.
 
 ### 2. The tracker (for the live arrows)
 
@@ -57,7 +57,7 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
 
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
   - Walking in through the entrance sets it straight away.
-  - So does right-clicking the map where you stand.
+  - So does Shift+clicking the map where you stand.
   - Pulling a boss sets it too.
   - If you start the tracker partway through a dungeon, it works out where you are by walking. Until
     it's sure, the arrow is dimmed and labelled "You?".

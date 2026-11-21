@@ -34,6 +34,7 @@ local FRESH = 90                       -- a landmark this many seconds old is st
 local OLD_FADE = 0.55                  -- alpha of a dot placed from an old landmark / last room
 local FAR_FADE = 0.7                   -- alpha of a teammate placed from the 40-yard check
 local LEGEND_ROW, LEGEND_MAX = 18, 10
+local SIZE_MIN, SIZE_MAX = 0.5, 2.5    -- the map settings' size sliders (your arrow, teammates, bosses)
 local RUN_MAX_AGE = 3 * 3600           -- boss kills older than this belong to an old run
 local PREFIX = "FDRGroup"              -- Forever Dungeon Routes' group channel (same message format)
 local STATE_GAP = 2                    -- seconds between two room messages
@@ -58,6 +59,12 @@ local landmark         -- { key, floor, u, v, label, t, kind }: where you were l
 local landmarkCount = 0 -- goes up with every new landmark (the live tracker watches it)
 local wingPick = {}    -- [instanceID] = dungeon key picked (instances with several wings)
 local members = {}     -- [sender] = { key, room name } from group messages
+
+-- A size setting (Settings / the map's gear menu): 0.5x to 2.5x, in tenths.
+local function sizeOf(key)
+	local v = tonumber(DungeonMapsDB and DungeonMapsDB[key]) or 1
+	return math.max(SIZE_MIN, math.min(SIZE_MAX, math.floor(v * 10 + 0.5) / 10))
+end
 
 local function say(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cffffd24dDungeon Maps:|r " .. msg)
@@ -415,8 +422,9 @@ local function locatePeople()
 		room = mine and mine.room }
 	local rooms, live = groupRooms()
 	for _, unit in ipairs(groupUnits()) do
-		if UnitExists(unit) and not plain(UnitIsUnit(unit, "player")) then
-			local name = shortName(plain(UnitName(unit))) or "?"
+		local name = UnitExists(unit) and not plain(UnitIsUnit(unit, "player")) and (shortName(plain(UnitName(unit))) or "?")
+		-- teammates without Dungeon Maps (they never sent a group message) only when the setting says
+		if name and (rooms[name] ~= nil or DungeonMapsDB.showOthers == true) then
 			local r, g, b = classColor(unit)
 			local p = { name = name, unit = unit, r = r, g = g, b = b }
 			local room, now = roomFor(name, rooms[name] or nil)
@@ -522,6 +530,12 @@ local function drawBosses(floor)
 		if boss.floor == floor then
 			n = n + 1
 			local b = getBoss(n)
+			local size = BOSS * sizeOf("bossSize")
+			b:SetSize(size, size)
+			b.back:SetSize(size + 4, size + 4)
+			b.icon:SetSize(size - 6, size - 6)
+			b.hover:SetSize(size + 14, size + 14)
+			b.num:SetFont(STANDARD_TEXT_FONT, math.floor(12 * math.max(1, sizeOf("bossSize") * 0.8) + 0.5), "OUTLINE")
 			local done = bossDone(dungeon.key, i)
 			b:ClearAllPoints()
 			b:SetPoint("CENTER", map.canvas, "TOPLEFT", boss.x * MAP_W, -boss.y * MAP_H)
@@ -609,11 +623,12 @@ local function drawDots(people)
 				-- teammates on a ring around the spot (around you when placed by range);
 				-- one teammate alone on a spot sits on it
 				k = k + 1
-				local radius = (p.how == "near28" or p.how == "near40") and NEAR_RING or SPREAD
+				local radius = ((p.how == "near28" or p.how == "near40") and NEAR_RING or SPREAD) * math.max(1, sizeOf("dotSize"))
 				local angle = (k - 1) / math.max(others, 1) * 2 * math.pi - math.pi / 2
 				x, y = cx + radius * math.cos(angle), cy + radius * math.sin(angle)
 			end
-			local size = p.me and ME_DOT or DOT
+			local size = (p.me and ME_DOT or DOT) * sizeOf("dotSize")
+			d.label:SetFont(STANDARD_TEXT_FONT, math.floor(13 * math.max(0.85, math.min(1.6, sizeOf("dotSize"))) + 0.5), "OUTLINE")
 			d:SetSize(size, size)
 			d.blip:SetSize(size, size)
 			d.ring:SetSize(size + 6, size + 6)
@@ -650,7 +665,7 @@ local function legendDetail(p)
 	if p.status then return p.status end
 	if p.me and DungeonMapsDB.live ~= false then
 		if landmark and landmark.kind == LM_MARKED and GetTime() - landmark.t < 5 then return "marked - the arrow starts here" end
-		return "live arrow (right-click the map where you stand to set it)"
+		return "live arrow (Shift+click the map where you stand to set it)"
 	end
 	if p.how == "unknown" then return p.me and "not placed yet" or "far away" end
 	if p.how == "live" then return "live on the tracker" .. (p.place and (", " .. p.place) or "") end
@@ -906,11 +921,11 @@ local function buildMap()
 	map:SetMovable(true)
 	map:EnableMouse(true)
 	map:RegisterForDrag("LeftButton")
-	map:SetScript("OnDragStart", map.StartMoving)
+	map:SetScript("OnDragStart", function(self) if not IsShiftKeyDown() then self:StartMoving() end end)
 	map:SetScript("OnDragStop", map.StopMovingOrSizing)
-	-- right-click on the map: "I am here" (starts or corrects the live arrow, and your landmark dot)
+	-- Shift+click on the map: "I am here" (starts or corrects the live arrow, and your landmark dot)
 	map:SetScript("OnMouseUp", function(_, button)
-		if button ~= "RightButton" or not (dungeon and floorIndex) then return end
+		if button ~= "LeftButton" or not IsShiftKeyDown() or not (dungeon and floorIndex) then return end
 		local c = map.canvas
 		local x, y = GetCursorPosition()
 		local s = c:GetEffectiveScale()
@@ -966,6 +981,7 @@ local function buildMap()
 	map.next:SetPoint("LEFT", map.floorText, "RIGHT", 6, 0)
 	local close = CreateFrame("Button", nil, map, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", -2, -2)
+	map.closeButton = close
 
 	-- the canvas: 1002 x 668, the top-left of a 4 x 3 grid of 256-px tiles (Blizzard's map layout)
 	local canvas = CreateFrame("Frame", nil, map)
@@ -973,6 +989,7 @@ local function buildMap()
 	canvas:SetPoint("TOPLEFT", PAD, -(PAD + BAR_H))
 	canvas:SetClipsChildren(true)
 	map.canvas = canvas
+	if ns.makeGear then ns.makeGear(map) end
 	map.tiles = {}
 	for row = 0, 2 do
 		for col = 0, 3 do
@@ -1015,7 +1032,7 @@ local function buildMap()
 
 	local note = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	note:SetPoint("BOTTOMRIGHT", -10, 8)
-	note:SetText("Numbered skulls = this dungeon's bosses. Dots = last place the game revealed (entrance, boss, room).")
+	note:SetText("|cffffd100Shift+click where you stand to place your arrow.|r   Skulls: bosses.   Dots: where the game last showed someone.")
 	map.credit = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	map.credit:SetPoint("BOTTOMRIGHT", note, "TOPRIGHT", 0, 3)
 
@@ -1066,7 +1083,7 @@ end
 --   cells 6-26: 9 bits each (3 per colour channel), the fields below, then a checksum
 ---------------------------------------------------------------------------------------------------
 
-local BEACON_CELLS, BEACON_PX = 53, 2 -- cells, physical pixels per cell side
+local BEACON_CELLS, BEACON_PX = 54, 2 -- cells, physical pixels per cell side
 local HEADER = { { 7, 0, 7 }, { 0, 7, 0 }, { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 0 } }
 local beacon
 
@@ -1091,8 +1108,7 @@ end
 -- Your live arrow's size on the map (Settings > AddOns > Dungeon Maps, or /dmaps size 1.5)
 local ARROW_MIN, ARROW_MAX = 0.5, 2.5
 local function arrowSize()
-	local v = tonumber(DungeonMapsDB.arrowSize) or 1
-	return math.max(ARROW_MIN, math.min(ARROW_MAX, math.floor(v * 10 + 0.5) / 10))
+	return sizeOf("arrowSize")
 end
 
 -- The same number for everyone in the group: a hash of the members' GUIDs, sorted. 0 = not grouped.
@@ -1137,7 +1153,7 @@ local function beaconCells()
 	local zoom = plain(Minimap:GetZoom()) or 0
 	local indoors = tonumber(GetCVar("minimapZoom")) ~= zoom
 	local radius = C_Minimap and plain(call(C_Minimap.GetViewRadius)) -- yards from centre to edge
-	pushBits(bits, 3, 3) -- format version
+	pushBits(bits, 4, 3) -- format version
 	pushBits(bits, open and 1 or 0, 1)
 	pushBits(bits, indoors == true and 1 or indoors == false and 2 or 0, 2)
 	pushBits(bits, GetCVar("rotateMinimap") == "1" and 1 or 0, 1)
@@ -1191,6 +1207,8 @@ local function beaconCells()
 	pushBits(bits, r * 31, 5)
 	pushBits(bits, g * 31, 5)
 	pushBits(bits, b * 31, 5)
+	-- v4: how big the tracker draws your teammates' dots
+	pushBits(bits, sizeOf("dotSize") * 10, 5)
 	local cells, sum = beaconOut, 0
 	for c = 1, BEACON_CELLS - #HEADER - 1 do
 		local v = 0
@@ -1331,9 +1349,23 @@ SlashCmdList.DUNGEONMAPS = function(input)
 		local v = tonumber(cmd:match("^size%s+([%d%.]+)"))
 		if v then
 			DungeonMapsDB.arrowSize = math.max(ARROW_MIN, math.min(ARROW_MAX, v))
-			if ns.settingsSlider then ns.settingsSlider:SetValue(arrowSize()) end
+			if ns.refreshSettings then ns.refreshSettings() end
 		end
 		say(("your arrow size: %.1fx (%.1f to %.1f: /dmaps size 1.5)"):format(arrowSize(), ARROW_MIN, ARROW_MAX))
+	elseif cmd:match("^dots") or cmd:match("^bosses") then
+		local key = cmd:match("^dots") and "dotSize" or "bossSize"
+		local v = tonumber(cmd:match("%s+([%d%.]+)"))
+		if v then
+			DungeonMapsDB[key] = math.max(SIZE_MIN, math.min(SIZE_MAX, v))
+			if ns.refreshSettings then ns.refreshSettings() end
+			refreshPeople()
+		end
+		say(("%s size: %.1fx (%.1f to %.1f)"):format(key == "dotSize" and "teammate dot" or "boss icon", sizeOf(key), SIZE_MIN, SIZE_MAX))
+	elseif cmd == "others" then
+		DungeonMapsDB.showOthers = not DungeonMapsDB.showOthers
+		if ns.refreshSettings then ns.refreshSettings() end
+		refreshPeople()
+		say(DungeonMapsDB.showOthers and "teammates without Dungeon Maps are shown (rough spots)." or "only teammates with Dungeon Maps are shown.")
 	elseif cmd == "settings" or cmd == "options" then
 		if ns.settingsCategory and Settings and Settings.OpenToCategory then
 			Settings.OpenToCategory(ns.settingsCategory:GetID())
@@ -1347,7 +1379,7 @@ SlashCmdList.DUNGEONMAPS = function(input)
 		say("boss kills cleared for this dungeon.")
 	else
 		local keys = { GetBindingKey("TOGGLEWORLDMAP") }
-		say(("map key: %s; in a dungeon now: %s. /dmaps settings = options, /dmaps size 1.5 = your arrow size, /dmaps reset = clear boss kills, /dmaps live = live tracker beacon on/off, /dmaps diag = what the game reports here."):format(
+		say(("map key: %s; in a dungeon now: %s. /dmaps settings = options, /dmaps size 1.5 = your arrow size, /dmaps dots 1.5 and /dmaps bosses 1.5 = marker sizes, /dmaps others = teammates without the add-on on/off, /dmaps reset = clear boss kills, /dmaps live = live tracker beacon on/off, /dmaps diag = what the game reports here."):format(
 			#keys > 0 and table.concat(keys, ", ") or "none", inDungeon() and "yes" or "no"))
 	end
 end
@@ -1355,6 +1387,121 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Settings panel (Esc > Options > AddOns > Dungeon Maps)
 ---------------------------------------------------------------------------------------------------
+
+-- The settings, built twice: in the map's gear menu and in Esc > Options > AddOns > Dungeon Maps.
+local sliderCount = 0
+local settingsRefreshers = {}
+
+local function redrawMap()
+	if map and map:IsShown() and floorIndex then
+		drawBosses(floors[floorIndex])
+		refreshPeople()
+	end
+end
+
+local function addSettingsControls(parent, x, y, width)
+	local refreshers = {}
+	local function check(text, get, set)
+		local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+		c:SetPoint("TOPLEFT", x - 4, y)
+		local t = c:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		t:SetPoint("LEFT", c, "RIGHT", 2, 1)
+		t:SetWidth(width - 34)
+		t:SetJustifyH("LEFT")
+		t:SetText(text)
+		c:SetScript("OnClick", function(self)
+			set(self:GetChecked() and true or false)
+			for _, f in ipairs(settingsRefreshers) do f() end
+			redrawMap()
+		end)
+		refreshers[#refreshers + 1] = function() c:SetChecked(get()) end
+		y = y - 34
+	end
+	local function slider(text, key)
+		sliderCount = sliderCount + 1
+		local name = "DungeonMapsSizeSlider" .. sliderCount
+		local sl = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
+		sl:SetPoint("TOPLEFT", x + 4, y - 16)
+		sl:SetWidth(width - 20)
+		sl:SetMinMaxValues(SIZE_MIN, SIZE_MAX)
+		sl:SetValueStep(0.1)
+		if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
+		-- (OptionsSliderTemplate names its labels after the slider)
+		local label, low, high = _G[name .. "Text"], _G[name .. "Low"], _G[name .. "High"]
+		if low then low:SetText(("%.1fx"):format(SIZE_MIN)) end
+		if high then high:SetText(("%.1fx"):format(SIZE_MAX)) end
+		local function show()
+			if label then label:SetText(("%s: %.1fx"):format(text, sizeOf(key))) end
+		end
+		sl:SetScript("OnValueChanged", function(_, v)
+			v = math.floor(v * 10 + 0.5) / 10
+			if v == sizeOf(key) and DungeonMapsDB[key] then return show() end
+			DungeonMapsDB[key] = v
+			show()
+			redrawMap()
+		end)
+		refreshers[#refreshers + 1] = function()
+			sl:SetValue(sizeOf(key))
+			show()
+		end
+		y = y - 54
+	end
+	check("Show teammates who don't have Dungeon Maps (rough spots: their room, or near you)",
+		function() return DungeonMapsDB.showOthers == true end, function(v) DungeonMapsDB.showOthers = v end)
+	check("Live tracker (the small colour strip in the top-left corner the tracker reads)",
+		function() return DungeonMapsDB.live ~= false end, function(v) DungeonMapsDB.live = v end)
+	slider("Your arrow", "arrowSize")
+	slider("Teammate dots", "dotSize")
+	slider("Boss icons", "bossSize")
+	local function refresh() for _, f in ipairs(refreshers) do f() end end
+	settingsRefreshers[#settingsRefreshers + 1] = refresh
+	return refresh, y
+end
+
+-- The gear at the map's top right: the same settings, right on the map.
+function ns.makeGear(frame)
+	local gear = CreateFrame("Button", nil, frame)
+	gear:SetSize(22, 22)
+	gear:SetPoint("RIGHT", frame.closeButton, "LEFT", -2, 0)
+	gear:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+	gear:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+	local panel = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+	panel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD - 4, -(PAD + BAR_H) - 4)
+	panel:SetFrameLevel(frame.canvas:GetFrameLevel() + 60)
+	panel:SetBackdrop({
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		edgeSize = 14,
+		insets = { left = 3, right = 3, top = 3, bottom = 3 },
+	})
+	panel:SetBackdropColor(0.05, 0.04, 0.03, 0.95)
+	panel:SetBackdropBorderColor(0.8, 0.65, 0.3, 1)
+	panel:EnableMouse(true) -- (clicks here never reach the map below)
+	local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", 14, -12)
+	title:SetText("Map settings")
+	local refresh, y = addSettingsControls(panel, 16, -38, 320)
+	local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	hint:SetPoint("TOPLEFT", 14, y - 4)
+	hint:SetWidth(310)
+	hint:SetJustifyH("LEFT")
+	hint:SetText("Shift+click the map where you stand to place your arrow.")
+	panel:SetSize(346, -y + 34)
+	panel:Hide()
+	gear:SetScript("OnClick", function()
+		panel:SetShown(not panel:IsShown())
+		if panel:IsShown() then refresh() end
+	end)
+	gear:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+		GameTooltip:SetText("Map settings")
+		GameTooltip:AddLine("Teammates without Dungeon Maps, live tracker, and the sizes of your arrow, teammates and bosses.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	gear:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	frame:HookScript("OnHide", function() panel:Hide() end)
+	frame.gear, frame.settings = gear, panel
+end
 
 local function createSettings()
 	local panel = CreateFrame("Frame")
@@ -1367,42 +1514,12 @@ local function createSettings()
 	sub:SetWidth(560)
 	sub:SetJustifyH("LEFT")
 	sub:SetText("Your map key opens the dungeon map inside dungeons. With the Dungeon Maps tracker running, "
-		.. "your live arrow and your group's dots are drawn on it.")
+		.. "your live arrow and your group's dots are drawn on it. Shift+click the map where you stand to place your arrow. "
+		.. "The gear on the map has these settings too.")
+	local refresh = addSettingsControls(panel, 16, -70, 460)
+	panel:SetScript("OnShow", refresh)
 
-	local slider = CreateFrame("Slider", "DungeonMapsArrowSize", panel, "OptionsSliderTemplate")
-	slider:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", 4, -36)
-	slider:SetWidth(260)
-	slider:SetMinMaxValues(ARROW_MIN, ARROW_MAX)
-	slider:SetValueStep(0.1)
-	if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
-	-- (OptionsSliderTemplate names its labels after the slider)
-	local label, low, high = _G.DungeonMapsArrowSizeText, _G.DungeonMapsArrowSizeLow, _G.DungeonMapsArrowSizeHigh
-	if low then low:SetText(("%.1fx"):format(ARROW_MIN)) end
-	if high then high:SetText(("%.1fx"):format(ARROW_MAX)) end
-	local function show(v)
-		if label then label:SetText(("Your arrow size: %.1fx"):format(v)) end
-	end
-	slider:SetScript("OnValueChanged", function(_, v)
-		DungeonMapsDB.arrowSize = math.floor(v * 10 + 0.5) / 10
-		show(arrowSize())
-	end)
-	panel:SetScript("OnShow", function()
-		slider:SetValue(arrowSize())
-		show(arrowSize())
-	end)
-
-	local live = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-	live:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", -4, -28)
-	local liveText = live:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	liveText:SetPoint("LEFT", live, "RIGHT", 2, 1)
-	liveText:SetText("Live tracker (the small colour strip in the top-left corner the tracker reads)")
-	live:SetScript("OnClick", function(self)
-		DungeonMapsDB.live = self:GetChecked() and true or false
-		refreshPeople()
-	end)
-	panel:HookScript("OnShow", function() live:SetChecked(DungeonMapsDB.live ~= false) end)
-
-	ns.settingsSlider, ns.settingsPanel = slider, panel
+	ns.refreshSettings, ns.settingsPanel = function() for _, f in ipairs(settingsRefreshers) do f() end end, panel
 	if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
 		local category = Settings.RegisterCanvasLayoutCategory(panel, "Dungeon Maps")
 		Settings.RegisterAddOnCategory(category)

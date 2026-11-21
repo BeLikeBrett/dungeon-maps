@@ -38,7 +38,13 @@ start)
 	done
 	;;
 stop)
-	pid=$(valid_pid 2>/dev/null) && kill "$pid" 2>/dev/null
+	exec 9>"${PIDFILE%.pid}-launch.lock"
+	flock 9
+	if pid=$(valid_pid 2>/dev/null); then
+		# start creates a private session. Stop its Python capture worker too:
+		# killing only qs can leave it holding the capture lock on the next launch.
+		/bin/kill -TERM -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null
+	fi
 	rm -f "$PIDFILE"
 	;;
 *)

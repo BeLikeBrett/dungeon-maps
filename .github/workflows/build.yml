@@ -30,6 +30,7 @@ jobs:
       - run: python tests/test_update.py
       - run: python tests/test_telemetry.py
       - run: python tests/test_layout.py
+      - run: python tests/test_atlas.py
 
   windows:
     runs-on: windows-latest

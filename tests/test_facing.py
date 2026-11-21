@@ -1,6 +1,11 @@
 """Facing from the minimap arrow (the game's own arrow, drawn on the synthetic dungeon's minimap at the
 test's smaller UI scale): spin on the spot over varied ground, both ways, and check the angle read
 against the truth on every frame. Nothing is learned first."""
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import os
 import sys
 import time

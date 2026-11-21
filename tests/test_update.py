@@ -1,4 +1,9 @@
 """The self-updater's parts that don't need Windows: versions, the add-on swap, digest checks."""
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import hashlib
 import io
 import os

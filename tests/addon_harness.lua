@@ -92,6 +92,49 @@ fire("ENCOUNTER_START", 2735, "Bazzalan")
 fire("ENCOUNTER_END", 2735, "Bazzalan", 1, 5, 1)
 rawget(DungeonMapsFrame, "_scripts").OnUpdate(DungeonMapsFrame, 1)
 dump("Bazzalan pulled")
+-- teammates without Dungeon Maps (no group messages from them): hidden unless the setting is on
+local function shownDots()
+  local n = 0
+  for _, d in ipairs(DungeonMapsFrame.dots) do if d._shown and d.label._text ~= "You" then n = n + 1 end end
+  return n
+end
+IsInGroup = function() return true end; GetNumSubgroupMembers = function() return 4 end
+rawget(DungeonMapsFrame, "_scripts").OnUpdate(DungeonMapsFrame, 1)
+assert(shownDots() == 0, "teammates without the addon must be hidden by default, got " .. shownDots())
+DungeonMapsDB.showOthers = true
+rawget(DungeonMapsFrame, "_scripts").OnUpdate(DungeonMapsFrame, 1)
+assert(shownDots() > 0, "showOthers on: teammates must be drawn")
+print("OK teammates without the addon: hidden by default,", shownDots(), "drawn with the setting on")
+DungeonMapsDB.showOthers = nil
+IsInGroup = function() return false end; GetNumSubgroupMembers = function() return 0 end
+-- the gear opens the map settings; sizes change the markers
+local gear = DungeonMapsFrame.gear
+rawget(gear, "_scripts").OnClick(gear)
+assert(DungeonMapsFrame.settings._shown, "gear must open the settings")
+DungeonMapsDB.bossSize = 2
+rawget(DungeonMapsFrame, "_scripts").OnUpdate(DungeonMapsFrame, 1)
+print("OK gear settings open; boss icon size setting 2.0x")
+-- Shift+click places you (a plain click doesn't)
+local c = DungeonMapsFrame.canvas
+rawset(c, "GetLeft", function() return 0 end); rawset(c, "GetTop", function() return 668 end)
+rawset(c, "GetWidth", function() return 1002 end); rawset(c, "GetHeight", function() return 668 end)
+rawset(c, "GetEffectiveScale", function() return 1 end)
+GetCursorPosition = function() return 501, 334 end
+local up = rawget(DungeonMapsFrame, "_scripts").OnMouseUp
+IsShiftKeyDown = function() return false end
+up(DungeonMapsFrame, "LeftButton")
+local before = DungeonMapsCharDB and DungeonMapsCharDB.landmark
+IsShiftKeyDown = function() return true end
+up(DungeonMapsFrame, "LeftButton")
+dump("shift+clicked the middle")
+local found = false
+for _, l in ipairs(DungeonMapsFrame.legend.lines) do
+  if l.text._shown and (l.text._text or ""):find("marked") then found = true end
+end
+assert(found, "Shift+click must mark your position")
+assert(before == nil or before ~= (DungeonMapsCharDB and DungeonMapsCharDB.landmark), "a plain click must not mark")
+print("OK Shift+click marks where you stand")
+IsShiftKeyDown = function() return false end
 print("back button shown:", DungeonMapsBackButton and DungeonMapsBackButton._shown)
 -- World Map button = first UIPanelButtonTemplate child created in buildMap; find by text
 for _, f in ipairs(ALLFRAMES) do if f._text == "World Map" then rawget(f, "_scripts").OnClick(f) end end

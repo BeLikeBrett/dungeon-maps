@@ -1,5 +1,10 @@
 """Friends' dots: glide between relay updates, jump (not slide) across the map, never sit under your
 arrow, and put the name on the side away from you."""
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import math
 import os
 import sys

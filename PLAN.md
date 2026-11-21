@@ -1,5 +1,16 @@
 # Dungeon Maps: plan and status
 
+## Done in v1.0.4 (2026-11-20)
+- **Shift+click** the map where you stand to place your arrow; the map says so.
+- **Gear on the map** (top right): show teammates without Dungeon Maps (off by default), live
+  tracker, and sizes for your arrow, teammate dots and boss icons. `/dmaps dots|bosses <size>`,
+  `/dmaps others`. Beacon v4 carries the dot size to the overlay.
+- **Minimap atlas:** the tracker learns each floor's minimap picture, matches the live minimap
+  against it, and holds the arrow on the map. Fixes (entrance, boss, your click) correct the stretch
+  before them, so the next run of a dungeon is better. A tracker started mid-dungeon finds you from
+  the atlas. Tests: drift of 12 yards → ~2.5 yards.
+- **Scale calibration** from fix to fix; logs say how far off the arrow was at every fix.
+
 ## Done (2026-11-20)
 - **Add-on renamed** from Dungeon Map Key to Dungeon Maps; `/dmaps` (and `/dmk`).
 - **Beacon v3:** 53 cells, carrying the group key, the character name, your arrow size and your

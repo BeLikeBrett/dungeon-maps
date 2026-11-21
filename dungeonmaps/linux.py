@@ -660,6 +660,7 @@ def main():
         fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         owner.close()
+        info("capture already owned by another tracker; waiting for it to stop")
         raise SystemExit(73)
     tracker = LinuxTracker(use_portal="--screenshots" not in sys.argv and os.environ.get("DUNGEONMAPS_CAPTURE") != "screenshots",
                            share="--no-share" not in sys.argv)

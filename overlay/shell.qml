@@ -16,7 +16,7 @@ ShellRoot {
 
     // last line from the tracker:
     // { show, screen, cx, cy, cw, ch, me: { u, v, heading, fresh, guess, size } | null,
-    //   friends: [ { name, u, v, color, fresh, guess } ] }
+    //   friends: [ { name, u, v, color, fresh, guess, label, size } ] }
     property var st: ({ show: false })
     property bool screenshotRecovery: false
 
@@ -33,7 +33,9 @@ ShellRoot {
         stderr: SplitParser { onRead: line => console.log("tracker:", line) }
         onExited: function (exitCode, exitStatus) {
             root.st = { show: false }
-            if (exitCode === 73) return // another tracker already owns capture; don't restart
+            // Another capture owner may be finishing an earlier launch. Retry without
+            // opening another picker; Python's lock still prevents duplicate capture.
+            if (exitCode === 73) console.log("tracker: capture busy; waiting for the current owner")
             root.screenshotRecovery = true // recovery must never reopen the permission picker
             restart.start()
         }
@@ -116,7 +118,7 @@ ShellRoot {
         required property var who
         required property real mapW
         required property real mapH
-        readonly property real d: Math.max(10, 13 * mapW / 1002)
+        readonly property real d: Math.max(10, 13 * mapW / 1002) * (who.size || 1)
         readonly property color c: who.color || "#cccccc"
         width: d
         height: d
@@ -158,7 +160,7 @@ ShellRoot {
                 anchors.centerIn: parent
                 text: fd.who.name + (fd.who.guess === true ? "?" : "")
                 color: fd.c
-                font.pixelSize: Math.max(11, 12 * fd.mapW / 1002)
+                font.pixelSize: Math.max(11, 12 * fd.mapW / 1002) * Math.max(0.85, Math.min(1.6, fd.who.size || 1))
                 font.bold: true
             }
         }

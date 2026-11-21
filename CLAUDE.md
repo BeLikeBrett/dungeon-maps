@@ -29,7 +29,7 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   - `FIELDS` / `CELLS` / `FORMAT_VERSION` in dungeonmaps/beacon.py;
   - `encode()` in tests/test_pipeline.py (checked against the Lua by `check_encoder_matches_lua`).
 
-  Bump FORMAT_VERSION on any change. v3 fills all 423 bits of 53 cells: adding a field means more
+  Bump FORMAT_VERSION on any change. v4 is 54 cells (v3's full 53 + the teammate dot size): adding a field means more
   cells (BEACON_CELLS in Lua, CELLS in Python).
 - **The group key** is djb2 over the sorted member GUIDs joined with ",", mod 2^32. It is computed in
   `groupKey()` in Lua and `group_key()` in tests/test_beacon.py.
@@ -99,9 +99,14 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   the live tracker to crash on every move and QML to reopen the picker every 3 s. Never let damaged
   cache files terminate tracking; discard them and recapture. Diagnostic previews are optional.
 - Capture permission is once per manual app launch: stream failure falls back without re-prompting,
-  and QML recovery passes --screenshots. Exit 73 means another capture owner; never restart for it.
+  and QML recovery passes --screenshots. Exit 73 means another capture owner; retry with screenshots
+  after 3 seconds so a departing owner cannot permanently disable a newly launched overlay.
 - `linux/dungeon-maps start` serializes launches and validates the PID's executable/overlay path.
   Linux Python capture also holds an advisory owner lock. Keep those guards in both launch paths.
+- `stop` takes the same launch lock and terminates the launcher's private process group, including
+  the Python capture worker. Killing only qs can orphan that worker with the capture lock held.
+  Verified with two real start/duplicate-start/stop cycles in Faugus's environment, plus a held
+  capture lock that was released to verify automatic recovery without a permission picker.
 - Current live tracker was started with DUNGEONMAPS_CAPTURE=screenshots to end the popup loop without
   another picker. Brett confirmed the arrow displays. Old pre-rename tracker was stopped by exact PID.
 - Current fix release is **v1.0.2**, commit 05e1381; release CI 44783249166 green, including Windows
@@ -130,3 +135,29 @@ Public repo: github.com/BeLikeBrett/dungeon-maps. Plan and status: PLAN.md.
   when Brett reports a problem.
 - **Updates:** a release's exe and add-on reach Windows users on their next exe start
   (`update.py`). Bump both version strings, or the add-on won't update.
+
+## v1.0.4 notes (2026-11-20, Claude): tracking + map settings
+- **Beacon v4** = 54 cells: v3 + `dot_size` (5 bits, tenths) after cb. Friends' dots in both overlays
+  scale by it (`friend["size"]`).
+- **Add-on:**
+  - Shift+left-click marks "I am here". Right-click no longer does, and Shift never starts a drag.
+  - The gear left of the close button opens map settings, built by `addSettingsControls`, the same
+    code as the Options panel: `showOthers` (default off, which hides teammates whose group message
+    never arrived, i.e. `rooms[name] == nil`), live, and `arrowSize` / `dotSize` / `bossSize`
+    (0.5–2.5).
+- **Atlas (`atlas.py`):** a per-floor minimap mosaic in world yards, saved in user data `atlas/<floor>.npz`.
+  - **Loop closure:** the core keeps a trail of minimap pictures since the last fix. On each fix
+    (entrance, marked, boss) `_on_fix` re-pastes them with the error spread linearly along the
+    stretch (weight 4, or 1 for boss).
+  - **Pinned by tests_atlas:** an atlas lock must NEVER reset `pf.trust` (only one that ends a search
+    may). Hard pastes are keyed on `pf.walked` (yards since a real fix). Getting either wrong makes
+    the atlas repaint itself with drift and then lock onto it.
+  - `_peak` excludes 8 yards (PEAK_APART) around the best match; 4 px only measured the shoulder of
+    the same peak.
+- **Scale:** fix-to-fix calibration per `i{indoors}z{zoom}` in state `calibration.json`, prior
+  CALIB_PRIOR 0.10. A real minimap recording of Ragefire (tools/replay.py) fit the art at ×1.06,
+  not the ~20 % first suspected.
+- `tools/replay.py <frames dir> <yd/px> [floor art.png]` stitches recorded minimap PNGs into a mosaic
+  and fits it to the art's scale.
+- **Logs** now carry "fix (...): the arrow was N yards off after M yards walked", landmark lines, an
+  "at map x,y" line every 5 s, and atlas re-paste lines. Read them for tracking reports.

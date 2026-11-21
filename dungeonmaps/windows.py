@@ -591,7 +591,8 @@ class Overlay:
     def _dot(self, who, w, h):
         """A friend: class-coloured dot (black ring, light rim) and a name tag on the side away from
         your arrow, as laid out by core.py (the Linux overlay draws the same)."""
-        d = max(10, 13 * w / 1002)
+        k = who.get("size") or 1.0   # (the addon's "Teammate dots" setting)
+        d = max(10, 13 * w / 1002) * k
         cx, cy = who["u"] * w, who["v"] * h
         colour = who.get("color") or "#cccccc"
         if who.get("fresh") is False or who.get("guess"):
@@ -599,7 +600,7 @@ class Overlay:
         for r, fill in ((d / 2 + 3, (255, 255, 255, 232)), (d / 2 + 1.5, "#000000"), (d / 2, colour)):
             self.draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
         text = who["name"] + ("?" if who.get("guess") else "")
-        font = self.font(int(max(11, 12 * w / 1002)))
+        font = self.font(int(max(11, 12 * w / 1002) * max(0.85, min(1.6, k))))
         l, t, r, b = self.draw.textbbox((0, 0), text, font=font)
         tw, th = r - l + 10, b - t + 4
         ty = cy + d / 2 + 5 if who.get("label") == "below" else cy - d / 2 - 5 - th

@@ -1,5 +1,10 @@
 """Round trip: the addon's real Lua encodes a beacon (beacon_harness.lua, stubbed WoW API), this
 paints it into a fake 2544x1349 screen (with a gamma shift and blurred cell edges) and decodes it."""
+import os as _os, tempfile as _tempfile  # noqa: E401
+if not _os.environ.get("DUNGEONMAPS_TEST_ISOLATED"):  # never touch the real atlas, calibration or caches
+    _tmp = _tempfile.mkdtemp(prefix="dungeonmaps-test-")
+    _os.environ.update(XDG_DATA_HOME=_tmp, XDG_STATE_HOME=_tmp, LOCALAPPDATA=_tmp, DUNGEONMAPS_TEST_ISOLATED="1")
+
 import json
 import os
 import subprocess

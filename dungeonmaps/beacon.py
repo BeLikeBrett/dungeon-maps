@@ -1,8 +1,8 @@
-"""Reads the Dungeon Maps addon's beacon: a strip of 53 coloured cells (2 x 2 pixels each) the addon
+"""Reads the Dungeon Maps addon's beacon: a strip of 54 coloured cells (2 x 2 pixels each) the addon
 draws in the game's top-left corner.
 
 Cells 1-2 are magenta and green (to find the strip), cells 3-5 hold the 8 colour levels (0..7 per
-channel, measured here so gamma or colour settings can't confuse the decoder), cells 6-53 carry
+channel, measured here so gamma or colour settings can't confuse the decoder), cells 6-54 carry
 9 bits each (3 per channel), the last one a checksum. Field layout: DungeonMaps.lua, beaconCells().
 """
 
@@ -11,9 +11,9 @@ from dataclasses import dataclass
 import numpy as np
 
 HEADER = 5
-CELLS = 53
+CELLS = 54
 PX = 2  # cell side in pixels (BEACON_PX in the addon)
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4
 
 # (name, bits) in the order the addon pushes them
 FIELDS = [
@@ -27,6 +27,8 @@ FIELDS = [
 ] + [("n%d" % i, 8) for i in range(24)] + [
     # v3: your arrow's size (tenths, from the addon's settings) and your class colour (5 bits a channel)
     ("arrow_size", 5), ("cr", 5), ("cg", 5), ("cb", 5),
+    # v4: how big your teammates' dots are drawn (tenths, the addon's "Teammate dots" setting)
+    ("dot_size", 5),
 ]
 
 
@@ -52,6 +54,10 @@ class Beacon:
     @property
     def arrow_size(self):
         return min(2.5, max(0.5, self.fields["arrow_size"] / 10)) if self.fields["arrow_size"] else 1.0
+
+    @property
+    def dot_size(self):
+        return min(2.5, max(0.5, self.fields["dot_size"] / 10)) if self.fields.get("dot_size") else 1.0
 
     def rect(self, prefix):
         """A rectangle the addon sent (relative to the strip's top-left), in image pixels."""
