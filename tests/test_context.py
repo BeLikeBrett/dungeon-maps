@@ -202,6 +202,17 @@ def context_tests():
 
 
 def data_and_performance():
+    # International encounter aliases must load even on a Windows cp1252 locale.
+    import builtins
+    from unittest.mock import patch
+    real_open = builtins.open
+    def windows_open(*args, **kwargs):
+        kwargs.setdefault("encoding", "cp1252")
+        return real_open(*args, **kwargs)
+    with patch("builtins.open", windows_open):
+        localized = Data()
+    assert any(any(ord(c) > 127 for c in alias) for bs in localized.bosses.values()
+               for b in bs for alias in b["aliases"])
     data = Data()
     expected = {"The Baron", "Magmatus", "Arcanic Enigma", "Overlord Mugg", "Deathless Marrow"}
     bosses = [b for bs in data.bosses.values() for b in bs]

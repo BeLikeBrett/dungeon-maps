@@ -1,5 +1,10 @@
 # Dungeon Maps: working notes
 
+## v1.0.7 Windows locale fix (2026-11-21)
+- v1.0.6's Windows CI exposed that Data() used the platform's default encoding. The newly retained
+  international encounter aliases require explicit UTF-8; fixed and covered under a simulated cp1252
+  file default. v1.0.6 tag is retained as failed history; v1.0.7 delivers the corrected release.
+
 ## Latest: v1.0.6 correction learning and community dataset (2026-11-21)
 - Explicit Shift+click fixes now REPLACE conflicting pixels in the visible minimap footprint
   instead of blending weight-4 corrections with old weight-12 texture. Entrance estimates retain

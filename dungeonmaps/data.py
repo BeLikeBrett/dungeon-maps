@@ -26,7 +26,7 @@ def user_dir(kind):
 
 class Data:
     def __init__(self, path=os.path.join(HERE, "data", "dungeons.json")):
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             d = json.load(fh)
         self.dungeons = d["dungeons"]
         self.floors = {int(k): v for k, v in d["floors"].items()}

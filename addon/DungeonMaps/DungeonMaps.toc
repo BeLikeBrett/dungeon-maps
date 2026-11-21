@@ -3,7 +3,7 @@
 ## Notes: Dungeon maps for WoW: Forever: inside a dungeon your map key opens a big map of the floor with bosses, your group, and (with the Dungeon Maps tracker) live arrows. Outside, the key works as normal.
 ## Author: Brett
 ## IconTexture: Interface\AddOns\DungeonMaps\icon
-## Version: 1.0.6
+## Version: 1.0.7
 ## OptionalDeps: ForeverDungeonRoutes
 ## SavedVariables: DungeonMapsDB
 ## SavedVariablesPerCharacter: DungeonMapsCharDB
