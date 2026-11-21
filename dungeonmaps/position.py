@@ -7,8 +7,8 @@ survivors are copied. So drift that would carry you through a wall is pulled bac
 a corridor fixes you sideways all by itself. A jump down a ledge still works: weights never quite
 reach zero, and if every guess is off the paths the art is assumed wrong there and ignored.
 
-Exact fixes: the dungeon entrance and a Shift+click on the map ("I am here"). A boss pull moves you
-only if you are far from that boss. With no fix at all (tracker started inside a dungeon) the guesses
+Exact fixes: the dungeon entrance and a fresh Shift+click on the map ("I am here"). Boss spawns
+provide a broad starting area only when the player's position is unknown. With no fix at all the guesses
 start spread over every path of the floor (inside the named room when the game says which one), and
 your position is shown once they agree.
 
@@ -50,6 +50,8 @@ class ScaleCalibration:
         m, sd, n = self.table.get(self.key, (0.0, CALIB_PRIOR, 0))
         z = math.log(ratio)
         k = sd * sd / (sd * sd + sd_meas * sd_meas)
+        if abs(z - m) > 0.04:
+            k = min(k, 0.04 / abs(z - m))  # one approximate click pair cannot rescale every future step
         m = m + k * (z - m)
         sd = max(SCALE_MIN_SPREAD, math.sqrt((1 - k) * sd * sd) + 0.003)  # (a little forgetting)
         self.table[self.key] = (m, sd, n + 1)
@@ -70,9 +72,8 @@ SCALE_MIN_SPREAD = 0.015
 CALIB_MIN_YARDS = 35.0  # fix-to-fix calibration needs at least this far between the two fixes
 CALIB_PRIOR = 0.10      # how wrong the minimap scale may be before any calibration (log sd; seen ~20 %)
 FIX_SPREAD = 1.0        # yards: spread after an exact fix
-BOSS_SPREAD = 8.0
-BOSS_TRUST = 45.0       # a boss pull moves you only when you are farther than this from it
-FOUND_SPREAD = 6.0      # yards: the estimate is shown when the particles agree this well
+BOSS_SPREAD = 25.0      # a spawn/patrol is only a broad hint when no player position is known
+FOUND_SPREAD = 6.0      # yards: trusted estimate; broader known estimates are still drawn dimly
 ROOM_MARGIN = 8.0       # yards outside a named room's boxes that are still "in the room"
 CONFIRM_YARDS = 60.0    # searching: the answer must hold this far before it is shown
 INJECT = 0.03           # searching: share of guesses replaced by fresh random ones at each resample
@@ -126,6 +127,7 @@ class ParticleFilter:
         self.boss_mask = 0
         self.boss_context_travel = 0.0
         self.route_checks = self.route_used = 0
+        self.motion_valid = True
 
     # -- set up ------------------------------------------------------------------------------------
 
@@ -138,6 +140,10 @@ class ParticleFilter:
         return self.est is not None and self.spread <= FOUND_SPREAD and self.searching is None
 
     @property
+    def displayable(self):
+        return self.est is not None and self.searching is None
+
+    @property
     def uncertainty(self):
         """Include accumulated bias: identical particles can still all be wrong."""
         base = self.anchor[3] if self.anchor else 5.0
@@ -145,7 +151,7 @@ class ParticleFilter:
 
     @property
     def guessed(self):
-        return self.source == "found by walking" or self.uncertainty > 12.0
+        return not self.found or not self.motion_valid or self.source == "found by walking" or self.uncertainty > 12.0
 
     def scale_prior(self, n):
         m, sd = self.calib.get()
@@ -198,14 +204,14 @@ class ParticleFilter:
             self.info("fix (%s): the arrow was %.1f yards off after %.0f yards walked (scale %.3f)" % (
                 why, err, self.walked, self.scale))
         a = self.anchor
-        if a is not None and a[0] == floor and why not in ("matched", "boss"):
+        if a is not None and a[0] == floor and why not in ("matched", "boss") and self.motion_valid:
             true = np.array([n - a[1], w - a[2]])
             dt, dr = float(np.hypot(*true)), float(np.hypot(*self.raw))
             if dt >= CALIB_MIN_YARDS and dr >= CALIB_MIN_YARDS:
                 ang = math.degrees(math.atan2(true[1], true[0]) - math.atan2(self.raw[1], self.raw[0]))
                 ang = (ang + 180) % 360 - 180
                 ratio = dt / dr
-                if abs(ang) < 25 and 0.7 < ratio < 1.45:
+                if abs(ang) < 25 and 0.8 < ratio < 1.25:
                     k, sd = self.calib.add(ratio, (sigma + a[3]) / dt + 0.02)
                     self.info("minimap scale: this stretch says x%.3f (turn %.0f deg); calibrated x%.3f +- %.3f" % (
                         ratio, ang, k, sd))
@@ -224,6 +230,7 @@ class ParticleFilter:
             self.anchor = (floor, n, w, sigma)
             self.raw = np.zeros(2)
             self.walked = 0.0
+            self.motion_valid = True
 
     def fix(self, floor, u, v, why, spread=FIX_SPREAD):
         self._init(floor, self.data.to_world(floor, u, v), spread, N, why)
@@ -281,13 +288,14 @@ class ParticleFilter:
                 self.info("landmark from the addon: %s at map %.0f,%.0f floor %d (#%d%s)" % (
                     {1: "entrance", 2: "boss", 3: "marked"}.get(kind, kind), u * MAP_W, v * MAP_H, floor,
                     f["lm_count"], ", already known at start" if first else ""))
-                if kind in (1, 3) and not (first and self.p is not None):
+                # The beacon keeps the last mark indefinitely. A mark already
+                # present at startup may be minutes behind the moving player.
+                if kind in (1, 3) and not (first and (self.p is not None or kind == 3)):
                     self.fix(floor, u, v, "entrance" if kind == 1 else "marked")
                 elif kind == 2:
                     n, w = self.data.to_world(floor, u, v)
-                    far = self.est is None or self.floor != floor or \
-                        math.hypot(n - self.est[0], w - self.est[1]) > BOSS_TRUST or not self.found
-                    if far:
+                    unknown = self.est is None or self.floor != floor or self.searching is not None
+                    if unknown:
                         self.fix(floor, u, v, "boss", BOSS_SPREAD)
         rooms = self.data.rooms.get(key, [])
         room = rooms[f["room"] - 1] if 0 < f["room"] <= len(rooms) else None

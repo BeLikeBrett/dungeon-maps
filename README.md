@@ -69,6 +69,9 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
 - Boss labels use the creature's name where the encounter title differs; hover to see that title.
   For an unambiguous single-boss encounter, the addon also remembers the game's actual boss-unit
   name in your language.
+- Uncertain positions stay visible as "You?" instead of blinking out at a confidence threshold.
+  Boss pulls preserve a tracked player position; a boss spawn is only a broad hint when you're lost.
+  Impossible minimap jumps are discarded and do not train scale calibration or the learned map.
 - **Settings:** Esc → Options → AddOns → Dungeon Maps (or `/dmaps settings`) has your arrow's size
   and the live-tracker switch. `/dmaps` lists the other commands.
 
@@ -97,6 +100,9 @@ the saved lead-up includes the old estimate and your correction for comparison. 
 `DUNGEONMAPS_RECORDING=off` to disable this. `python tools/replay_trace.py <trace.zip>` reprocesses
 sampled minimaps with isolated caches; it starts from the recorded estimate, so this is an
 approximate comparison, not an exact replay or independent proof of every position.
+Rejected movement also saves the exact grayscale reference/current pictures, matching mask and
+offsets inside the local archive. The replay tool can reproduce these individual matching decisions
+exactly; they are separate from the approximate sampled walk and stay local.
 
 **Community corrections:** with the current addon and tracker, Shift+click also contributes a
 compact correction sample to Brett's server. Each sample has your map correction, the old estimate,

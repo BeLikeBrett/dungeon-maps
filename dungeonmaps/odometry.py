@@ -120,6 +120,10 @@ class Odometry:
         self.key_offset = np.zeros(2)  # position of the key frame, SIZE-pixel units
         self.offset = np.zeros(2)      # last position, SIZE-pixel units
         self.score = 0.0
+        self.max_step = None     # crop pixels; caller derives it from elapsed time and minimap scale
+        self.rejected = 0
+        self.rejected_step = 0.0
+        self.rejection = None
 
     def reset(self):
         self.key = None
@@ -196,6 +200,18 @@ class Odometry:
         shift = -np.array([ix - (n - 1) + sx, iy - (n - 1) + sy])
         pos = self.key_offset + shift
         delta = (pos - self.offset) * scale
+        if self.max_step is not None and np.hypot(*delta) > self.max_step:
+            # Repetitive rooms / changing minimap layers can produce a strong
+            # but impossible peak. Do not commit it, learn UI from it, or emit
+            # the opposite jump next frame. Rebase on a fresh picture instead.
+            self.rejected += 1
+            self.rejected_step = float(np.hypot(*delta))
+            self.rejection = {"key": self.key_gray.copy(), "current": gray.copy(),
+                              "mask": self.mask.copy(), "offset": self.offset.copy(),
+                              "key_offset": self.key_offset.copy(), "candidate": delta.copy(),
+                              "crop_scale": float(scale), "max_step": float(self.max_step)}
+            self.reset_static()
+            return None
         self.offset = pos
         self._learn_static(gray, 0)
         self.prev = gray

@@ -28,6 +28,7 @@ class Recorder:
         self.log = log
         self.enabled = os.environ.get("DUNGEONMAPS_RECORDING", "on") != "off"
         self.frames = deque()
+        self.cases = deque(maxlen=3)
         self.bytes = 0
         self.last_frame = self.last_saved = -math.inf
         self.busy = False
@@ -36,11 +37,16 @@ class Recorder:
 
     def clear(self):
         self.frames.clear()
+        self.cases.clear()
         self.bytes = 0
         self.last_frame = -math.inf
 
-    def add(self, img, fields, pf, now, score):
-        if not self.enabled or now - self.last_frame < .5:
+    def add_case(self, case, now, yards_per_pixel, elapsed):
+        if self.enabled and case is not None:
+            self.cases.append((now, dict(case, yards_per_pixel=float(yards_per_pixel), elapsed=float(elapsed))))
+
+    def add(self, img, fields, pf, now, score, force=False):
+        if not self.enabled or (not force and now - self.last_frame < .5):
             return
         self.last_frame = now
         # Only the minimap rectangle, at its native resolution; never the desktop.
@@ -52,7 +58,7 @@ class Recorder:
                 "trust": float(pf.trust) if math.isfinite(pf.trust) else None,
                 "scale": pf.scale, "source": pf.source, "odometry_score": float(score),
                 "route_checks": pf.route_checks, "route_used": pf.route_used}
-        meta.update(walked=pf.walked, raw=[float(v) for v in pf.raw])
+        meta.update(walked=pf.walked, raw=[float(v) for v in pf.raw], motion_valid=int(pf.motion_valid))
         if rgb.nbytes > MAX_RAM:
             return
         self.frames.append((rgb, meta))
@@ -65,6 +71,7 @@ class Recorder:
         if not self.enabled or not self.frames or self.busy or now - self.last_saved < 10:
             return False
         frames = list(self.frames)
+        cases = [(t, c) for t, c in self.cases if frames[0][1]["t"] <= t <= frames[-1][1]["t"] + 1]
         self.busy, self.last_saved = True, now
 
         def save():
@@ -74,13 +81,17 @@ class Recorder:
                 with tempfile.NamedTemporaryFile(dir=self.folder, suffix=".tmp", delete=False) as fh:
                     temp = fh.name
                 manifest = {"format": 1, "version": __version__, "reason": reason, "event": event,
-                            "frames": [m for _, m in frames]}
+                            "frames": [m for _, m in frames], "motion_cases": len(cases)}
                 with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_STORED) as z:
                     z.writestr("manifest.json", json.dumps(manifest, allow_nan=False))
                     for i, (rgb, _) in enumerate(frames):
                         buf = io.BytesIO()
                         Image.fromarray(rgb).save(buf, format="PNG", compress_level=1)
                         z.writestr("minimap/%04d.png" % i, buf.getvalue())
+                    for i, (t, case) in enumerate(cases):
+                        buf = io.BytesIO()
+                        np.savez_compressed(buf, t=t, **case)
+                        z.writestr("motion/%02d.npz" % i, buf.getvalue())
                 name = "trace-%s-%d.zip" % (time.strftime("%Y%m%d-%H%M%S"), time.time_ns())
                 path = os.path.join(self.folder, name)
                 os.replace(temp, path)

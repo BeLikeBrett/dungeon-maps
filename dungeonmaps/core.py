@@ -79,6 +79,7 @@ class Core:
         self.fields = self.beacon = None
         self.mm_key = None
         self.last_good = -math.inf
+        self.motion_at = None
         self.track = []            # (time, east, north) yards travelled, last second
         self.east = self.north = 0.0
         self.heading_mm = None     # facing on the minimap (0 = north, clockwise)
@@ -132,7 +133,11 @@ class Core:
             self.mm_key = key
             self.odo.reset()
         self.pf.calib.key = "i%dz%d" % (f["indoors"], f["zoom"])
+        old_landmark = self.pf.lm_count
         self.pf.on_beacon(f)
+        if old_landmark != self.pf.lm_count and f["lm_kind"] in (1, 3):
+            self.odo.reset()  # the click anchors the current picture, not the previous step
+            self.motion_at = None
         if mm and not f["rotate"] and self.pf.dungeon:
             img = crop(mm)
             if img is not None and img.shape[0] >= 16 and img.shape[1] >= 16:
@@ -149,15 +154,34 @@ class Core:
                 pf.scale, pf.source))
 
     def _minimap(self, img, mm, f, now):
+        radius = f["radius4"] / 4
+        if not radius:
+            table = MINIMAP_DIAMETER["indoor" if f["indoors"] == 1 else "outdoor"]
+            radius = table[min(f["zoom"], 5)] / 2
+        ypp = 2 * radius / mm[2]
+        dt = max(0.0, now - self.motion_at) if self.motion_at is not None else 0.0
+        # 30 yd/s covers ordinary dungeon movement/sprints with ample margin.
+        # Missing time is not permission for an unlimited image-matching jump.
+        self.odo.max_step = (2.0 + 30.0 * min(dt, 0.5)) / ypp
+        rejected_before = self.odo.rejected
         delta = self.odo.step(img)
+        if self.odo.rejected != rejected_before:
+            self.info("ignored impossible minimap step: %.1f yards in %.3f seconds" % (self.odo.rejected_step * ypp, dt))
+            self.pf.motion_valid = False
+            self.pf.trust = max(800.0, self.pf.trust)
+            self.trail = []
+            self.trail_start = self.odo_yards
+            self.atlas_found = self.pending_match = None
+            self.context_epoch += 1
+            self.recording.add_case(self.odo.rejection, now, ypp, dt)
+            self.recording.add(img, f, self.pf, now, self.odo.score, force=True)
+            self.recording.trigger("impossible minimap step", {"kind": "motion", "floor": self.pf.floor,
+                                   "yards": self.odo.rejected_step * ypp, "elapsed": dt})
+        if delta is not None or self.odo.rejected != rejected_before:
+            self.motion_at = now
         if delta is not None:
             self.counts["minimap_read"] += 1
             self.last_good = now
-            radius = f["radius4"] / 4
-            if not radius:
-                table = MINIMAP_DIAMETER["indoor" if f["indoors"] == 1 else "outdoor"]
-                radius = table[min(f["zoom"], 5)] / 2
-            ypp = 2 * radius / mm[2]
             d_east, d_north = delta[0] * ypp, -delta[1] * ypp
             self.pf.move(d_north, -d_east)
             self.east += d_east
@@ -396,7 +420,7 @@ class Core:
         pf = self.pf
         group = f["group"] if f["dungeon"] else 0
         sh.set_room(group, self.name)
-        if group and pf.found:
+        if group and pf.displayable:
             key = self.data.dungeons[pf.dungeon - 1]["key"]
             u, v = self.data.to_map(pf.floor, *pf.est)
             sh.send({"d": key, "f": pf.floor, "u": round(float(u), 4), "v": round(float(v), 4),
@@ -418,6 +442,7 @@ class Core:
                "uncertainty": round(pf.uncertainty, 1) if pf.found else None,
                "active_boss": pf.active_boss, "boss_mask": pf.boss_mask,
                "route_checks": pf.route_checks, "route_used": pf.route_used,
+               "motion_rejected": self.odo.rejected, "motion_valid": pf.motion_valid,
                "minimap_read": round(c["minimap_read"] / n, 2), "facing_read": round(c["facing_read"] / n, 2),
                "dungeon": self.data.dungeons[pf.dungeon - 1]["key"] if pf.dungeon else None,
                "floor": pf.floor if pf.dungeon else None, "found": bool(pf.found),
@@ -460,7 +485,7 @@ class Core:
             self.info("no starting point yet (you reloaded or started the tracker inside the dungeon): "
                       "walk a little, or Shift+click the dungeon map where you stand")
         me = None
-        if pf.found and pf.floor == shown:
+        if pf.displayable and pf.floor == shown:
             u, v = self.data.to_map(pf.floor, *pf.est)
             if -0.02 <= u <= 1.02 and -0.02 <= v <= 1.02:
                 hd = self.map_heading()

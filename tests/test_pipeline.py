@@ -6,7 +6,7 @@ replaced) so the overlay placement is checked too.
   1. walk from Ragefire Chasm's entrance with a deliberately wrong minimap scale (4 %), with and
      without the walkable-path map: the paths must hold the arrow on course;
   2. the arrow's facing against the truth while turning;
-  3. a far boss pull (must move you) and a near one (must not);
+  3. boss pins must not teleport an already tracked player (including ranged pulls);
   4. no starting point at all: the guesses spread over the paths must find you by walking;
   5. friends: positions arriving from the relay are drawn when they are on the shown floor.
 """
@@ -250,8 +250,7 @@ def main():
         shown, calls == [False], ms))
     assert shown and calls == [False] and t.emitted[-1] == {"show": False}
 
-    # 3. a boss pull far from the estimate moves you there; a near one doesn't
-    # (the truth is teleported below without moving the minimap picture: no atlas here, it would object)
+    # 3. A boss pin is the creature's spawn, not the ranged player's position.
     t.core.atlases.get = lambda floor: None
     # (toward the middle of the map, so the spots stay on it: the beacon clamps them to its edges)
     cn, cw = game.data.to_world(RFC, 0.5, 0.5)
@@ -259,12 +258,9 @@ def main():
     dn, dw = (cn - game.N) * k, (cw - game.W) * k            # "the boss spot" 80 yards inwards
     tu, tv = game.data.to_map(RFC, game.N + dn, game.W + dw)
     game.lm_u, game.lm_v, game.lm_count, game.lm_kind = tu, tv, 2, 2
-    game.N += dn   # (the truth is moved to the boss spot to compare)
-    game.W += dw
-    game.N0 += dn  # keep the picture where it was
-    game.W0 += dw
+    before = t.core.pf.est.copy()
     now, _, _ = run(t, game, DT, now)
-    assert t.core.pf.source == "boss", t.core.pf.source
+    assert math.hypot(*(t.core.pf.est - before)) < 3, "a far boss pin must not teleport a tracked player"
     # a near boss pull while you are tracked (here: just after your Shift+click) doesn't move you
     game.lm_u, game.lm_v = game.data.to_map(RFC, game.N, game.W)
     game.lm_count, game.lm_kind = 3, 3
@@ -275,7 +271,7 @@ def main():
     game.lm_count, game.lm_kind = 4, 2
     now, _, _ = run(t, game, DT, now)
     moved = math.hypot(*(t.core.pf.est - before))
-    print("far boss pull -> snapped (source boss); near boss pull -> moved %.1f yards (kept tracking)" % moved)
+    print("far boss pin kept tracked position; near boss pull moved %.1f yards" % moved)
     assert moved < 3, moved
 
     # 4. no starting point: tracker started inside the dungeon

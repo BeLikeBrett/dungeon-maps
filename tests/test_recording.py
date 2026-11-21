@@ -16,6 +16,7 @@ from PIL import Image
 from dungeonmaps.core import Core
 from dungeonmaps.recording import Recorder
 from dungeonmaps import recording
+from dungeonmaps.odometry import Odometry
 
 c = Core(info=lambda *a: None)
 c.pf.dungeon = 1
@@ -25,6 +26,10 @@ fields = dict(dungeon=1, lm_count=1, lm_kind=3, lm_floor=1, room=0, indoors=1,
 rgb = np.random.default_rng(1).integers(0, 256, (64, 64, 3), dtype=np.uint8)
 for i in range(5):
     c.recording.add(rgb, fields, c.pf, float(i), .99)
+motion = Odometry(); motion.max_step = 2.
+motion.step(rgb)
+assert motion.step(np.roll(rgb, 15, axis=1)) is None
+c.recording.add_case(motion.rejection, 4., 1., .05)
 c._on_fix(213, (0., 0.), (20., 0.), "marked", 4.)
 c.recording.worker.join(5)
 files = list(Path(c.recording.folder).glob("trace-*.zip"))
@@ -32,11 +37,13 @@ assert len(files) == 1 and not list(Path(c.recording.folder).glob("*.tmp"))
 with zipfile.ZipFile(files[0]) as z:
     m = json.loads(z.read("manifest.json"))
     assert m["event"]["error_yards"] == 20 and len(m["frames"]) == 5
+    assert m["motion_cases"] == 1 and "motion/00.npz" in z.namelist()
     got = np.array(Image.open(io.BytesIO(z.read("minimap/0000.png"))))
     assert np.array_equal(got, rgb)
 result = subprocess.run([sys.executable, "tools/replay_trace.py", str(files[0])],
                         text=True, capture_output=True, check=True)
 assert "Reprocessed distance" in result.stdout, result.stdout
+assert "rejected True" in result.stdout, result.stdout
 assert not c.recording.trigger("spam", {}, now=c.recording.last_saved + 1)
 recording.MAX_RAM = 2 * rgb.nbytes
 r = Recorder(folder=str(Path(temp.name) / "bounded"))

@@ -1,5 +1,31 @@
 # Dungeon Maps: working notes
 
+## Latest: v1.0.8 live glitch repair (2026-11-21)
+- Live logs showed 100–300-yard image-matching jumps in seconds; poisoned i2z0 calibration grew to
+  1.133 (per-particle ~1.15). Boss pulls also hard-seeded ranged players at spawn pins, and spread
+  oscillating around 6 yd hid the arrow. User's 08:58:05 mark immediately contradicted a boss snap.
+- Odometry rejects candidate steps larger than (2 + 30 * min(elapsed,.5)) world yards BEFORE changing
+  offsets/static learning. Reset/rebase prevents an opposite phantom jump next frame. Core clears
+  the invalid trail and excludes the broken segment from calibration and map learning. Real teleports
+  or unusually fast knockbacks may require visual reacquisition or a fresh user mark.
+- Known, uncertain poses stay visible/dim (displayable separate from found); whole-floor searches
+  remain hidden. Boss pins seed only unknown/different-floor/searching poses, spread 25 yd; never
+  teleport an already tracked ranged player. Cached manual markers at startup are ignored as stale.
+- Scale pairs accepted only .8..1.25, no learning across rejected motion, and each accepted pair
+  changes log scale by <=.04 with its Kalman uncertainty updated consistently.
+- Live repair started v1.0.8 at 09:06, no capture prompt. Restored known calibration from backup
+  dungeonmaps-before-route-context-20261121-075232 and Lordaeron atlas from dungeonmaps-v105-20261121-082523.
+  Faulty state + all four available recordings preserved at user data research/glitch-20261121-090318/.
+  Fresh user mark 09:08:20 arrived; later motion plausible, scale ~.96, no new impossible jumps observed
+  through 09:13. User feedback, not particle spread, is required to confirm actual game accuracy.
+- Sparse old PNGs did not reproduce the transient spike, despite recorded raw path inflation. New
+  rejects retain exact NCC key/current/mask/offset/max-step arrays (<=3 cases) locally inside trace ZIPs.
+  tools/replay_trace.py replays these cases exactly; normal sampled route remains approximate.
+  Community sample policy/server unchanged; exact-case arrays are never uploaded.
+- Regression tests: impossible high-score peak + rebase, no opposite jump, scale poisoning, stable
+  dim arrow across 5.9/6.1/25 yd spreads, ranged pulls, unknown-boss recovery, stale startup mark.
+  Full pipeline/atlas and other Linux checks passed; recorder case round-trip/replay passes.
+
 ## v1.0.7 Windows locale fix (2026-11-21)
 - v1.0.6's Windows CI exposed that Data() used the platform's default encoding. The newly retained
   international encounter aliases require explicit UTF-8; fixed and covered under a simulated cp1252

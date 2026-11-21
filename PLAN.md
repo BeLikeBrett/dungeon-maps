@@ -1,5 +1,12 @@
 # Dungeon Maps: plan and status
 
+## v1.0.8 live repair (2026-11-21)
+- Reject impossible minimap shifts before committing them; preserve a dim arrow for known uncertain
+  poses, stop boss pins from teleporting ranged players, bound scale learning and ignore stale cached
+  startup marks. Restored Brett's pre-glitch local calibration/atlas and preserved all faulty evidence.
+- Exact rejected image-match snapshots are locally replayable; sampled recordings alone missed the
+  transient failure. All movement/atlas and new regression tests pass locally.
+
 ## v1.0.6 (2026-11-21)
 - Manual fixes replace conflicting learned pixels; entrances remain approximate. Castle staircase
   trace retained privately for further comparisons; height-related drift remains unconfirmed.

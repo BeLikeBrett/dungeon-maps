@@ -31,6 +31,19 @@ def main():
         c.pf.rng = np.random.default_rng(7)
         with zipfile.ZipFile(archive) as z:
             manifest = json.loads(z.read("manifest.json"))
+            for name in z.namelist():
+                if name.startswith("motion/") and name.endswith(".npz"):
+                    from dungeonmaps.odometry import MaskedNCC, _subpixel
+                    with np.load(io.BytesIO(z.read(name)), allow_pickle=False) as case:
+                        match = MaskedNCC(mask=case["mask"])
+                        surf = match.surface(match.prepare(case["key"]), match.prepare(case["current"]))
+                        iy, ix = np.unravel_index(np.argmax(surf), surf.shape)
+                        dy, dx = _subpixel(surf, iy, ix)
+                        shift = -np.array([ix - (match.n - 1) + dx, iy - (match.n - 1) + dy])
+                        candidate = (case["key_offset"] + shift - case["offset"]) * float(case["crop_scale"])
+                        print("Exact motion case %s: candidate %.2f px; allowed %.2f px; rejected %s" % (
+                            name, np.linalg.norm(candidate), float(case["max_step"]),
+                            np.linalg.norm(candidate) > float(case["max_step"])))
             frames = manifest["frames"]
             first = next((i for i, f in enumerate(frames) if f["position"] is not None and f["floor"] is not None), None)
             if first is None:
