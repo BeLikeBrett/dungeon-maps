@@ -72,6 +72,24 @@ def main():
         print("gamma %.2f ok (%s, group %08x): beacon at (%.1f, %.1f) pitch %.2f, minimap %s, map canvas %s" % (
             gamma, b.name, f["group"], b.x, b.y, b.pitch, tuple(round(v, 1) for v in mm), tuple(round(v, 1) for v in cv)))
     print("PASS beacon round trip")
+    # Aligning the beacon above the minimap preserves decoded coordinates while
+    # drastically reducing the screenshot rectangle read back from the desktop.
+    from dungeonmaps.linux import LinuxTracker
+    output = subprocess.run(["lua5.1", os.path.join(HERE, "beacon_harness.lua"), ADDONS, "near"],
+                            capture_output=True, text=True, check=True).stdout
+    near = json.loads([line for line in output.splitlines() if line.startswith("{")][-1])
+    b = beacon.find(paint(near))
+    assert b and abs(b.x - near["minimap"][0]) < 2
+    assert all(abs(g - w) < 1.5 for g, w in zip(b.rect("cv"), near["canvas"]))
+    tracker = LinuxTracker(share=False, use_portal=False)
+    tracker.screen = {}
+    tracker._screen_region(b, (0, 0))
+    new = tracker.screen["region"]
+    tracker._screen_region(beacon.find(paint(info)), (0, 0))
+    old = tracker.screen["region"]
+    assert new[2] * new[3] < old[2] * old[3] / 10, (old, new)
+    print("PASS compact screenshot region: %s -> %s (%.1fx fewer pixels)" %
+          (old[2:], new[2:], old[2] * old[3] / (new[2] * new[3])))
 
 
 if __name__ == "__main__":

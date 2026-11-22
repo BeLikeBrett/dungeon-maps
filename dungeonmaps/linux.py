@@ -456,6 +456,7 @@ class LinuxTracker:
         x, y, w, h = view["canvas"]
         s = out["scale"]
         self.emit({"show": True, "screen": out["name"],
+                   "mapKey": "%s:%s" % (self.core.pf.dungeon, (self.core.fields or {}).get("shown_floor", 0)),
                    "cx": round((x + dx) / s, 1), "cy": round((y + dy) / s, 1),
                    "cw": round(w / s, 1), "ch": round(h / s, 1),
                    "me": view["me"], "friends": view["friends"]})

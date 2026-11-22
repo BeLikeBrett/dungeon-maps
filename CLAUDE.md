@@ -1,5 +1,33 @@
 # Dungeon Maps: working notes
 
+## Latest: v1.0.10 renderer and screenshot optimization (2026-11-21)
+- User reports detached/blurry arrow during map dragging and when walking with the map open.
+  Linux used a small raster Canvas and moved/resized its layer-shell surface at each sample.
+- Fixed output-sized click-through surface; scene graph moves only the map contents. Own marker
+  extracted to PlayerMarker.qml with cached CurveRenderer geometry. Heading/corrections remain
+  instant. motion.js is presentation-only, predicts <=1 capture interval, 50ms, 6 map pixels,
+  stops for stationary/stale input, floor changes, >12px corrections and >150ms gaps.
+- Native beacon now stays on top edge aligned with minimap x; same v6 format, 58 cells, relative
+  coordinate encoding unchanged. Fixture screenshot rectangle 2489x263 -> 199x263, 12.5x fewer pixels.
+- Tests: node tests/test_motion.js; Qt6 qmltestrunner tests/qml (all six pass; glyph inspected);
+  beacon, pipeline, context, layout, motion guard, cache recovery and Lua harness. Use explicit
+  /usr/lib/qt6/bin/qmltestrunner: /usr/bin/qmltestrunner is Qt5 here. CI runs Node helper checks too.
+- All files installed live at 21:25 while game closed; native addon1.0.10 copied and verified.
+  Avoid further QML edits/restarts while Brett plays. QML reload DOES restart the Python worker
+  (confirmed with isolated dummy test), even if the process ID in QML stays identical.
+- Installed noctalia-qs0.0.12 was built with Qt6.11.2; installed Qt6.12.0 triggers ABI warning.
+  Rebuilt v0.0.12 e7224b7 locally against Qt6.12, optional services disabled, nice19/j2,
+  prefix ~/.local/share/dungeon-maps/quickshell-qt612/bin/quickshell. Version output no ABI warning;
+  isolated private-runtime launcher start/duplicate/stop checks passed. DUNGEONMAPS_QUICKSHELL
+  override selects it. Local wow-dungeon-tracker-start hook configured for next launch; do not
+  restart the running game/overlay. CLI11 build dependency installed only in private build-deps.
+- Separate DX12 repair (private provenance ~/.local/share/wow-dx12-repair/repair.json): global
+  Korthos latency layer was active under Niri; old Plasma startup disabled it. Original GE11-12
+  + DISABLE_LOW_LATENCY_LAYER=1 + existing single_queue + gxMaxFrameLatency3 are user-confirmed
+  working. New upstream VKD3D nightly alone did NOT fix hangs; reverted. No older Mesa override
+  applied. Keep current game undisturbed. User suspects latency layer, triple buffer causality not
+  isolated. This machine-specific workaround is NOT part of public addon source or release.
+
 ## Latest: v1.0.9 confidence recovery and route optimization (2026-11-21)
 - Brett reported repeated transparency/manual fixes and worse behavior after context changes.
   Lifetime training distance and motion_valid had made uncertainty permanent after a rejection.

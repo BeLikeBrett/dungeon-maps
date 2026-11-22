@@ -52,6 +52,8 @@ dungeon-maps/linux/dungeon-maps          # or: dungeon-maps start / stop, e.g. a
 When WoW is open a "share a window" dialog appears: pick World of Warcraft.
 If that stream fails, it falls back to screenshots of the visible game without asking again.
 Automatic crash recovery also uses screenshots, so it won't repeatedly reopen the picker.
+Use a Quickshell package built for your installed Qt version. `DUNGEONMAPS_QUICKSHELL=/path/to/quickshell`
+selects an optional per-app runtime.
 
 ## Using it
 
@@ -74,6 +76,10 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
   a rejected motion reading still prevents unsafe calibration learning.
   Boss pulls preserve a tracked player position; a boss spawn is only a broad hint when you're lost.
   Impossible minimap jumps are discarded and do not train scale calibration or the learned map.
+- On Linux, the arrow uses a cached vector shape and short, bounded display prediction between
+  captures. Corrections and heading changes remain immediate. Dragging the map moves markers
+  within a fixed transparent surface. The beacon sits above the minimap to reduce screenshot
+  capture size; neither the capture rate nor tracking rate increases.
 - **Settings:** Esc → Options → AddOns → Dungeon Maps (or `/dmaps settings`) has your arrow's size
   and the live-tracker switch. `/dmaps` lists the other commands.
 

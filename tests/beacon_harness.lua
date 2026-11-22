@@ -116,7 +116,8 @@ for _, f in ipairs(ALLFRAMES) do if rawget(f, "_clips") then canvas = f end end
 place(canvas, 0.8, 760.3, 300.7, 1002 * 0.8 * K, 668 * 0.8 * K)
 DungeonMapsDB.arrowSize = DungeonMapsTestArrowSize
 local beacon = DungeonMapsBeacon
-place(beacon, 0.75, 0, 0, #beacon.cells * 2, 2)  -- the game's top-left corner
+local beaconX = arg[2] == "near" and beacon._pts[4] * 0.75 * K or 0
+place(beacon, 0.75, beaconX, 0, #beacon.cells * 2, 2)
 local ticker
 for i, f in ipairs(ALLFRAMES) do if f == beacon then ticker = ALLFRAMES[i + 1] end end
 if arg[2] == "context" then
@@ -129,4 +130,4 @@ for i, t in ipairs(beacon.cells) do
   local c = t._c
   io.write(("%s[%d,%d,%d]"):format(i > 1 and "," or "", math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5)))
 end
-io.write(("],\"beacon\":[0,0],\"minimap\":[2290.4,64.2,189,189],\"canvas\":[760.3,300.7,%.3f,%.3f],\"shown\":%s}\n"):format(1002 * 0.8 * K, 668 * 0.8 * K, tostring(beacon:IsShown())))
+io.write(("],\"beacon\":[%.0f,0],\"minimap\":[2290.4,64.2,189,189],\"canvas\":[760.3,300.7,%.3f,%.3f],\"shown\":%s}\n"):format(beaconX, 1002 * 0.8 * K, 668 * 0.8 * K, tostring(beacon:IsShown())))

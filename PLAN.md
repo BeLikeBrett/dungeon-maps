@@ -1,5 +1,18 @@
 # Dungeon Maps: plan and status
 
+## v1.0.10 arrow rendering and capture cost (2026-11-21)
+- Linux fixed transparent layer surface, internal map translation, cached vector gold arrow.
+  No rotation easing, raster Canvas uploads or blur effects. Presentation-only prediction <=one
+  capture interval / 50 ms / six map pixels; stops on stale data, corrections, floors and long gaps.
+- Align the beacon horizontally above the minimap, same v6 format/58 cells. Screenshot fixture
+  reduced 2489x263 -> 199x263 (12.5x fewer pixels), with map/minimap coordinates unchanged.
+- Optional DUNGEONMAPS_QUICKSHELL override for a Qt-matched local runtime. No desktop-wide runtime
+  replacement. Brett's old binary warns of Qt 6.11.2 vs 6.12.0; Qt-matched private rebuild installed and
+  isolated launch/duplicate/stop checks passed. Local prehook selects it on next launch.
+- Qt 6.12 headless renderer: 6/6 tests pass, glyph PNG inspected. Node prediction regressions,
+  beacon round trip, Lua harness, pipeline, context, layout, motion guards and capture recovery pass.
+  End-to-end game FPS and perceived smoothness still need real play feedback.
+
 ## v1.0.9 confidence recovery and route cost (2026-11-21)
 - Separate current pose uncertainty from calibration integrity: repeated strong, movement-consistent
   atlas matches restore pose confidence without authorizing learning across missing motion.

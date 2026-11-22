@@ -6,6 +6,7 @@
 HERE=$(dirname "$(readlink -f "$0")")
 ROOT=$(dirname "$HERE")
 PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/dungeon-maps.pid"
+QS=${DUNGEONMAPS_QUICKSHELL:-qs}  # optional per-app runtime built for the installed Qt version
 unset MANGOHUD  # launchers pass the game's environment along
 
 valid_pid() {
@@ -28,7 +29,7 @@ start)
 	flock 9
 	if valid_pid >/dev/null 2>&1; then exit 0; fi
 	rm -f "$PIDFILE"
-	setsid -f sh -c 'echo $$ > "$1"; exec qs -p "$2/overlay" >/dev/null 2>&1' sh "$PIDFILE" "$ROOT" 9>&-
+	setsid -f sh -c 'echo $$ > "$1"; exec "$3" -p "$2/overlay" >/dev/null 2>&1' sh "$PIDFILE" "$ROOT" "$QS" 9>&-
 	# Keep simultaneous launcher hooks serialized until the child has published its real PID.
 	i=0
 	while [ "$i" -lt 40 ]; do
@@ -48,6 +49,6 @@ stop)
 	rm -f "$PIDFILE"
 	;;
 *)
-	exec qs -p "$ROOT/overlay" "$@"
+	exec "$QS" -p "$ROOT/overlay" "$@"
 	;;
 esac

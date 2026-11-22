@@ -1271,8 +1271,9 @@ local function beaconCells()
 end
 
 local function placeBeacon()
-	-- the very top-left corner of the game, on whole physical pixels (tiny and exact to read)
-	local _, physH = GetPhysicalScreenSize()
+	-- Stay on the top edge, horizontally beside the minimap. Screenshot fallback
+	-- can capture a small rectangle instead of the entire span across the game.
+	local physW, physH = GetPhysicalScreenSize()
 	local k = physH / (UIParent:GetHeight() * UIParent:GetEffectiveScale())
 	local unit = 1 / (beacon:GetEffectiveScale() * k) -- one physical pixel in UI units
 	beacon:SetSize(BEACON_CELLS * BEACON_PX * unit, BEACON_PX * unit)
@@ -1286,7 +1287,9 @@ local function placeBeacon()
 		end
 	end
 	beacon:ClearAllPoints()
-	beacon:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+	local mx = Minimap and pixelRect(Minimap)
+	local x = math.floor(math.max(0, math.min(physW - BEACON_CELLS * BEACON_PX, mx or 0)) + 0.5)
+	beacon:SetPoint("TOPLEFT", UIParent, "TOPLEFT", x * unit, 0)
 end
 
 local function updateBeacon()
