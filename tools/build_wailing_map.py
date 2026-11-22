@@ -12,6 +12,7 @@ import subprocess
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+from blp import write_blp
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,7 +63,7 @@ def main():
     def save(image, name):
         padded = Image.new('RGB', (1024, 1024), (114, 76, 36))
         padded.paste(image, (0, 0))
-        padded.quantize(colors=256).save(output / (name+'.blp'), format='BLP')
+        write_blp(padded, output / (name+'.blp'))
 
     save(chart, 'wailing_caverns_instance')
     guided = chart.copy()

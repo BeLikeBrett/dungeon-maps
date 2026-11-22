@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "case": "2026-11-22-green-texture-entrance-arrow",
+  "dungeon": "wailingcaverns",
+  "release": "1.0.17",
+  "observed_release": "1.0.16",
+  "observations": [
+    "Actual player screenshot shows uniform green instance art despite successful Pillow decoding and Lua SetTexture fixture.",
+    "Instance screenshot contains the tracker arrow. Approach screenshot has no live arrow because v16 was a static guide.",
+    "Atlas approach numbers lacked their key."
+  ],
+  "fixes": {
+    "texture": "Mipmapped BLP2 DXT1, matching the working Ruins asset format; same filenames.",
+    "approach_arrow": "Native outdoor API positions projected into unchanged Atlas approach image; per-frame presentation, cached widget updates, no screenshot guessing or instance protocol changes.",
+    "key": {
+      "1": "Mad Magglish (several hiding spots)",
+      "2": "Trigore the Lasher (rare)",
+      "3": "Boahn (rare)",
+      "A": "Outside entrance",
+      "B": "Dungeon portal"
+    }
+  },
+  "registration": {
+    "method": "ORB correspondences and RANSAC similarity fit between Atlas image and north-oriented client WMO geometry; compose with static WMO placement.",
+    "inlier_count": 421,
+    "rms_residual_art_pixels": 0.9005840855509911,
+    "world_north_west_to_atlas_pixels": [
+      [
+        0.12965264076183303,
+        -1.1520913746253427,
+        -2178.5018515661855
+      ],
+      [
+        -1.1520913746257975,
+        -0.12965264076092353,
+        -805.8321658225307
+      ]
+    ],
+    "atlas_sha256": "c06c82d25f17e62f7627dd44fabf1bc05fbbf202c07b4dda6b3a63dfe527347b",
+    "geometry_reference": "WailingCaverns.wmo (109550), ADT 36,33; public HiddenMaps v1.2.2 metadata consulted as a geometric reference. No HiddenMaps code or art distributed."
+  },
+  "checks": [
+    "Actual native UI fixture: API position and movement, heading, letterbox alignment, missing/error/secret coordinates, wrong continent, world-map API fallback and instance boundary.",
+    "All bundled textures decode; DXT compression, dimensions, complete required mip levels and offset bounds checked.",
+    "Beacon round trip, updater transactions and WC path-isolation regressions."
+  ],
+  "limits": [
+    "Registration residual is not measured live player-position error.",
+    "In-game screenshots still needed after reloading the repaired v17 artwork and native arrow.",
+    "Pillow decoding and stubbed native APIs cannot validate the game renderer by themselves."
+  ]
+}

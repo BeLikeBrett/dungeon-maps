@@ -190,7 +190,8 @@ local function findApproach()
 	local inside = plain((IsInInstance()))
 	if inside ~= false or not ns.WailingApproach then return nil end
 	local here = subzone()
-	if here == "Cavern of Mists" or here == "Wailing Caverns" then return ns.WailingApproach end
+	if here == "Cavern of Mists" or here == "Caverns of Mists"
+		or here == "Wailing Caverns" or here == "The Wailing Caverns" then return ns.WailingApproach end
 end
 
 local function inMappedArea()
@@ -666,7 +667,8 @@ local function drawDots(people)
 	local groups, order = {}, {}
 	for _, p in ipairs(people) do
 		local s = p.spot
-		if p.me and DungeonMapsDB.live ~= false and not dungeon.approach then s = nil end
+		if p.me and ((DungeonMapsDB.live ~= false and not dungeon.approach)
+			or (dungeon.approach and map.approachArrow:IsShown())) then s = nil end
 		if s then
 			if s.floor == floor then
 				local key = ("%.4f:%.4f"):format(s.u, s.v)
@@ -738,7 +740,10 @@ end
 
 local function legendDetail(p)
 	if p.status then return p.status end
-	if p.me and dungeon.approach then return "Approach cave: A = cave entrance; B = instance portal" end
+	if p.me and dungeon.approach then
+		return map.approachArrow:IsShown() and "live cave arrow; B = dungeon portal"
+			or "Cave guide: A = entrance; B = portal. Waiting for your position."
+	end
 	if p.me and DungeonMapsDB.live ~= false then
 		if landmark and landmark.kind == LM_MARKED and GetTime() - landmark.t < 5 then return "marked - the arrow starts here" end
 		return "live arrow (Shift+click the map where you stand to set it)"
@@ -843,6 +848,23 @@ end
 -- The map window
 ---------------------------------------------------------------------------------------------------
 
+local function updateApproachArrow()
+	if not (map and map.approachArrow) then return end
+	local x, y, rotation
+	if dungeon and dungeon.approach and ns.ApproachPosition then x, y, rotation = ns.ApproachPosition() end
+	if not x then map.approachArrow:Hide(); return end
+	local arrow = map.approachArrow
+	if arrow.x ~= x or arrow.y ~= y then
+		arrow.x, arrow.y = x, y
+		arrow:ClearAllPoints()
+		arrow:SetPoint("CENTER", map.canvas, "TOPLEFT", (MAP_W-MAP_H)/2 + x*MAP_H/512, -y*MAP_H/512)
+	end
+	local size = 30*sizeOf("arrowSize")
+	if arrow.size ~= size then arrow.size = size; arrow:SetSize(size, size) end
+	if arrow.rotation ~= rotation then arrow.rotation = rotation; arrow:SetRotation(rotation) end
+	arrow:Show()
+end
+
 local function showFloor(index)
 	if not floors[index] then return end
 	floorIndex = index
@@ -903,8 +925,10 @@ local function showFloor(index)
 	map.noArt:SetShown(not tiles and not image and count == 0)
 	map.credit:SetText(missing and "New clean map: fully restart WoW once to load it" or (info and info.credit or ""))
 	map.portal:SetShown(dungeon.approach == true and image ~= nil)
+	map.approachKey:SetShown(dungeon.approach == true and image ~= nil)
+	updateApproachArrow()
 	if dungeon.approach then
-		map.note:SetText("|cffffd100APPROACH CAVE: A = cave entrance; B = instance portal.|r  The dungeon map starts after the portal.")
+		map.note:SetText("|cffffd100CAVE TO PORTAL.|r  Gold arrow: you. A: outside. B: dungeon portal. Numbers: cave creatures (see key).")
 	elseif dungeon.key == "wailingcaverns" then
 		if DungeonMapsDB.wailingRoute ~= false then
 			map.note:SetText("|cffffd100INSTANCE ONLY.|r  Teal: boss circuit. Gold: Naralex escort. Crossings may be on different levels. Hide guide in gear menu.")
@@ -1164,11 +1188,24 @@ local function buildMap()
 	map.credit:SetPoint("BOTTOMRIGHT", note, "TOPRIGHT", 0, 3)
 	map.portal = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	map.portal:SetPoint("LEFT", canvas, "TOPLEFT", (MAP_W-MAP_H)/2 + 270*MAP_H/512 + 10, -350*MAP_H/512)
-	map.portal:SetText("B - INSTANCE PORTAL")
+	map.portal:SetText("Dungeon portal")
 	map.portal:Hide()
+	map.approachKey = canvas:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	map.approachKey:SetPoint("TOPLEFT", 14, -32)
+	map.approachKey:SetWidth((MAP_W-MAP_H)/2 - 26)
+	map.approachKey:SetJustifyH("LEFT")
+	map.approachKey:SetJustifyV("TOP")
+	map.approachKey:SetText("|cffffd100CAVE KEY|r\n\nA  Outside entrance\n\nB  Dungeon portal\n\n1  Mad Magglish\n    Several hiding spots\n\n2  Trigore the Lasher\n    Rare\n\n3  Boahn\n    Rare\n\n|cffffd100Gold arrow: you|r")
+	map.approachKey:Hide()
+	map.approachArrow = canvas:CreateTexture(nil, "OVERLAY", nil, 7)
+	map.approachArrow:SetTexture("Interface\\WorldMap\\WorldMapArrow")
+	map.approachArrow:SetDesaturated(true)
+	map.approachArrow:SetVertexColor(1, 0.82, 0.15, 1)
+	map.approachArrow:Hide()
 
 	local elapsed = 0
 	map:SetScript("OnUpdate", function(_, dt)
+		if dungeon and dungeon.approach then updateApproachArrow() end
 		elapsed = elapsed + dt
 		if elapsed < POLL then return end
 		elapsed = 0

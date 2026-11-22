@@ -6,7 +6,7 @@ and decisions; the tracker does not load them as positioning rules.
 | Dungeon | Latest reviewed case | Decision |
 | --- | --- | --- |
 | [Ruins of Lordaeron](dungeons/ruinsoflordaeron/README.md) | 2026-11-22: bridge/drop report, one correction | Preserve tracking; bridge adjustment needs more evidence |
-| [Wailing Caverns](dungeons/wailingcaverns/README.md) | 2026-11-22: approach/instance confusion, new-map corrections | Separate maps; WC-only passage mask and zoom guard; retain coordinates |
+| [Wailing Caverns](dungeons/wailingcaverns/README.md) | 2026-11-22: v16 green art, static approach, missing key | DXT mipmap repair; native outdoor arrow/key; live render confirmation pending |
 
 The [boss-name audit](boss-names.json) covers all 212 imported pins and their client
 encounter IDs/titles. Documented creature-title differences and shared encounters

@@ -1,5 +1,6 @@
 """Verify every referenced bundled BLP decodes and crops to the addon's canvas aspect ratio."""
 import subprocess
+import struct
 from pathlib import Path
 
 from PIL import Image
@@ -32,6 +33,25 @@ for line in manifest.splitlines():
     print('OK', floor, relative)
 actual = {p.relative_to(ROOT / 'addon/DungeonMaps').as_posix()
           for p in (ROOT / 'addon/DungeonMaps/maps').glob('*.blp')}
+# Successful Pillow decoding did not mean the v16 palette BLP worked in WoW.
+# Match the compression and complete mip-chain of the actual working maps.
+for relative in actual:
+    payload = (ROOT / 'addon/DungeonMaps' / relative).read_bytes()
+    magic, kind, encoding, alpha, alpha_kind, mips, w, h = struct.unpack('<4sI4BII', payload[:20])
+    assert magic == b'BLP2' and kind == 1 and encoding == 2 and mips == 1, ('WoW-incompatible texture', relative)
+    assert alpha in (0, 1, 4, 8) and alpha_kind in (0, 1, 7)
+    offsets = struct.unpack('<16I', payload[20:84]); sizes = struct.unpack('<16I', payload[84:148])
+    block_bytes = 8 if alpha_kind == 0 else 16
+    i = 0
+    while True:
+        length = max(1, (w+3)//4)*max(1, (h+3)//4)*block_bytes
+        assert sizes[i] == length and offsets[i] >= 148 and offsets[i]+length <= len(payload), (relative,i)
+        if w == h == 1: break
+        w,h = max(1,w//2),max(1,h//2); i += 1
+    # Old Atlas files have junk in unused slots which the working game ignores.
+    # Our own writer must terminate its chain cleanly.
+    if relative in {'maps/wailing_caverns_instance.blp','maps/wailing_caverns_route.blp'}:
+        assert not any(offsets[i+1:]) and not any(sizes[i+1:]), relative
 extra = {'maps/wailing_caverns_route.blp', 'maps/wailing_caverns_approach.blp'}
 assert len(expected) == 18 and expected | extra == actual, ((expected | extra) - actual, actual - expected - extra)
 for name in extra:

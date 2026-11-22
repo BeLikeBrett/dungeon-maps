@@ -14,6 +14,10 @@ Source: nanderson11/Atlas, Images/Atlas_ClassicWoW/CL_WailingCavernsEnt.blp
 https://github.com/nanderson11/Atlas
 License: GPL-2.0; the complete license is in ../LICENSE-Atlas.txt. Atlas credits in the
 image are retained. The MIT license of Dungeon Maps does not replace this asset's license.
+The approach arrow's independent affine registration uses client WMO geometry facts,
+cross-checked against public HiddenMaps v1.2.2 placement metadata (WMO 109550 / ADT 36,33).
+No HiddenMaps code or artwork is included. Registration notes are in the repository's
+validation/dungeons/wailingcaverns directory.
 
 wailing_caverns_instance.blp and wailing_caverns_route.blp: Dungeon Maps navigation
 reconstruction from Blizzard's Wailing Caverns minimap textures. The four approach-chamber

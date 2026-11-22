@@ -63,8 +63,8 @@ selects an optional per-app runtime.
   map's gear menu and click **Clear defeated bosses**, or type `/dmaps reset`.
 - Wailing Caverns has two separate maps: the uninstanced approach cave (**A** = entrance,
   **B** = instance portal), then a clean instance chart including Pythas and Skum's Winding Chasm.
-  The map switches contexts at the portal. The approach is a static guide with optional manual
-  marks; automatic live tracking starts inside the instance.
+  The map switches contexts at the portal. The approach arrow uses the game’s available outdoor position and facing.
+  Inside the instance, the external tracker supplies the arrow.
 - Wailing Caverns' optional route guide shows the main boss circuit in teal and Naralex's escort
   in gold. Hide it in the map's gear menu. Passages can cross at different heights; crossing lines
   do not always mean a junction. Its separate passage mask excludes the approach chamber and

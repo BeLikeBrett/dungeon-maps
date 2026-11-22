@@ -2,6 +2,35 @@
 
 Dungeon key: `wailingcaverns`. Instance floor: `279`.
 
+## v1.0.17 render repair and live approach arrow
+
+The player's actual v1.0.16 screenshots exposed a missed validation boundary:
+Pillow decoded our palette BLP successfully, while WoW rendered it green. Native
+fixture success did not validate the real renderer. The v17 builder emits DXT1
+BLP2 with the same complete mip chain as the working Ruins map. Asset checks now
+inspect compression, every required mip size and offsets, in addition to decoding.
+The two files keep their existing names.
+
+The unchanged Atlas entrance image now has its missing key: 1 = Mad Magglish
+(several hiding spots), 2 = Trigore the Lasher (rare), 3 = Boahn (rare), A = outside,
+B = dungeon portal. A native arrow uses outdoor UnitPosition, with a C_Map
+world-position fallback; it does not guess from minimap pictures. Coordinates are
+projected into the art using client WMO geometry registered to Atlas: 421 inlier
+texture matches, 0.901 image-pixel RMS residual. This residual measures registration,
+not live player accuracy. The affine transform also rotates facing correctly.
+
+Only a detected, uninstanced cave can use that position API. Wrong-continent,
+missing, error, secret and non-finite readings hide the native arrow rather than
+reuse an old pose. Updates follow visible game frames and reuse the texture and
+unchanged widget properties. Nothing is added to the dungeon beacon, tracker
+indexes, party relay, correction uploads or instance tracking algorithm.
+
+The public HiddenMaps release's WMO placement/bounds metadata was consulted as a
+geometry reference. No HiddenMaps code or art is bundled; the Atlas image remains
+byte-identical and GPL-2.0 credited. See the [render/arrow case](cases/2026-11-22-green-texture-entrance-arrow.json).
+The local native repair is installed for /reload. Its actual game rendering remains
+unconfirmed until a fresh in-game view is observed; tests alone are insufficient.
+
 ## Separate approach and instance maps (v1.0.16)
 
 The old later-version parchment omits the Winding Chasm, leaving Pythas and Skum
@@ -13,8 +42,8 @@ The current map separates the two contexts:
 
 - **Approach cave:** unchanged Classic Atlas entrance map by Arith, from the
   [GPL-2.0 Atlas source](https://github.com/nanderson11/Atlas). A marks the cave
-  entrance; B marks the instance portal. This is a native static map with optional
-  manual pins. It never emits dungeon tracking data or trains floor 279.
+  entrance; B marks the instance portal. The v17 native arrow uses available outdoor API coordinates. It never emits
+  dungeon tracking data or trains floor 279.
 - **Instance:** a clean navigation chart rebuilt from 43 client textures, excluding
   approach-chamber parts 8111382, 8111387, 8111391 and 8111396. It retains the exact
   world frame, boss coordinates, rooms, entrance and guide route. Optional baked

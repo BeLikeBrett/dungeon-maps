@@ -233,7 +233,44 @@ DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
 assert(DungeonMapsFrame:IsShown() and DungeonMapsFrame.title._text:find("Approach cave"))
 assert(DungeonMapsFrame.picture._texture:find("wailing_caverns_approach"))
 assert(DungeonMapsFrame.portal:IsShown())
+assert(DungeonMapsFrame.approachKey:IsShown() and DungeonMapsFrame.approachKey._text:find("Mad Magglish"))
+assert(DungeonMapsFrame.approachKey._text:find("Trigore the Lasher") and DungeonMapsFrame.approachKey._text:find("Boahn"))
 for _,boss in ipairs(DungeonMapsFrame.bosses) do assert(not boss:IsShown(), "instance boss leaked onto approach") end
+local originalPosition, originalFacing = UnitPosition, GetPlayerFacing
+local north, west = -754.5206239814268, -2210.1783756541904
+UnitPosition = function() return north, west, 0, 1 end
+GetPlayerFacing = function() return 0 end
+local update = rawget(DungeonMapsFrame, "_scripts").OnUpdate
+update(DungeonMapsFrame, 0.016)
+local arrow = DungeonMapsFrame.approachArrow
+assert(arrow:IsShown(), "native outdoor arrow missing")
+assert(math.abs(arrow.x-270) < .001 and math.abs(arrow.y-350) < .001, "portal projection moved")
+assert(math.abs(arrow._pts[4] - (167+270*668/512)) < .001)
+assert(math.abs(arrow.rotation - math.rad(-6.421)) < .001, "north-facing arrow ignores map orientation")
+north = north+10
+update(DungeonMapsFrame, .016)
+assert(arrow:IsShown() and math.abs(arrow.y-(350-11.52091374626)) < .001, "arrow did not follow outdoor movement")
+local pixelX,pixelY = arrow.x,arrow.y
+-- The world-map API is a fallback if UnitPosition is unavailable.
+UnitPosition = function() return nil end
+C_Map.GetPlayerMapPosition = function() return {} end
+C_Map.GetWorldPosFromMapPos = function() return 1,{GetXY=function() return north,west end} end
+update(DungeonMapsFrame,.016)
+assert(arrow:IsShown() and arrow.x==pixelX and arrow.y==pixelY)
+C_Map.GetWorldPosFromMapPos = function() return 0,{GetXY=function() return north,west end} end
+update(DungeonMapsFrame,.016)
+assert(not arrow:IsShown(), "coordinates from the wrong continent used as cave position")
+C_Map.GetWorldPosFromMapPos = function() error("unavailable") end
+update(DungeonMapsFrame,.016)
+assert(not arrow:IsShown(), "bad API reused a stale live arrow")
+local secret = {}
+issecretvalue = function(v) return v==secret end
+UnitPosition = function() return secret,west,0,1 end
+update(DungeonMapsFrame,.016)
+assert(not arrow:IsShown())
+issecretvalue = nil
+C_Map.GetPlayerMapPosition, C_Map.GetWorldPosFromMapPos = nil,nil
+UnitPosition,GetPlayerFacing = originalPosition,originalFacing
 GetSubZoneText = function() return "The Barrens" end
 fire("ZONE_CHANGED")
 assert(not DungeonMapsFrame:IsShown(), "approach map stayed after leaving the cave")
@@ -245,6 +282,10 @@ GetSubZoneText = function() return "Cavern of Mists" end
 fire("PLAYER_ENTERING_WORLD", false, false)
 DungeonMaps_Toggle()
 assert(DungeonMapsFrame.title._text == "Wailing Caverns" and not DungeonMapsFrame.portal:IsShown())
+assert(not DungeonMapsFrame.approachArrow:IsShown() and not DungeonMapsFrame.approachKey:IsShown())
+UnitPosition = function() error("position API must not be called inside an instance") end
+assert(ns.ApproachPosition()==nil)
+UnitPosition = originalPosition
 assert(DungeonMapsFrame.bosses[4]:IsShown())
 GetSubZoneText = realSubzone
 print("OK approach/portal/real-instance boundaries and unrelated outdoor zones")

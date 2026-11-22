@@ -1,5 +1,24 @@
 # Dungeon Maps: plan and status
 
+## v1.0.17 green-map regression and native entrance arrow (2026-11-22)
+- User photos show v16 instance texture green. Our old Pillow/stub tests were insufficient: palette
+  BLP2 encoding1 decoded offline but failed in this client. Rebuild both existing WC filenames as
+  DXT1 BLP2 encoding2, hasMips1, complete11-level chain, matching working Ruins header/layout.
+  tools/blp.py + builder now generate this; test_maps checks actual compression/mip sizes/bounds.
+- Atlas entrance1/2/3 = Mad Magglish (varies), Trigore the Lasher (rare), Boahn (rare), verified in
+  primary Atlas ClassicEra data. Added visible left-margin map key and shortened portal label.
+- Approach now has native outdoor API arrow, with UnitPosition and C_Map1413->continent-world
+  fallback; only outside, Kalimdor1, finite/nonsecret. Affine fit of Atlas to client WMO109550/ADT36,33
+  geometry:421 inliers, .900584px RMS; six derived coefficients in Approaches.lua. Rotation follows
+  same transform. Reference: public HiddenMaps v1.2.2 static WMO facts, no code/art redistributed.
+  Private ORB/RANSAC reference + player screenshots retained under research/wailing-render-20261122.
+- Native arrow updates only while visible approach, per game frame; reuse texture/unchanged props.
+  No tracker protocol/data/index/party/sample/instance-algorithm changes. Live external reader16 is
+  compatible with native17 (same7/58). No tracker restart just for version string is needed.
+- Native17 installed directly and every file byte-verified, backup under wow-addon-backups/. Existing
+  filenames/Approaches.lua already known to client, so /reload retries this repair. User instructed.
+  Do NOT claim live visual confirmation from tests or movement logs. Fresh game rendering pending.
+
 ## v1.0.16 Wailing Caverns approach / instance separation (2026-11-22)
 - Supersedes v1.0.15 WC artwork notes below. User asked to research Turtle/free maps and fix both
   the portal approach and actual instance, autonomously. Turtle Atlas has incompatible custom
