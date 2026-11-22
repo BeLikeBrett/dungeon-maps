@@ -23,9 +23,16 @@
   replay stays identical (maxdiff0); no Ruins heuristic or live learned-cache edit.
 - Both platform packages include the new mask. Windows updater distinguishes new media and tells
   users to fully restart WoW; code-only updates still /reload. Beacon stays v7/58, decoder4..7.
-- Current live protocol6 addon/tracker left running. Full v16 native ZIP staged in pending-addon.zip
-  for the next full Battle.net launch hook. New asset names require full game restart; do not claim
-  live activation or restart capture/QML mid-game. No game inputs or graphics changes.
+- v1.0.16 release CI45034905144 passed; Windows executable/capture/overlay/updater checks passed.
+  Downloaded all three assets, verified GitHub SHA-256, native/source bytes, Linux mask, EXE mask
+  entry and real downloaded ZIP install in isolation. Public release notes updated.
+- The queued hook did not run when Brett restarted (old Battle.net processes remained). Installed
+  full native v16 directly with complete backup under ~/.local/share/wow-addon-backups/ and every
+  file byte-verified. Pending ZIP renamed applied-addon-1.0.16.zip. Native16 is on disk; existing
+  loaded Lua still requires one full WoW restart for new image names. Battle.net can stay open.
+- Refreshed the tracker once for this repair: log confirms v1.0.16, screenshots mode/private Qt6.12,
+  no picker. Reader supports old protocol6 until native7 loads after restart. No game inputs or
+  graphics changes. Do not repeat tracker restart merely for verification.
 
 ## v1.0.15 Wailing Caverns full terrain and boss names (2026-11-22)
 - The original WC parchment omits the Winding Chasm. Show all47 client building-part textures on
