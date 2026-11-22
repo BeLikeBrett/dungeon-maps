@@ -9,20 +9,17 @@ Used with his permission, in the versions with his watermark. They are not cover
 MIT license of this addon; all rights stay with Santiago Reyes. Please do not reuse them
 without his permission.
 
-wailing_caverns_approach.blp: unchanged Classic Atlas entrance map by Arith / Atlas Team.
-Source: nanderson11/Atlas, Images/Atlas_ClassicWoW/CL_WailingCavernsEnt.blp
-https://github.com/nanderson11/Atlas
-License: GPL-2.0; the complete license is in ../LICENSE-Atlas.txt. Atlas credits in the
-image are retained. The MIT license of Dungeon Maps does not replace this asset's license.
-The approach arrow's independent affine registration uses client WMO geometry facts,
-cross-checked against public HiddenMaps v1.2.2 placement metadata (WMO 109550 / ADT 36,33).
-No HiddenMaps code or artwork is included. Registration notes are in the repository's
-validation/dungeons/wailingcaverns directory.
-
-wailing_caverns_instance.blp and wailing_caverns_route.blp: Dungeon Maps navigation
-reconstruction from Blizzard's Wailing Caverns minimap textures. The four approach-chamber
-textures are excluded. Geometry remains in the client's coordinate frame. Artwork/geometry
-derived from Blizzard's game assets remains Blizzard Entertainment's; the reconstruction
-script is tools/build_wailing_map.py. Placement data: Forever Dungeon Routes (MIT).
+wailing_caverns_instance.blp and wailing_caverns_approach.blp:
+Dungeon Maps parchment maps, painted procedurally (tools/parchment.py, tools/build_wailing_map.py)
+from Blizzard's own Wailing Caverns minimap textures. Every passage keeps the client's coordinate
+frame, so bosses, routes and the live arrow line up. Artwork/geometry derived from Blizzard's game
+assets remains Blizzard Entertainment's. Placement data: Forever Dungeon Routes (MIT).
+The instance map excludes the four approach-chamber textures. The approach map is painted from
+the client's WailingCaverns.wmo minimap (WMO 109550 / ADT 36,33, placement cross-checked against
+public HiddenMaps v1.2.2 metadata) in the frame of the Classic Atlas entrance map by Arith /
+Atlas Team (GPL-2.0, ../LICENSE-Atlas.txt). The entrance key (A, B, Mad Magglish, Trigore,
+Boahn) follows Atlas; no Atlas or HiddenMaps artwork or code is included. The red A->B line is
+the shortest walkable path through that geometry. Registration notes:
+validation/dungeons/wailingcaverns.
 Turtle WoW's Atlas maps were reviewed as references; Turtle-only dungeon rooms/bosses were
 not imported into the Forever map.

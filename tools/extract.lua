@@ -61,9 +61,9 @@ for f in pairs(usedFloors) do
     -- on this floor instead. Every other floor retains its existing artwork.
     if f == 279 then
       D.Floors[f].terrain = true -- fallback until the new bundled image is loaded
-      D.Floors[f].image = { file = "maps\\wailing_caverns_instance", routeFile = "maps\\wailing_caverns_route",
+      D.Floors[f].image = { file = "maps\\wailing_caverns_instance",
         right = 1002 / 1024, bottom = 668 / 1024 }
-      D.Floors[f].credit = "Map: Blizzard client geometry; Dungeon Maps reconstruction"
+      D.Floors[f].credit = "Map: Blizzard client geometry, painted by Dungeon Maps"
       -- These four building textures depict the approach's circular chamber.
       -- They are not part of the navigable instance map (compare Classic Atlas).
       local approach = { [8111382]=true, [8111387]=true, [8111391]=true, [8111396]=true }

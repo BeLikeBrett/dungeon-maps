@@ -23,7 +23,8 @@ for line in manifest.splitlines():
     path = ROOT / 'addon/DungeonMaps' / relative
     with Image.open(path) as art:
         art.load()  # includes decoding every compressed image block, not just its header
-        assert art.format == 'BLP' and art.size == (1024, 1024), (relative, art.format, art.size)
+        size = (2048, 2048) if relative == 'maps/wailing_caverns_instance.blp' else (1024, 1024)
+        assert art.format == 'BLP' and art.size == size, (relative, art.format, art.size)
         width, height = art.size
         right, bottom = float(right), float(bottom)
         assert 0 < right <= 1 and 0 < bottom <= 1, relative
@@ -50,16 +51,16 @@ for relative in actual:
         w,h = max(1,w//2),max(1,h//2); i += 1
     # Old Atlas files have junk in unused slots which the working game ignores.
     # Our own writer must terminate its chain cleanly.
-    if relative in {'maps/wailing_caverns_instance.blp','maps/wailing_caverns_route.blp'}:
+    if relative.startswith('maps/wailing_caverns_'):
         assert not any(offsets[i+1:]) and not any(sizes[i+1:]), relative
-extra = {'maps/wailing_caverns_route.blp', 'maps/wailing_caverns_approach.blp'}
+extra = {'maps/wailing_caverns_approach.blp'}
 assert len(expected) == 18 and expected | extra == actual, ((expected | extra) - actual, actual - expected - extra)
 for name in extra:
     with Image.open(ROOT / 'addon/DungeonMaps' / name) as image:
         image.load()
-        assert image.format == 'BLP' and image.size == ((512, 512) if 'approach' in name else (1024, 1024))
+        assert image.format == 'BLP' and image.size == (1024, 1024)
 assert 'Santiago Reyes' in (ROOT / 'addon/DungeonMaps/maps/CREDITS.txt').read_text()
-print('PASS 17 Santiago maps plus WC instance/plain/approach artwork: decoded, correct crop and credits')
+print('PASS 17 Santiago maps plus WC instance (2048) and approach artwork: decoded, correct crop and credits')
 
 # Wailing Caverns' later-version parchment omits the Winding Chasm. Its
 # replacement uses all client building parts in the existing coordinate frame.

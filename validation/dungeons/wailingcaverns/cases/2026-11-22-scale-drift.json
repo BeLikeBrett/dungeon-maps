@@ -1,0 +1,289 @@
+{
+  "format": 1,
+  "case": "2026-11-22-scale-drift",
+  "dungeon": "wailingcaverns",
+  "floor": 279,
+  "review_date": "2026-11-22",
+  "scope": "All manual corrections from Brett's current WC run (tracker 1.0.17, beacon 7, profile i1z2), plus every retained earlier correction clip (Ruins of Lordaeron, earlier WC) as cross-dungeon regression evidence. Motion-only/atlas-relocation clips excluded (no reference).",
+  "recorded_tracker": "1.0.17",
+  "recorded_beacon": 7,
+  "candidate_tracker": "1.0.18",
+  "status": "implemented_shared_change",
+  "observation": "At every current-run correction the particles' scale (live log) was well below what that fix-to-fix stretch measured, while the persisted calibration matched the measurement. The arrow also reported sub-yard spread before a 46.8-yard correction.",
+  "live_fix_scales": [
+    {
+      "time": "09:34:56",
+      "error_yards": 20.3,
+      "walked": 1149,
+      "particle_scale": 0.94,
+      "stretch_scale": 0.953,
+      "calibration_after": 0.966
+    },
+    {
+      "time": "09:40:15",
+      "error_yards": 13.6,
+      "walked": 1145,
+      "particle_scale": 0.897,
+      "stretch_scale": 1.019,
+      "calibration_after": 0.987
+    },
+    {
+      "time": "09:49:18",
+      "error_yards": 14.8,
+      "walked": 1404,
+      "particle_scale": 0.901,
+      "stretch_scale": 1.018,
+      "calibration_after": 0.994
+    },
+    {
+      "time": "09:52:19",
+      "error_yards": 46.8,
+      "walked": 822,
+      "particle_scale": 0.897,
+      "stretch_scale": 1.003,
+      "calibration_after": 0.999
+    },
+    {
+      "time": "10:00:39",
+      "error_yards": 17.6,
+      "walked": 1161,
+      "particle_scale": 0.925,
+      "stretch_scale": 0.999,
+      "calibration_after": 0.999
+    },
+    {
+      "time": "10:07:54",
+      "error_yards": 4.7,
+      "walked": 1127,
+      "particle_scale": 0.947,
+      "stretch_scale": 0.949,
+      "calibration_after": 0.994
+    }
+  ],
+  "cause": [
+    "Particle scale is never re-measured: walls, route-guide weights and resampling select short-stepping particles (undershoot survives dead ends/corners), so it drifted low within ~100 yards of every fix.",
+    "scale_prior() re-seeded each new stretch from that surviving scale, weighted ~3:1 over the calibration (0.025 floor vs ~0.044 calibration sd), carrying the bias from stretch to stretch."
+  ],
+  "implemented": [
+    "scale_prior() draws from the fix-to-fix calibration only.",
+    "Each particle's log-scale reverts to the calibration over 250 walked yards with matching noise (stationary spread = calibration sd), batched per walked yard.",
+    "The particles' weighted mean scale may not leave the calibration's 2-sd band (safety bound for sustained one-sided pressure; never triggered in these replays).",
+    "Performance (bit-identical): key-only NCC sums cached per odometry key (surface 4.46 -> 2.92 ms/frame); cluster distance in _estimate computed per axis (3.46 -> 0.22 ms at 500 particles, 9.35 -> 1.24 ms at 4000)."
+  ],
+  "replay": {
+    "method": "Each clip replayed from its first recorded estimate with isolated caches, 4 RNG seeds, recorded minimaps with odometry split into 0.1-yard particle updates to approximate live frame density. Previous behaviour = recorded starting particle scale, no reversion. Candidate = start from the calibration that applied (dungeon profile, else legacy row with sd >= 0.10), reversion 250 yards, 2-sd bound.",
+    "clips": [
+      {
+        "clip": "20261121-080454",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 14.42,
+        "replay_previous_yards": 12.33,
+        "replay_candidate_yards": 12.32
+      },
+      {
+        "clip": "20261121-085727",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 193.56,
+        "replay_previous_yards": 166.21,
+        "replay_candidate_yards": 161.39
+      },
+      {
+        "clip": "20261121-085805",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 55.69,
+        "replay_previous_yards": 15.99,
+        "replay_candidate_yards": 16.0
+      },
+      {
+        "clip": "20261121-085859",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 21.88,
+        "replay_previous_yards": 29.07,
+        "replay_candidate_yards": 28.66
+      },
+      {
+        "clip": "20261122-031136",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 23.92,
+        "replay_previous_yards": 22.53,
+        "replay_candidate_yards": 20.71
+      },
+      {
+        "clip": "20261122-031148",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 8.35,
+        "replay_previous_yards": 2.09,
+        "replay_candidate_yards": 2.04
+      },
+      {
+        "clip": "20261122-032158",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 14.89,
+        "replay_previous_yards": 6.51,
+        "replay_candidate_yards": 8.71
+      },
+      {
+        "clip": "20261122-071054",
+        "group": "ruinsoflordaeron",
+        "live_correction_yards": 21.18,
+        "replay_previous_yards": 21.89,
+        "replay_candidate_yards": 22.2
+      },
+      {
+        "clip": "20261122-080652",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 5.66,
+        "replay_previous_yards": 5.97,
+        "replay_candidate_yards": 6.01
+      },
+      {
+        "clip": "20261122-080713",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 11.84,
+        "replay_previous_yards": 12.31,
+        "replay_candidate_yards": 12.23
+      },
+      {
+        "clip": "20261122-080731",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 21.58,
+        "replay_previous_yards": 20.59,
+        "replay_candidate_yards": 20.31
+      },
+      {
+        "clip": "20261122-080810",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 9.54,
+        "replay_previous_yards": 9.68,
+        "replay_candidate_yards": 9.29
+      },
+      {
+        "clip": "20261122-080851",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 9.82,
+        "replay_previous_yards": 8.26,
+        "replay_candidate_yards": 8.11
+      },
+      {
+        "clip": "20261122-081338",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 23.53,
+        "replay_previous_yards": 27.91,
+        "replay_candidate_yards": 27.02
+      },
+      {
+        "clip": "20261122-081444",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 20.05,
+        "replay_previous_yards": 15.56,
+        "replay_candidate_yards": 10.47
+      },
+      {
+        "clip": "20261122-081515",
+        "group": "wailingcaverns_earlier_v1.0.11",
+        "live_correction_yards": 7.13,
+        "replay_previous_yards": 6.44,
+        "replay_candidate_yards": 5.73
+      },
+      {
+        "clip": "20261122-093457",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 20.29,
+        "replay_previous_yards": 21.66,
+        "replay_candidate_yards": 23.1
+      },
+      {
+        "clip": "20261122-094016",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 13.61,
+        "replay_previous_yards": 10.24,
+        "replay_candidate_yards": 12.25
+      },
+      {
+        "clip": "20261122-094919",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 14.78,
+        "replay_previous_yards": 11.06,
+        "replay_candidate_yards": 6.45
+      },
+      {
+        "clip": "20261122-095220",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 46.78,
+        "replay_previous_yards": 9.33,
+        "replay_candidate_yards": 2.29
+      },
+      {
+        "clip": "20261122-100040",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 17.58,
+        "replay_previous_yards": 12.63,
+        "replay_candidate_yards": 7.5
+      },
+      {
+        "clip": "20261122-100755",
+        "group": "wailingcaverns_current_run",
+        "live_correction_yards": 4.7,
+        "replay_previous_yards": 6.9,
+        "replay_candidate_yards": 3.5,
+        "note": "arrived after the main grid; replayed separately with the same harness"
+      }
+    ],
+    "mean_yards": {
+      "previous": 21.35,
+      "candidate": 20.13
+    },
+    "median_yards": {
+      "previous": 12.34,
+      "candidate": 12.21
+    },
+    "full_stretch_clip": {
+      "clip": "20261122-095220",
+      "live": 46.8,
+      "previous": 9.3,
+      "candidate": 2.3,
+      "note": "the only clip spanning an entire fix-to-fix stretch"
+    },
+    "reversion_sweep_mean_yards": {
+      "60": 20.56,
+      "120": 20.21,
+      "250": 20.13,
+      "500": 20.07
+    },
+    "worse_by_more_than_1_yard": [
+      {
+        "clip": "20261122-032158",
+        "group": "ruinsoflordaeron",
+        "previous": 6.5,
+        "candidate": 8.7,
+        "note": "older Ruins clip outside Brett's latest-only Ruins scope; sensitive to reversion distance (R500: 6.0)"
+      },
+      {
+        "clip": "20261122-093457",
+        "previous": 21.7,
+        "candidate": 23.1,
+        "note": "mid-stretch clip; insensitive to reversion distance, i.e. caused by the harness resetting the start scale mid-stretch"
+      },
+      {
+        "clip": "20261122-094016",
+        "previous": 10.2,
+        "candidate": 12.2,
+        "note": "same mid-stretch start artefact"
+      }
+    ],
+    "latest_ruins_scope_clip": {
+      "clip": "20261122-071054",
+      "previous": 21.9,
+      "candidate": 22.2
+    }
+  },
+  "limits": [
+    "Replays exclude the learned atlas (a private, evolving cache). The live collapse to ~0.90 was not reproduced without it; atlas pasting/matching at pf.scale is the suspected sustained pressure, handled only by the 2-sd bound.",
+    "Recorded minimaps are sampled at ~2 Hz; dense substeps approximate, not reproduce, live update density.",
+    "Most clips are 60-180 s windows that start mid-stretch from the live estimate; only one spans a whole stretch.",
+    "Manual marks are approximate references, not ground truth for the whole run."
+  ],
+  "proposals_not_implemented": [
+    "Paste/match atlas pictures at the calibration scale instead of the particles' scale; needs atlas-enabled evidence."
+  ]
+}

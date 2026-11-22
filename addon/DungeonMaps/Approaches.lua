@@ -8,10 +8,10 @@ ns.WailingApproach = {
 ns.Floors[-43] = {
 	name = "Cave entrance to instance portal",
 	image = { file = "maps\\wailing_caverns_approach", square = true },
-	credit = "Map: Atlas / Arith (GPL-2.0); see LICENSE-Atlas.txt",
+	credit = "Map: Blizzard client geometry; key: Atlas / Arith (GPL-2.0)",
 }
 
--- Atlas art pixels from outdoor continent yards (north, west). Registered
+-- Map pixels (Atlas 512 frame; the painted art keeps it) from outdoor continent yards (north, west). Registered
 -- against the client's WailingCaverns.wmo geometry: 421 texture correspondences,
 -- 0.901px RMS. Only these geometric coefficients are retained; no third-party
 -- renderer or restricted artwork is bundled. See validation/dungeons/wailingcaverns.

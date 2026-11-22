@@ -873,8 +873,7 @@ local function showFloor(index)
 	local image = info and info.image
 	local missing = false
 	if image then
-		local file = image.routeFile and DungeonMapsDB.wailingRoute ~= false and image.routeFile or image.file
-		missing = map.picture:SetTexture(ADDON_PATH .. file, nil, nil, "TRILINEAR") == false
+		missing = map.picture:SetTexture(ADDON_PATH .. image.file, nil, nil, "TRILINEAR") == false
 		if missing then image = nil end
 	end
 	local terrain = not image and info and info.terrain and ns.MinimapArt[floor]
@@ -928,13 +927,9 @@ local function showFloor(index)
 	map.approachKey:SetShown(dungeon.approach == true and image ~= nil)
 	updateApproachArrow()
 	if dungeon.approach then
-		map.note:SetText("|cffffd100CAVE TO PORTAL.|r  Gold arrow: you. A: outside. B: dungeon portal. Numbers: cave creatures (see key).")
+		map.note:SetText("|cffffd100CAVE TO PORTAL.|r  Gold arrow: you. Red dashes: the way from A (cave mouth) to B (dungeon portal). Numbers: see key.")
 	elseif dungeon.key == "wailingcaverns" then
-		if DungeonMapsDB.wailingRoute ~= false then
-			map.note:SetText("|cffffd100INSTANCE ONLY.|r  Teal: boss circuit. Gold: Naralex escort. Crossings may be on different levels. Hide guide in gear menu.")
-		else
-			map.note:SetText("|cffffd100INSTANCE ONLY.|r  Shift+click where you stand. Enable the route guide in the gear menu for the boss circuit.")
-		end
+		map.note:SetText("|cffffd100Shift+click where you stand to place your arrow.|r   Skulls: bosses.")
 	else
 		map.note:SetText("|cffffd100Shift+click where you stand to place your arrow.|r   Skulls: bosses.   Dots: where the game last showed someone.")
 	end
@@ -1195,7 +1190,7 @@ local function buildMap()
 	map.approachKey:SetWidth((MAP_W-MAP_H)/2 - 26)
 	map.approachKey:SetJustifyH("LEFT")
 	map.approachKey:SetJustifyV("TOP")
-	map.approachKey:SetText("|cffffd100CAVE KEY|r\n\nA  Outside entrance\n\nB  Dungeon portal\n\n1  Mad Magglish\n    Several hiding spots\n\n2  Trigore the Lasher\n    Rare\n\n3  Boahn\n    Rare\n\n|cffffd100Gold arrow: you|r")
+	map.approachKey:SetText("|cffffd100CAVE KEY|r\n\nA  Outside entrance\n\nB  Dungeon portal\n\n1  Mad Magglish\n    Several hiding spots\n\n2  Trigore the Lasher\n    Rare\n\n3  Boahn\n    Rare\n\n|cffffd100Gold arrow: you|r\n|cffd04030Red dashes: way in|r")
 	map.approachKey:Hide()
 	map.approachArrow = canvas:CreateTexture(nil, "OVERLAY", nil, 7)
 	map.approachArrow:SetTexture("Interface\\WorldMap\\WorldMapArrow")
@@ -1655,12 +1650,6 @@ local function addSettingsControls(parent, x, y, width)
 		function() return DungeonMapsDB.live ~= false end, function(v) DungeonMapsDB.live = v end)
 	check("Share Shift+click corrections and minimap pictures to improve maps (20 per dungeon)",
 		function() return DungeonMapsDB.contribute ~= false end, function(v) DungeonMapsDB.contribute = v end)
-	check("Wailing Caverns: show the route guide on the instance map",
-		function() return DungeonMapsDB.wailingRoute ~= false end,
-		function(v)
-			DungeonMapsDB.wailingRoute = v
-			if map and map:IsShown() and dungeon and dungeon.key == "wailingcaverns" then showFloor(floorIndex) end
-		end)
 	slider("Your arrow", "arrowSize")
 	slider("Teammate dots", "dotSize")
 	slider("Boss icons", "bossSize")

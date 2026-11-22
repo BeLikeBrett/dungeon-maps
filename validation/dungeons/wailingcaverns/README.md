@@ -2,6 +2,38 @@
 
 Dungeon key: `wailingcaverns`. Instance floor: `279`.
 
+## v1.0.18 scale drift and painted maps (2026-11-22, Claude)
+
+**Tracking.** Every manual correction in the current run (tracker 1.0.17, beacon 7) showed the
+particles' minimap scale well below what that fix-to-fix stretch measured: 0.897-0.947 against
+0.949-1.019, while the persisted calibration agreed with the measurements (0.966-0.999). The
+largest correction (46.8 yards) followed a stretch with sub-yard reported spread.
+
+Cause: particle scale is only ever *selected*, never measured. Walls, route-guide weights and
+resampling favour particles that step short, and each new stretch was re-seeded from that
+surviving scale (weighted about 3:1 over the calibration). Implemented, as a shared change:
+
+- a new stretch draws its scale from the fix-to-fix calibration only;
+- each particle's log-scale reverts toward the calibration over 250 walked yards, with matching
+  noise, batched per yard;
+- the cloud's mean scale may not leave the calibration's 2-sd band (a safety bound; it never
+  triggered in these replays).
+
+Replays of all 22 retained correction clips (current run, earlier WC, Ruins), 4 seeds each,
+isolated caches, dense 0.1-yard particle updates: mean 21.4 -> 20.1 yards, median unchanged.
+The one clip spanning a whole stretch (the 46.8-yard correction) fell from 9.3 to 2.3 yards; the
+latest in-scope Ruins correction is neutral (21.9 -> 22.2). Three clips were worse by 1.4-2.2
+yards: two are mid-stretch start artefacts, one an older Ruins clip. Replays exclude the learned
+atlas and only approximate live frame density, so they are not a live accuracy result. Pasting
+atlas pictures at the calibration scale is a proposal, not implemented. See the
+[scale-drift case](cases/2026-11-22-scale-drift.json).
+
+**Maps.** Both maps are now painted from client minimap textures (`tools/parchment.py`):
+instance at 2048 px from native-resolution tiles with 1:1 outlines; approach cave repainted in
+the registered Atlas frame with A/B/1-3 badges and a computed A->B path. The baked route guide
+was removed at the player's request. The sections below about the "unchanged Atlas image" and
+"optional baked teal arrows" are superseded by this.
+
 ## v1.0.17 render repair and live approach arrow
 
 The player's actual v1.0.16 screenshots exposed a missed validation boundary:

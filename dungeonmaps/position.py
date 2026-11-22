@@ -78,6 +78,12 @@ NOISE_FIXED = 0.01      # ... and per update
 SCALE_SPREAD = 0.06     # each particle's minimap-scale error (fraction) before any calibration
 SCALE_MIN_SPREAD = 0.015
 CALIB_MIN_YARDS = 35.0  # fix-to-fix calibration needs at least this far between the two fixes
+# Particle scales are only selected by position weights, never re-measured. Walls and dead ends
+# favour undershooting particles, so a run's particle scale drifted ~10 % below the fix-to-fix
+# measurement (WC 2026-11-22). Revert each particle's log-scale toward the calibration over this many
+# yards, with matching noise, so selection works within the calibrated uncertainty only. 0 disables.
+SCALE_REVERT_YARDS = 250.0
+SCALE_MAX_SIGMAS = 2.0  # the particles' mean scale stays within this many calibration sds
 CALIB_PRIOR = 0.10      # how wrong the minimap scale may be before any calibration (log sd; seen ~20 %)
 FIX_SPREAD = 1.0        # yards: spread after an exact fix
 BOSS_SPREAD = 25.0      # a spawn/patrol is only a broad hint when no player position is known
@@ -127,6 +133,7 @@ class ParticleFilter:
         self.trust = math.inf   # yards walked since the position was last known for sure
         self.walked = 0.0       # yards walked since the last fix
         self.raw = np.zeros(2)  # odometry since the last fix, before any scale correction
+        self.scale_travel = 0.0  # yards since the particle scales last reverted to the calibration
         self.anchor = None      # (floor, north, west, sigma) of the last fix
         self.route_previous = None
         self.route_travel = self.context_travel = 0.0
@@ -164,15 +171,9 @@ class ParticleFilter:
         return not self.found or self.uncertainty > 12.0
 
     def scale_prior(self, n):
+        # Only fix-to-fix calibration measures scale. The particles' own scale is merely what survived
+        # wall/route weighting; carrying it into the next stretch re-seeded a 10 % bias at every fix.
         m, sd = self.calib.get()
-        if self.s is not None and self.searching is None:
-            # keep what this run learned about the scale (weighted, in logs), within the calibration
-            ls = np.log(np.maximum(self.s, 1e-3))
-            mw = float((ls * self.w).sum())
-            sw = math.sqrt(max(0.0, float(((ls - mw) ** 2 * self.w).sum())))
-            sw = max(sw, 0.025)  # (resampling makes the particles look surer than they are)
-            v1, v2 = sd * sd, sw * sw
-            m, sd = (m / v1 + mw / v2) / (1 / v1 + 1 / v2), max(SCALE_MIN_SPREAD, math.sqrt(1 / (1 / v1 + 1 / v2)))
         return np.exp(m + self.rng.normal(0, sd, n))
 
     @property
@@ -365,6 +366,20 @@ class ParticleFilter:
         self.trust += dist
         self.pose_error += 0.015 * dist
         self.p += step[None, :] * self.s[:, None]
+        self.scale_travel += dist
+        if self.scale_travel >= 1.0 and SCALE_REVERT_YARDS > 0 and self.searching is None:
+            # batched per yard (move() runs every frame); same reversion/noise per yard walked
+            m, sd = self.calib.get()
+            k = min(1.0, self.scale_travel / SCALE_REVERT_YARDS)
+            ls = np.log(self.s)
+            ls = ls + k * (m - ls) + self.rng.normal(0, sd * math.sqrt(k * (2 - k)), n)
+            # Sustained one-sided pressure (a drifted atlas, long dead-end runs) can outpace the
+            # reversion; the cloud's mean may never leave the calibration's 2-sigma band.
+            off = float((ls * self.w).sum()) - m
+            if abs(off) > SCALE_MAX_SIGMAS * sd:
+                ls -= off - math.copysign(SCALE_MAX_SIGMAS * sd, off)
+            self.s = np.exp(ls)
+            self.scale_travel = 0.0
         self.p += self.rng.normal(0, NOISE_FIXED + NOISE_PER_YARD * dist, (n, 2))
         if dist > 0:
             wm = self.walkmaps.get(self.floor)
@@ -493,7 +508,11 @@ class ParticleFilter:
             k = min(200, len(p))
             cand = self.rng.choice(len(p), k, replace=False, p=w)
             sub = self.rng.choice(len(p), min(1500, len(p)), replace=False)
-            d2 = ((p[cand][:, None, :] - p[sub][None, :, :]) ** 2).sum(-1)
+            # (per-axis differences: bit-identical to summing the squared (k, m, 2) array, ~10x faster)
+            a, b = p[cand], p[sub]
+            dx = a[:, 0, None] - b[None, :, 0]
+            dy = a[:, 1, None] - b[None, :, 1]
+            d2 = dx * dx + dy * dy
             mass = ((d2 < 10 ** 2) * w[sub][None, :]).sum(1)
             c = p[cand[int(np.argmax(mass))]]
             near = ((p - c) ** 2).sum(1) < 10 ** 2

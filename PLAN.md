@@ -360,3 +360,52 @@
   - Caps: 4 MB per install per day, 1 GB in total, 30 days.
   - `DUNGEONMAPS_LOGS=off` turns it off.
   - The relay was redeployed and tested through the public route; position sharing was re-verified.
+
+## v1.0.18 parchment Wailing Caverns maps (2026-11-22, Claude)
+- Brett: the v16/v17 WC maps (flat two-colour mask + Atlas entrance art) looked "horrendous" and
+  inaccurate; asked for professional maps. New tools/parchment.py paints client minimap-texture
+  composites as Blizzard-style parchment: rock-shadow halo, inked edge, floor keeps the textures'
+  own rocks/roots, muted water, slime pools, compass. numpy + Pillow only (no scipy/cv2).
+- Instance: same 43 client parts, same 1002x668 frame; tracker walk mask generation untouched and
+  byte-identical. Route BLP: anti-aliased, Chaikin-smoothed haloed lines, teal circuit on top of a
+  dashed gold Naralex escort, chevrons every 70 px.
+- Approach: painted from the private north-up WMO 109550 minimap reference warped by the existing
+  registration matrix into the Atlas 512 frame at 1024x1024 (`square` display is resolution-free;
+  Approaches.lua coefficients unchanged; alignment overlay vs old Atlas edges matched). A/B and
+  creature 1/2/3 badges at Atlas glyph positions; red dashed A->B = Dijkstra shortest path through
+  the painted floor mask (centre-favouring). It is geometry-derived, not verified in game.
+- Rebuild: python tools/build_wailing_map.py --tiles /tmp/dungeonmaps-wailing-client
+  --approach-ref /tmp/wc-approach-reference-private.png --approach-registration
+  ~/.local/share/dungeon-maps/research/wailing-render-20261122/wc-approach-registration.json
+  (inputs private, not committed; --preview DIR writes PNGs).
+- All three WC BLPs are DXT1 from tools/blp.py; test_maps expects 1024 for all and a clean mip chain.
+  Lua note/key text mention the red A->B dashes. Credits updated (no Atlas/HiddenMaps art remains).
+- Installed live (byte-verified) while WoW ran; backup ~/.local/share/wow-addon-backups/
+  dungeonmaps-before-v18-parchment-*. /reload needed. NOT yet seen in game; not committed/released.
+- Brett saw it in game (no green; DXT1 confirmed working) and asked: remove the path lines, higher
+  quality, less rough. Route guide removed entirely (routeFile, wailing_caverns_route.blp, gear
+  option, legend note). Instance texture now 2048x2048 painted at 2x frame (same crop ratios).
+  Painter smoothed: edge blur 2.4 (3.2 erased Cobrahn-room inner walls), pre-blurred relief at
+  ~40%, faint grain/rim noise. Approach keeps its red A->B line (not asked to remove). Installed
+  live again; backup dungeonmaps-before-v18b-smooth-*.
+- Brett: smoothing taken too literally; wants 1:1 shapes ("some of it looked obviously cropped"
+  = smoothing erased inlets/pillars/thin walls), but clean. Now: instance tiles composited at
+  native 2x (composite(tiles, K); the 1x walk mask path untouched), paint(density=K), outline AA
+  edge=1.0 map px (keeps geometry 1:1), crisp ink, relief 0.6 from 0.5K-pre-blurred luminance,
+  low grain. Do not raise edge again without his ask. Backup dungeonmaps-before-v18c-native-*.
+- Tracking (same v1.0.18, Claude): Brett's run corrections (20.3/13.6/14.8/46.8/17.6/4.7 yd)
+  all had particle scale 0.897-0.947 vs stretch 0.949-1.019; calibration matched the stretches.
+  Cause: particle scale is only selected (walls/route favour short steps) and scale_prior re-seeded
+  each stretch from it (~3:1 over calibration). Now: scale_prior = calibration only;
+  SCALE_REVERT_YARDS=250 per-particle log-scale reversion + matching noise, batched per walked
+  yard (scale_travel); SCALE_MAX_SIGMAS=2 bound on the weighted mean. tests/test_scale_reversion.py
+  (in CI). Shared change: 22 clips replayed (WC + Ruins), mean 21.4->20.1, full-stretch clip
+  9.3->2.3; three clips 1.4-2.2 worse (documented). Case: validation/dungeons/wailingcaverns/cases/
+  2026-11-22-scale-drift.json. Replays exclude the atlas; atlas-at-calibration-scale is a proposal.
+  Replay harness + grids + clips: ~/.local/share/dungeon-maps/research/wailing-scale-20261122/
+  (replay_ab.py; AB_SUBSTEP=0.1 dense updates matter: 2 Hz replays hide the selection effect).
+- Optimizations (bit-identical, verified): MaskedNCC caches key-only sums per key (surface
+  4.46->2.92 ms/frame); _estimate cluster distances per axis (3.46->0.22 ms @500, 9.35->1.24 @4000).
+- Live tracker runs from this repo; the Python changes load at the next game launch (hook). Not
+  restarted mid-play. No pending-addon.zip exists. Nothing committed/released yet.
+

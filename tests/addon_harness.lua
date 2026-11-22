@@ -169,8 +169,7 @@ for _, d in ipairs(ns.Dungeons) do
       DungeonMaps_Toggle()
       local m = DungeonMapsFrame
       assert(m.picture._shown and not m.noArt._shown, "picture hidden for floor " .. floor)
-      local file = info.image.routeFile or info.image.file
-      assert(m.picture._texture == "Interface\\AddOns\\DungeonMaps\\" .. file, m.picture._texture)
+      assert(m.picture._texture == "Interface\\AddOns\\DungeonMaps\\" .. info.image.file, m.picture._texture)
       assert(m.picture._texcoord[2] == (info.image.right or 1) and m.picture._texcoord[4] == (info.image.bottom or 1))
       local file = assert(io.open(ADDONS .. "/DungeonMaps/" .. info.image.file:gsub("\\", "/") .. ".blp", "rb"))
       assert(file:read(4) == "BLP2", "invalid BLP image for floor " .. floor)
@@ -188,11 +187,8 @@ C_Map.GetBestMapForUnit = function() return 279 end
 DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
 local terrain = ns.MinimapArt[279]
 assert(ns.Floors[279].terrain and #terrain == 43)
-assert(DungeonMapsFrame.picture:IsShown() and DungeonMapsFrame.picture._texture:find("wailing_caverns_route"))
-DungeonMapsDB.wailingRoute = false
-DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
-assert(DungeonMapsFrame.picture._texture:find("wailing_caverns_instance"))
-DungeonMapsDB.wailingRoute = true
+assert(DungeonMapsFrame.picture:IsShown() and DungeonMapsFrame.picture._texture:find("wailing_caverns_instance"))
+assert(not ns.Floors[279].image.routeFile, "route guide was removed")
 -- New image files need a full game start on some clients. Exercise the safe
 -- instance-only fallback while preserving the request to restart.
 local setPicture = DungeonMapsFrame.picture.SetTexture

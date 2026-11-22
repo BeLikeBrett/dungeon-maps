@@ -61,6 +61,7 @@ class MaskedNCC:
         self.Fm = np.fft.rfft2(self.m, self.fs)
         # overlap counts don't depend on the images
         self.N = self._corr(self.Fm, self.Fm)
+        self._key_sums = None
 
     def _corr(self, A, B):
         """sum_x a(x) b(x + s) for all shifts s (index [n-1+sy, n-1+sx])."""
@@ -77,9 +78,12 @@ class MaskedNCC:
         Fk, Fk2 = key
         Fc, Fc2 = cur
         N = self.N
-        Sk = self._corr(Fk, self.Fm)
+        # The key's own sums only change when the key does (a few times per second at most, while
+        # this runs every frame): cache them against the key's spectra. Results are identical.
+        if self._key_sums is None or self._key_sums[0] is not Fk or self._key_sums[1] is not Fk2:
+            self._key_sums = (Fk, Fk2, self._corr(Fk, self.Fm), self._corr(Fk2, self.Fm))
+        Sk, Skk = self._key_sums[2], self._key_sums[3]
         Sc = self._corr(self.Fm, Fc)
-        Skk = self._corr(Fk2, self.Fm)
         Scc = self._corr(self.Fm, Fc2)
         Skc = self._corr(Fk, Fc)
         eps = 1e-9

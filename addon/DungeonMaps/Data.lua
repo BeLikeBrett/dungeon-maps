@@ -105,7 +105,7 @@ ns.Floors = {
 	[253] = { name = "Hall of Blackhand", tiles = { 447698, 447702, 447703, 447704, 447705, 447706, 447707, 447708, 447709, 447699, 447700, 447701 } },
 	[254] = { name = "Halycon's Lair", tiles = { 447710, 447714, 447715, 447716, 447717, 447718, 447719, 447720, 447721, 447711, 447712, 447713 } },
 	[255] = { name = "Chamber of Battle", tiles = { 447722, 447726, 447727, 447728, 447729, 447730, 447731, 447732, 447733, 447723, 447724, 447725 } },
-	[279] = { credit = "Map: Blizzard client geometry; Dungeon Maps reconstruction", image = { bottom = 0.652344, file = "maps\\wailing_caverns_instance", right = 0.978516, routeFile = "maps\\wailing_caverns_route" }, name = "Wailing Caverns", terrain = true, tiles = { 448454, 448458, 448459, 448460, 448461, 448462, 448463, 448464, 448465, 448455, 448456, 448457 } },
+	[279] = { credit = "Map: Blizzard client geometry, painted by Dungeon Maps", image = { bottom = 0.652344, file = "maps\\wailing_caverns_instance", right = 0.978516 }, name = "Wailing Caverns", terrain = true, tiles = { 448454, 448458, 448459, 448460, 448461, 448462, 448463, 448464, 448465, 448455, 448456, 448457 } },
 	[280] = { name = "Caverns of Maraudon", tiles = { 449676, 449680, 449681, 449682, 449683, 449684, 449685, 449686, 449687, 449677, 449678, 449679 } },
 	[281] = { name = "Zaetar's Grave", tiles = { 449688, 449692, 449693, 449694, 449695, 449696, 449697, 449698, 449699, 449689, 449690, 449691 } },
 	[287] = { name = "Dragonmaw Garrison", tiles = { 447770, 447774, 447775, 447776, 447777, 447778, 447779, 447780, 447781, 447771, 447772, 447773 } },

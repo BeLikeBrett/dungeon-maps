@@ -65,9 +65,7 @@ selects an optional per-app runtime.
   **B** = instance portal), then a clean instance chart including Pythas and Skum's Winding Chasm.
   The map switches contexts at the portal. The approach arrow uses the game’s available outdoor position and facing.
   Inside the instance, the external tracker supplies the arrow.
-- Wailing Caverns' optional route guide shows the main boss circuit in teal and Naralex's escort
-  in gold. Hide it in the map's gear menu. Passages can cross at different heights; crossing lines
-  do not always mean a junction. Its separate passage mask excludes the approach chamber and
+- Wailing Caverns' instance map is painted from the game's own minimap textures. Its separate passage mask excludes the approach chamber and
   cannot be widened by the learned texture atlas. Minimap zoom animations are briefly excluded
   from movement and learning on this dungeon.
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
@@ -162,7 +160,7 @@ preserves its good tracking; the bridge/drop concern remains an investigation, w
   data (MIT, Checkov23).
 - Hand-drawn Forever maps: Santiago Reyes, Atlas de Azeroth: Forever. Included with the original
   watermarks and credits; these images retain the artist's copyright (see `maps/CREDITS.txt` in the add-on).
-- Wailing Caverns approach map: Atlas / Arith, GPL-2.0, with original credits and the full license
-  included. The instance navigation chart is reconstructed from Blizzard client geometry;
-  see the add-on’s `maps/CREDITS.txt` for asset sources and licenses.
+- Wailing Caverns maps (instance and approach cave): painted from Blizzard's client minimap
+  textures; the approach keeps the Atlas (Arith, GPL-2.0) entrance map's frame and key.
+  See the add-on’s `maps/CREDITS.txt` for asset sources and licenses.
 - Code and imported guide data: MIT, see `LICENSE`.
