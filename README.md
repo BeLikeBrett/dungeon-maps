@@ -60,6 +60,8 @@ selects an optional per-app runtime.
 - Defeated bosses reset automatically on a fresh living entry into a dungeon. Reloading the UI,
   logging back in inside, and corpse returns preserve progress. To clear them manually, open the
   map's gear menu and click **Clear defeated bosses**, or type `/dmaps reset`.
+- Wailing Caverns uses the game's complete minimap terrain, including the Winding Chasm where
+  Lord Pythas and Skum stand. Its later-version parchment drawing omits that wing.
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
   - Walking in through the entrance sets it straight away.
   - So does Shift+clicking the map where you stand.

@@ -56,6 +56,13 @@ for f in pairs(usedFloors) do
   if info then
     local tiles = info.tiles and #info.tiles == 12 and info.tiles or nil
     D.Floors[f] = { name = info.name, tiles = tiles, image = info.image, credit = info.credit }
+    -- The later-version parchment omits the Winding Chasm (Pythas/Skum).
+    -- Keep the verified world frame and pins; show all client building parts
+    -- on this floor instead. Every other floor retains its existing artwork.
+    if f == 279 then
+      D.Floors[f].terrain = true
+      D.MinimapArt[f] = assert(DR.MinimapArt and DR.MinimapArt[f], "missing full Wailing Caverns terrain")
+    end
     -- minimap pictures: the fallback where a floor has neither tiles nor a drawn map
     if not tiles and not info.image then
       if DR.MinimapArt and DR.MinimapArt[f] then D.MinimapArt[f] = DR.MinimapArt[f] else noArt[#noArt + 1] = f end

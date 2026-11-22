@@ -1,0 +1,2520 @@
+{
+  "format": 1,
+  "review_date": "2026-11-22",
+  "source": {
+    "kind": "Installed Forever Dungeon Routes export of Blizzard DungeonEncounter",
+    "client_build": "1.60.1.70862",
+    "dungeon_routes_version": "1.3.6"
+  },
+  "scope": "All 212 imported boss pins; encounter IDs/titles and retained creature-name exceptions. This is not independent live confirmation of every creature name.",
+  "boss_pins": 212,
+  "dungeons": {
+    "alcazprison": [
+      {
+        "index": 1,
+        "label": "Tidemistress Ca'zass",
+        "encounters": [
+          {
+            "id": 3410,
+            "name": "Tidemistress Ca'zass"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Overseer Wrex",
+        "encounters": [
+          {
+            "id": 3403,
+            "name": "Overseer Wrex"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Katerina the Cleaner",
+        "encounters": [
+          {
+            "id": 3418,
+            "name": "Katerina the Cleaner"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Blazeroar",
+        "encounters": [
+          {
+            "id": 3409,
+            "name": "Blazeroar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "The Questioner",
+        "encounters": [
+          {
+            "id": 3415,
+            "name": "The Questioner"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "blackfathom": [
+      {
+        "index": 1,
+        "label": "Ghamoo-ra",
+        "encounters": [
+          {
+            "id": 2697,
+            "name": "Ghamoo-ra"
+          },
+          {
+            "id": 2761,
+            "name": "Ghamoo-ra"
+          },
+          {
+            "id": 2916,
+            "name": "Ghamoo-ra"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Lady Sarevess",
+        "encounters": [
+          {
+            "id": 2699,
+            "name": "Lady Sarevess"
+          },
+          {
+            "id": 2762,
+            "name": "Lady Sarevess"
+          },
+          {
+            "id": 2915,
+            "name": "Lady Sarevess"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Gelihast",
+        "encounters": [
+          {
+            "id": 2704,
+            "name": "Geilhast"
+          },
+          {
+            "id": 2763,
+            "name": "Geilhast"
+          },
+          {
+            "id": 2914,
+            "name": "Geilhast"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Retain the creature spelling Gelihast; the encounter table says Geilhast."
+      },
+      {
+        "index": 4,
+        "label": "Lorgus Jett",
+        "encounters": [
+          {
+            "id": 2710,
+            "name": "Lorgus Jett"
+          },
+          {
+            "id": 2764,
+            "name": "Lorgus Jett"
+          },
+          {
+            "id": 2913,
+            "name": "Lorgus Jett"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Twilight Lord Kelris",
+        "encounters": [
+          {
+            "id": 2766,
+            "name": "Twilight Lord Kelris"
+          },
+          {
+            "id": 2825,
+            "name": "Twilight Lord Kelris"
+          },
+          {
+            "id": 2911,
+            "name": "Twilight Lord Kelris"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Aku'mai",
+        "encounters": [
+          {
+            "id": 2767,
+            "name": "Aku'mai"
+          },
+          {
+            "id": 2891,
+            "name": "Aku'mai"
+          },
+          {
+            "id": 2910,
+            "name": "Aku'mai"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "blackmawhold": [
+      {
+        "index": 1,
+        "label": "Withermaw",
+        "encounters": [
+          {
+            "id": 3315,
+            "name": "Withermaw"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Bonesnout the Unbroken",
+        "encounters": [
+          {
+            "id": 3322,
+            "name": "Bonesnout the Unbroken"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Blackmaw Behemoth",
+        "encounters": [
+          {
+            "id": 3323,
+            "name": "Blackmaw Behemoth"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Varrox Bleakhoof",
+        "encounters": [
+          {
+            "id": 3334,
+            "name": "Varrox Bleakhoof"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Elder Shaman Bloodmane",
+        "encounters": [
+          {
+            "id": 3327,
+            "name": "Elder Shaman Bloodmane"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Unbound Spirit",
+        "encounters": [
+          {
+            "id": 3336,
+            "name": "Unbound Spirit"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "blackrockdepths": [
+      {
+        "index": 1,
+        "label": "Bael'Gar",
+        "encounters": [
+          {
+            "id": 235,
+            "name": "Bael'Gar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Lord Incendius",
+        "encounters": [
+          {
+            "id": 232,
+            "name": "Lord Incendius"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Fineous Darkvire",
+        "encounters": [
+          {
+            "id": 234,
+            "name": "Fineous Darkvire"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "High Interrogator Gerstahn",
+        "encounters": [
+          {
+            "id": 227,
+            "name": "High Interrogator Gerstahn"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Houndmaster Grebmar",
+        "encounters": [
+          {
+            "id": 229,
+            "name": "Houndmaster Grebmar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Lord Roccor",
+        "encounters": [
+          {
+            "id": 228,
+            "name": "Lord Roccor"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Ring of Law",
+        "encounters": [
+          {
+            "id": 230,
+            "name": "Ring of Law"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Pyromancer Loregrain",
+        "encounters": [
+          {
+            "id": 231,
+            "name": "Pyromancer Loregrain"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "General Angerforge",
+        "encounters": [
+          {
+            "id": 236,
+            "name": "General Angerforge"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Golem Lord Argelmach",
+        "encounters": [
+          {
+            "id": 237,
+            "name": "Golem Lord Argelmach"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Plugger Spazzring",
+        "encounters": [
+          {
+            "id": 241,
+            "name": "Plugger Spazzring"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Hurley Blackbreath",
+        "encounters": [
+          {
+            "id": 238,
+            "name": "Hurley Blackbreath"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 13,
+        "label": "Phalanx",
+        "encounters": [
+          {
+            "id": 239,
+            "name": "Phalanx"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 14,
+        "label": "Ambassador Flamelash",
+        "encounters": [
+          {
+            "id": 242,
+            "name": "Ambassador Flamelash"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 15,
+        "label": "The Seven",
+        "encounters": [
+          {
+            "id": 243,
+            "name": "The Seven"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 16,
+        "label": "Magmus",
+        "encounters": [
+          {
+            "id": 244,
+            "name": "Magmus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 17,
+        "label": "Emperor Dagran Thaurissan",
+        "encounters": [
+          {
+            "id": 2790,
+            "name": "Emperor Dagran Thaurissan"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "blackwinglair": [
+      {
+        "index": 1,
+        "label": "Razorgore the Untamed",
+        "encounters": [
+          {
+            "id": 610,
+            "name": "Razorgore the Untamed"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Vaelastrasz the Corrupt",
+        "encounters": [
+          {
+            "id": 611,
+            "name": "Vaelastrasz the Corrupt"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Broodlord Lashlayer",
+        "encounters": [
+          {
+            "id": 612,
+            "name": "Broodlord Lashlayer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Firemaw",
+        "encounters": [
+          {
+            "id": 613,
+            "name": "Firemaw"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Ebonroc",
+        "encounters": [
+          {
+            "id": 614,
+            "name": "Ebonroc"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Flamegor",
+        "encounters": [
+          {
+            "id": 615,
+            "name": "Flamegor"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Chromaggus",
+        "encounters": [
+          {
+            "id": 616,
+            "name": "Chromaggus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Nefarian",
+        "encounters": [
+          {
+            "id": 617,
+            "name": "Nefarian"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "dalaran": [
+      {
+        "index": 1,
+        "label": "Atrexis the Grave Knight",
+        "encounters": [
+          {
+            "id": 3311,
+            "name": "Atrexis the Grave Knight"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Arcane Anomaly",
+        "encounters": [
+          {
+            "id": 3298,
+            "name": "Arcane Anomaly"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Mana Devourer",
+        "encounters": [
+          {
+            "id": 3300,
+            "name": "Mana Devourer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Fel Ancient",
+        "encounters": [
+          {
+            "id": 3299,
+            "name": "Fel Ancient"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Arcanic Enigma",
+        "encounters": [
+          {
+            "id": 3301,
+            "name": "Mana Elemental"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Creature name documented by the source guide; encounter title is Mana Elemental."
+      },
+      {
+        "index": 6,
+        "label": "Unstable Sentinel",
+        "encounters": [
+          {
+            "id": 3302,
+            "name": "Unstable Sentinel"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Shade of the Archmage",
+        "encounters": [
+          {
+            "id": 3303,
+            "name": "Shade of the Archmage"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "deadmines": [
+      {
+        "index": 1,
+        "label": "Rhahk'Zor",
+        "encounters": [
+          {
+            "id": 2741,
+            "name": "Rhahk'Zor"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Sneed's Shredder",
+        "encounters": [
+          {
+            "id": 2742,
+            "name": "Sneed"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Retain the initial creature/vehicle label; encounter completion is named Sneed."
+      },
+      {
+        "index": 3,
+        "label": "Gilnid",
+        "encounters": [
+          {
+            "id": 2743,
+            "name": "Gilnid"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Mr. Smite",
+        "encounters": [
+          {
+            "id": 2745,
+            "name": "Mr. Smite"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Captain Greenskin",
+        "encounters": [
+          {
+            "id": 2744,
+            "name": "Captain Greenskin"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Edwin VanCleef",
+        "encounters": [
+          {
+            "id": 2747,
+            "name": "Edwin VanCleef"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "diremaul_east": [
+      {
+        "index": 1,
+        "label": "Pusillin",
+        "encounters": [
+          {
+            "id": 2792,
+            "name": "Pusillin"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Lethtendris",
+        "encounters": [
+          {
+            "id": 345,
+            "name": "Lethtendris"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Hydrospawn",
+        "encounters": [
+          {
+            "id": 344,
+            "name": "Hydrospawn"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Zevrim Thornhoof",
+        "encounters": [
+          {
+            "id": 343,
+            "name": "Zevrim Thornhoof"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Alzzin the Wildshaper",
+        "encounters": [
+          {
+            "id": 346,
+            "name": "Alzzin the Wildshaper"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "diremaul_west": [
+      {
+        "index": 1,
+        "label": "Tendris Warpwood",
+        "encounters": [
+          {
+            "id": 350,
+            "name": "Tendris Warpwood"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Illyanna Ravenoak",
+        "encounters": [
+          {
+            "id": 347,
+            "name": "Illyanna Ravenoak"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Magister Kalendris",
+        "encounters": [
+          {
+            "id": 348,
+            "name": "Magister Kalendris"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Immol'thar",
+        "encounters": [
+          {
+            "id": 349,
+            "name": "Immol'thar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Prince Tortheldrin",
+        "encounters": [
+          {
+            "id": 361,
+            "name": "Prince Tortheldrin"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "drownedcity": [
+      {
+        "index": 1,
+        "label": "Zul'Alai",
+        "encounters": [
+          {
+            "id": 3474,
+            "name": "Zul'Alai"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Var'Taka",
+        "encounters": [
+          {
+            "id": 3475,
+            "name": "Var'Taka"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Captain Dreadrise",
+        "encounters": [
+          {
+            "id": 3476,
+            "name": "Captain Dreadrise"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Deathless Marrow",
+        "encounters": [
+          {
+            "id": 3478,
+            "name": "Deathless Guardians"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Creature name documented by the source guide; the encounter title names Deathless Guardians."
+      },
+      {
+        "index": 5,
+        "label": "Min'loth the Serpent",
+        "encounters": [
+          {
+            "id": 3479,
+            "name": "Min'loth the Serpent"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "excavationsite": [
+      {
+        "index": 1,
+        "label": "Saltspine",
+        "encounters": [
+          {
+            "id": 3480,
+            "name": "Saltspine"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Shadetooth",
+        "encounters": [
+          {
+            "id": 3481,
+            "name": "Shadetooth"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Relic Guardian",
+        "encounters": [
+          {
+            "id": 3482,
+            "name": "Relic Guardian"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "gnomeregan": [
+      {
+        "index": 1,
+        "label": "Grubbis",
+        "encounters": [
+          {
+            "id": 2768,
+            "name": "Grubbis"
+          },
+          {
+            "id": 2925,
+            "name": "Grubbis"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Viscous Fallout",
+        "encounters": [
+          {
+            "id": 2769,
+            "name": "Viscous Fallout"
+          },
+          {
+            "id": 2928,
+            "name": "Viscous Fallout"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Electrocutioner 6000",
+        "encounters": [
+          {
+            "id": 2770,
+            "name": "Electrocutioner 6000"
+          },
+          {
+            "id": 2927,
+            "name": "Electrocutioner 6000"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Crowd Pummeler 9-60",
+        "encounters": [
+          {
+            "id": 2771,
+            "name": "Crowd Pummeler 9-60"
+          },
+          {
+            "id": 2899,
+            "name": "Crowd Pummeler 9-60"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Mekgineer Thermaplugg",
+        "encounters": [
+          {
+            "id": 2772,
+            "name": "Mekgineer Thermaplugg"
+          },
+          {
+            "id": 2940,
+            "name": "Mekgineer Thermaplugg"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "hallofthanes": [
+      {
+        "index": 1,
+        "label": "Faldrim Anvilmar",
+        "encounters": [
+          {
+            "id": 3493,
+            "name": "Faldrim Anvilmar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Magmatus",
+        "encounters": [
+          {
+            "id": 3495,
+            "name": "Infurnus"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Creature name documented by the source guide; encounter title is Infurnus."
+      },
+      {
+        "index": 3,
+        "label": "Plunder",
+        "encounters": [
+          {
+            "id": 3494,
+            "name": "Plunder"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Durgen Dirgehammer",
+        "encounters": [
+          {
+            "id": 3496,
+            "name": "Durgen Dirgehammer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "kroldok": [
+      {
+        "index": 1,
+        "label": "Slavecrusher Grox",
+        "encounters": [
+          {
+            "id": 3450,
+            "name": "Slavecrusher Grox"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Twilight Commander Zarmok",
+        "encounters": [
+          {
+            "id": 3452,
+            "name": "Twilight Commander Zarmok"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Nar'gurk",
+        "encounters": [
+          {
+            "id": 3449,
+            "name": "Nar'gurk"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Overlord Mugg",
+        "encounters": [
+          {
+            "id": 3451,
+            "name": "Overseer Mugg"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Creature name documented by the source guide; encounter title is Overseer Mugg."
+      }
+    ],
+    "lowerblackrock": [
+      {
+        "index": 1,
+        "label": "Highlord Omokk",
+        "encounters": [
+          {
+            "id": 267,
+            "name": "Highlord Omokk"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "War Master Voone",
+        "encounters": [
+          {
+            "id": 269,
+            "name": "War Master Voone"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Shadow Hunter Vosh'gajin",
+        "encounters": [
+          {
+            "id": 268,
+            "name": "Shadow Hunter Vosh'gajin"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Mother Smolderweb",
+        "encounters": [
+          {
+            "id": 270,
+            "name": "Mother Smolderweb"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Urok Doomhowl",
+        "encounters": [
+          {
+            "id": 271,
+            "name": "Urok Doomhowl"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Halycon",
+        "encounters": [
+          {
+            "id": 274,
+            "name": "Halycon"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Gizrul the Slavener",
+        "encounters": [
+          {
+            "id": 273,
+            "name": "Gizrul the Slavener"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Quartermaster Zigris",
+        "encounters": [
+          {
+            "id": 272,
+            "name": "Quartermaster Zigris"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Overlord Wyrmthalak",
+        "encounters": [
+          {
+            "id": 275,
+            "name": "Overlord Wyrmthalak"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "moltencore": [
+      {
+        "index": 1,
+        "label": "Lucifron",
+        "encounters": [
+          {
+            "id": 663,
+            "name": "Lucifron"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Magmadar",
+        "encounters": [
+          {
+            "id": 664,
+            "name": "Magmadar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Gehennas",
+        "encounters": [
+          {
+            "id": 665,
+            "name": "Gehennas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Garr",
+        "encounters": [
+          {
+            "id": 666,
+            "name": "Garr"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Baron Geddon",
+        "encounters": [
+          {
+            "id": 668,
+            "name": "Baron Geddon"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Shazzrah",
+        "encounters": [
+          {
+            "id": 667,
+            "name": "Shazzrah"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Sulfuron Harbinger",
+        "encounters": [
+          {
+            "id": 669,
+            "name": "Sulfuron Harbinger"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Golemagg the Incinerator",
+        "encounters": [
+          {
+            "id": 670,
+            "name": "Golemagg the Incinerator"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Majordomo Executus",
+        "encounters": [
+          {
+            "id": 671,
+            "name": "Majordomo Executus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Ragnaros",
+        "encounters": [
+          {
+            "id": 672,
+            "name": "Ragnaros"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "naxxramas": [
+      {
+        "index": 1,
+        "label": "Anub'Rekhan",
+        "encounters": [
+          {
+            "id": 1107,
+            "name": "Anub'Rekhan"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Grand Widow Faerlina",
+        "encounters": [
+          {
+            "id": 1110,
+            "name": "Grand Widow Faerlina"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Maexxna",
+        "encounters": [
+          {
+            "id": 1116,
+            "name": "Maexxna"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Noth the Plaguebringer",
+        "encounters": [
+          {
+            "id": 1117,
+            "name": "Noth the Plaguebringer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Heigan the Unclean",
+        "encounters": [
+          {
+            "id": 1112,
+            "name": "Heigan the Unclean"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Loatheb",
+        "encounters": [
+          {
+            "id": 1115,
+            "name": "Loatheb"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Instructor Razuvious",
+        "encounters": [
+          {
+            "id": 1113,
+            "name": "Instructor Razuvious"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Gothik the Harvester",
+        "encounters": [
+          {
+            "id": 1109,
+            "name": "Gothik the Harvester"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "The Four Horsemen",
+        "encounters": [
+          {
+            "id": 1121,
+            "name": "The Four Horsemen"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Patchwerk",
+        "encounters": [
+          {
+            "id": 1118,
+            "name": "Patchwerk"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Grobbulus",
+        "encounters": [
+          {
+            "id": 1111,
+            "name": "Grobbulus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Gluth",
+        "encounters": [
+          {
+            "id": 1108,
+            "name": "Gluth"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 13,
+        "label": "Thaddius",
+        "encounters": [
+          {
+            "id": 1120,
+            "name": "Thaddius"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 14,
+        "label": "Sapphiron",
+        "encounters": [
+          {
+            "id": 1119,
+            "name": "Sapphiron"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 15,
+        "label": "Kel'Thuzad",
+        "encounters": [
+          {
+            "id": 1114,
+            "name": "Kel'Thuzad"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "onyxia": [
+      {
+        "index": 1,
+        "label": "Onyxia",
+        "encounters": [
+          {
+            "id": 1084,
+            "name": "Onyxia"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "ragefire": [
+      {
+        "index": 1,
+        "label": "Oggleflint",
+        "encounters": [
+          {
+            "id": 2732,
+            "name": "Oggleflint"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Taragaman the Hungerer",
+        "encounters": [
+          {
+            "id": 2733,
+            "name": "Taragaman the Hungerer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Bazzalan",
+        "encounters": [
+          {
+            "id": 2735,
+            "name": "Bazzalan"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Jergosh the Invoker",
+        "encounters": [
+          {
+            "id": 2734,
+            "name": "Jergosh the Invoker"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "razorfendowns": [
+      {
+        "index": 1,
+        "label": "Tuten'kash",
+        "encounters": [
+          {
+            "id": 2780,
+            "name": "Tuten'kash"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Mordresh Fire Eye",
+        "encounters": [
+          {
+            "id": 2782,
+            "name": "Mordresh Fire Eye"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Glutton",
+        "encounters": [
+          {
+            "id": 2784,
+            "name": "Glutton"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Amnennar the Coldbringer",
+        "encounters": [
+          {
+            "id": 2785,
+            "name": "Amnennar the Coldbringer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "razorfenkraul": [
+      {
+        "index": 1,
+        "label": "Roogug",
+        "encounters": [
+          {
+            "id": 2773,
+            "name": "Roogug"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Aggem Thorncurse",
+        "encounters": [
+          {
+            "id": 2774,
+            "name": "Aggem Thorncurse"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Death Speaker Jargba",
+        "encounters": [
+          {
+            "id": 2775,
+            "name": "Death Speaker Jargba"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Overlord Ramtusk",
+        "encounters": [
+          {
+            "id": 2776,
+            "name": "Overlord Ramtusk"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Agathelos the Raging",
+        "encounters": [
+          {
+            "id": 2777,
+            "name": "Agathelos the Raging"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Charlga Razorflank",
+        "encounters": [
+          {
+            "id": 2778,
+            "name": "Charlga Razorflank"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "ruinsoflordaeron": [
+      {
+        "index": 1,
+        "label": "Witherfang",
+        "encounters": [
+          {
+            "id": 3353,
+            "name": "Witherfang"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "The Baron",
+        "encounters": [
+          {
+            "id": 3355,
+            "name": "The Butcher"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Creature name documented by the source guide; encounter title is The Butcher."
+      },
+      {
+        "index": 3,
+        "label": "Viktor the Vile",
+        "encounters": [
+          {
+            "id": 3411,
+            "name": "Viktor the Vile"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "The Abandoned",
+        "encounters": [
+          {
+            "id": 3357,
+            "name": "The Abandoned"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Bjork",
+        "encounters": [
+          {
+            "id": 3412,
+            "name": "Bjork"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Rath'mael",
+        "encounters": [
+          {
+            "id": 3354,
+            "name": "Rath'mael"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "scholomance": [
+      {
+        "index": 1,
+        "label": "Jandice Barov",
+        "encounters": [
+          {
+            "id": 2804,
+            "name": "Jandice Barov"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Rattlegore",
+        "encounters": [
+          {
+            "id": 2811,
+            "name": "Rattlegore"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Marduk Blackpool",
+        "encounters": [
+          {
+            "id": 2809,
+            "name": "Marduk Blackpool"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Vectus",
+        "encounters": [
+          {
+            "id": 2813,
+            "name": "Vectus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Ras Frostwhisper",
+        "encounters": [
+          {
+            "id": 2810,
+            "name": "Ras Frostwhisperer"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Retain the creature spelling Ras Frostwhisper; the encounter table says Ras Frostwhisperer."
+      },
+      {
+        "index": 6,
+        "label": "Lorekeeper Polkelt",
+        "encounters": [
+          {
+            "id": 2808,
+            "name": "Lorekeeper Polkelt"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Doctor Theolen Krastinov",
+        "encounters": [
+          {
+            "id": 2802,
+            "name": "Doctor Theolen Krastinov"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Instructor Malicia",
+        "encounters": [
+          {
+            "id": 2803,
+            "name": "Instructor Malicia"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "The Ravenian",
+        "encounters": [
+          {
+            "id": 2812,
+            "name": "The Ravenian"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Lord Alexei Barov",
+        "encounters": [
+          {
+            "id": 2807,
+            "name": "Lord Alexei Barov"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Lady Illucia Barov",
+        "encounters": [
+          {
+            "id": 2806,
+            "name": "Lady Illucia Barov"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Darkmaster Gandling",
+        "encounters": [
+          {
+            "id": 2801,
+            "name": "Darkmaster Gandling"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "shadowfang": [
+      {
+        "index": 1,
+        "label": "Rethilgore",
+        "encounters": [
+          {
+            "id": 2748,
+            "name": "Rethilgore"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Razorclaw the Butcher",
+        "encounters": [
+          {
+            "id": 2749,
+            "name": "Razorclaw the Butcher"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Baron Silverlaine",
+        "encounters": [
+          {
+            "id": 2750,
+            "name": "Baron Silverlaine"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Commander Springvale",
+        "encounters": [
+          {
+            "id": 2751,
+            "name": "Commander Springvale"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Odo the Blindwatcher",
+        "encounters": [
+          {
+            "id": 2752,
+            "name": "Odo the Blindwatcher"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Fenrus the Devourer",
+        "encounters": [
+          {
+            "id": 2753,
+            "name": "Fenrus the Devourer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Wolf Master Nandos",
+        "encounters": [
+          {
+            "id": 2754,
+            "name": "Wolf Master Nandos"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Archmage Arugal",
+        "encounters": [
+          {
+            "id": 2755,
+            "name": "Archmage Arugal"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "shapersterrace": [
+      {
+        "index": 1,
+        "label": "Titanosaur",
+        "encounters": [
+          {
+            "id": 3498,
+            "name": "Titanosaur"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Ravasaur Hunters",
+        "encounters": [
+          {
+            "id": 3499,
+            "name": "Ravasaur Hunters"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Direhorn Matriarch",
+        "encounters": [
+          {
+            "id": 3507,
+            "name": "Direhorn Matriarch"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Thunderhoof",
+        "encounters": [
+          {
+            "id": 3500,
+            "name": "Thunderhoof"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Venomridge",
+        "encounters": [
+          {
+            "id": 3501,
+            "name": "Venomridge"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Nanaya",
+        "encounters": [
+          {
+            "id": 3502,
+            "name": "Nanaya"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "sm_armory": [
+      {
+        "index": 1,
+        "label": "Herod",
+        "encounters": [
+          {
+            "id": 448,
+            "name": "Herod"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "sm_cathedral": [
+      {
+        "index": 1,
+        "label": "Scarlet Commander Mograine",
+        "encounters": [
+          {
+            "id": 450,
+            "name": "High Inquisitor Whitemane"
+          }
+        ],
+        "status": "retained_creature_label",
+        "reason": "Shared Mograine/Whitemane encounter; preserve separate creature labels and exact-name matching."
+      },
+      {
+        "index": 2,
+        "label": "High Inquisitor Whitemane",
+        "encounters": [
+          {
+            "id": 450,
+            "name": "High Inquisitor Whitemane"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "sm_graveyard": [
+      {
+        "index": 1,
+        "label": "Interrogator Vishas",
+        "encounters": [
+          {
+            "id": 444,
+            "name": "Interrogator Vishas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Bloodmage Thalnos",
+        "encounters": [
+          {
+            "id": 2779,
+            "name": "Bloodmage Thalnos"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "sm_library": [
+      {
+        "index": 1,
+        "label": "Houndmaster Loksey",
+        "encounters": [
+          {
+            "id": 446,
+            "name": "Houndmaster Loksey"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Arcanist Doan",
+        "encounters": [
+          {
+            "id": 447,
+            "name": "Arcanist Doan"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "stockade": [
+      {
+        "index": 1,
+        "label": "Targorr the Dread",
+        "encounters": [
+          {
+            "id": 2756,
+            "name": "Targorr the Dread"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Dextren Ward",
+        "encounters": [
+          {
+            "id": 2759,
+            "name": "Dextren Ward"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Kam Deepfury",
+        "encounters": [
+          {
+            "id": 2757,
+            "name": "Kam Deepfury"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Hamhock",
+        "encounters": [
+          {
+            "id": 2758,
+            "name": "Hamhock"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Bazil Thredd",
+        "encounters": [
+          {
+            "id": 2760,
+            "name": "Bazil Thredd"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "sunkentemple": [
+      {
+        "index": 1,
+        "label": "Jammal'an the Prophet",
+        "encounters": [
+          {
+            "id": 488,
+            "name": "Jammal'an the Prophet"
+          },
+          {
+            "id": 3589,
+            "name": "Jammal'an the Prophet"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Dreamscythe",
+        "encounters": [
+          {
+            "id": 486,
+            "name": "Dreamscythe"
+          },
+          {
+            "id": 3588,
+            "name": "Dreamscythe"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Weaver",
+        "encounters": [
+          {
+            "id": 487,
+            "name": "Weaver"
+          },
+          {
+            "id": 3587,
+            "name": "Weaver"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Morphaz",
+        "encounters": [
+          {
+            "id": 490,
+            "name": "Morphaz"
+          },
+          {
+            "id": 3586,
+            "name": "Morphaz"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Hazzas",
+        "encounters": [
+          {
+            "id": 491,
+            "name": "Hazzas"
+          },
+          {
+            "id": 3585,
+            "name": "Hazzas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Shade of Eranikus",
+        "encounters": [
+          {
+            "id": 493,
+            "name": "Shade of Eranikus"
+          },
+          {
+            "id": 2959,
+            "name": "Shade of Eranikus"
+          },
+          {
+            "id": 3584,
+            "name": "Shade of Eranikus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "uldaman": [
+      {
+        "index": 1,
+        "label": "The Lost Dwarves",
+        "encounters": [
+          {
+            "id": 548,
+            "name": "The Lost Dwarves"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Revelosh",
+        "encounters": [
+          {
+            "id": 547,
+            "name": "Revelosh"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Ironaya",
+        "encounters": [
+          {
+            "id": 549,
+            "name": "Ironaya"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Obsidian Sentinel",
+        "encounters": [
+          {
+            "id": 1887,
+            "name": "Obsidian Sentinel"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Ancient Stone Keeper",
+        "encounters": [
+          {
+            "id": 551,
+            "name": "Ancient Stone Keeper"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Galgann Firehammer",
+        "encounters": [
+          {
+            "id": 552,
+            "name": "Galgann Firehammer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Grimlok",
+        "encounters": [
+          {
+            "id": 553,
+            "name": "Grimlok"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Archaedas",
+        "encounters": [
+          {
+            "id": 554,
+            "name": "Archaedas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "upperblackrock": [
+      {
+        "index": 1,
+        "label": "Pyroguard Emberseer",
+        "encounters": [
+          {
+            "id": 3062,
+            "name": "Pyroguard Emberseer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Warchief Rend Blackhand",
+        "encounters": [
+          {
+            "id": 3063,
+            "name": "Warchief Rend Blackhand"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "The Beast",
+        "encounters": [
+          {
+            "id": 3068,
+            "name": "The Beast"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "General Drakkisath",
+        "encounters": [
+          {
+            "id": 3069,
+            "name": "General Drakkisath"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "wailingcaverns": [
+      {
+        "index": 1,
+        "label": "Lady Anacondra",
+        "encounters": [
+          {
+            "id": 585,
+            "name": "Lady Anacondra"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Lord Cobrahn",
+        "encounters": [
+          {
+            "id": 586,
+            "name": "Lord Cobrahn"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Kresh",
+        "encounters": [
+          {
+            "id": 587,
+            "name": "Kresh"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Lord Pythas",
+        "encounters": [
+          {
+            "id": 588,
+            "name": "Lord Pythas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Skum",
+        "encounters": [
+          {
+            "id": 589,
+            "name": "Skum"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Lord Serpentis",
+        "encounters": [
+          {
+            "id": 590,
+            "name": "Lord Serpentis"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Verdan the Everliving",
+        "encounters": [
+          {
+            "id": 591,
+            "name": "Verdan the Everliving"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Mutanus the Devourer",
+        "encounters": [
+          {
+            "id": 592,
+            "name": "Mutanus the Devourer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ],
+    "zulfarrak": [
+      {
+        "index": 1,
+        "label": "Theka the Martyr",
+        "encounters": [
+          {
+            "id": 596,
+            "name": "Theka the Martyr"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Antu'sul",
+        "encounters": [
+          {
+            "id": 595,
+            "name": "Antu'sul"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Witch Doctor Zum'rah",
+        "encounters": [
+          {
+            "id": 597,
+            "name": "Witch Doctor Zum'rah"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Nekrum Gutchewer",
+        "encounters": [
+          {
+            "id": 598,
+            "name": "Nekrum Gutchewer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Shadowpriest Sezz'ziz",
+        "encounters": [
+          {
+            "id": 599,
+            "name": "Shadowpriest Sezz'ziz"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Hydromancer Velratha",
+        "encounters": [
+          {
+            "id": 593,
+            "name": "Hydromancer Velratha"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Chief Ukorz Sandscalp",
+        "encounters": [
+          {
+            "id": 600,
+            "name": "Chief Ukorz Sandscalp"
+          }
+        ],
+        "status": "matches_client_encounter"
+      }
+    ]
+  }
+}

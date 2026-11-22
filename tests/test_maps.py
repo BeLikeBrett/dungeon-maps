@@ -35,3 +35,27 @@ actual = {p.relative_to(ROOT / 'addon/DungeonMaps').as_posix()
 assert len(expected) == 17 and expected == actual, (expected - actual, actual - expected)
 assert 'Santiago Reyes' in (ROOT / 'addon/DungeonMaps/maps/CREDITS.txt').read_text()
 print('PASS 17 bundled maps: decoded, correct crop, complete references, artist credits')
+
+# Wailing Caverns' later-version parchment omits the Winding Chasm. Its
+# replacement uses all client building parts in the existing coordinate frame.
+subprocess.run(['lua5.1', '-e', r"""
+local ns = {}
+assert(loadfile("addon/DungeonMaps/Data.lua"))("DungeonMaps", ns)
+assert(ns.Floors[279].terrain and #ns.MinimapArt[279] == 47)
+for floor, info in pairs(ns.Floors) do
+  if floor ~= 279 then assert(not info.terrain, "another floor's renderer changed") end
+end
+for floor in pairs(ns.MinimapArt) do assert(floor == 279) end
+for _, part in ipairs(ns.MinimapArt[279]) do
+  assert(#part == 14 and part[1] > 0 and part[4] > 0 and part[5] > 0)
+  assert(part[2] >= 0 and part[3] >= 0 and part[2]+part[4] <= 1002.02 and part[3]+part[5] <= 668.02)
+end
+for _, boss in ipairs(ns.Bosses.wailingcaverns) do
+  local x,y,covered = boss.x*1002, boss.y*668, false
+  for _, part in ipairs(ns.MinimapArt[279]) do
+    if x >= part[2] and x <= part[2]+part[4] and y >= part[3] and y <= part[3]+part[5] then covered=true end
+  end
+  assert(covered, "no terrain coverage at "..boss.name)
+end
+print("PASS Wailing Caverns terrain bounds cover all eight pins, including the east wing; other floors unchanged")
+"""], cwd=ROOT, check=True)

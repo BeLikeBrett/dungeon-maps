@@ -833,8 +833,9 @@ local function showFloor(index)
 	floorIndex = index
 	local floor = floors[index]
 	local info = ns.Floors[floor]
-	local tiles = info and info.tiles
-	local image = info and info.image
+	local terrain = info and info.terrain and ns.MinimapArt[floor]
+	local tiles = not terrain and info and info.tiles
+	local image = not terrain and info and info.image
 	for i, tex in ipairs(map.tiles) do
 		if tiles then
 			tex:SetTexture(tiles[i], nil, nil, "TRILINEAR") -- the game's own map tile (file ID)
@@ -851,8 +852,28 @@ local function showFloor(index)
 	else
 		map.picture:Hide()
 	end
+	-- Wailing Caverns' parchment leaves out an entire wing. These client
+	-- textures use the same 1002x668 coordinates as its bosses and live arrow.
+	-- Set up only on floor changes; no per-frame texture work.
+	local count = terrain and #terrain or 0
+	map.terrainBack:SetShown(count > 0)
+	for i = 1, count do
+		local part, tex = terrain[i], map.terrainTiles[i]
+		if not tex then
+			tex = map.canvas:CreateTexture(nil, "BACKGROUND")
+			map.terrainTiles[i] = tex
+		end
+		tex:SetTexture(part[1], "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE", "TRILINEAR")
+		tex:SetTexCoord(part[6], part[7], part[8], part[9], part[10], part[11], part[12], part[13])
+		tex:SetDrawLayer("BACKGROUND", part[14])
+		tex:SetSize(part[4], part[5])
+		tex:ClearAllPoints()
+		tex:SetPoint("TOPLEFT", map.canvas, "TOPLEFT", part[2], -part[3])
+		tex:Show()
+	end
+	for i = count + 1, #map.terrainTiles do map.terrainTiles[i]:Hide() end
 	map.noArt:SetText("No map art for this floor")
-	map.noArt:SetShown(not tiles and not image)
+	map.noArt:SetShown(not tiles and not image and count == 0)
 	map.credit:SetText(info and info.credit and ("Map: " .. info.credit) or "")
 	local wings = #(byInstance[dungeon.instanceID] or {})
 	map.title:SetText(dungeon.name .. (wings > 1 and "  |cff999999(click: other wing)|r" or ""))
@@ -1062,6 +1083,11 @@ local function buildMap()
 	end
 	map.picture = canvas:CreateTexture(nil, "BACKGROUND", nil, 1)
 	map.picture:SetAllPoints(canvas)
+	map.terrainBack = canvas:CreateTexture(nil, "BACKGROUND", nil, -1)
+	map.terrainBack:SetAllPoints(canvas)
+	map.terrainBack:SetColorTexture(0.035, 0.035, 0.025, 1)
+	map.terrainBack:Hide()
+	map.terrainTiles = {}
 	map.noArt = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
 	map.noArt:SetPoint("CENTER")
 	map.noArt:SetText("No map art for this floor")

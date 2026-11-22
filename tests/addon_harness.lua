@@ -17,6 +17,8 @@ local function widget(kind)
     if k == "CreateTexture" or k == "CreateFontString" then return function() return widget("Region") end end
     if k == "SetTexture" then return function(s, value) s._texture = value return true end end
     if k == "SetTexCoord" then return function(s, ...) s._texcoord = {...} end end
+    if k == "SetDrawLayer" then return function(s, layer, level) s._layer, s._level = layer, level end end
+    if k == "SetSize" then return function(s, width, height) s._width, s._height = width, height end end
     if k == "SetScript" then return function(s, ev, fn) local t = rawget(s, "_scripts") or {} rawset(s, "_scripts", t) t[ev] = fn end end
     if k == "StartMoving" or k == "StopMovingOrSizing" then return function() end end
     return function() end
@@ -177,6 +179,60 @@ for _, d in ipairs(ns.Dungeons) do
 end
 assert(pictures == 17, "expected all 17 bundled map pictures, got " .. pictures)
 print("OK 17 bundled pictures loaded without Forever Dungeon Routes")
+-- Wailing Caverns must display all building parts, including the omitted east
+-- wing, without changing its marker coordinates or other floors' artwork.
+GetInstanceInfo = function() return "Wailing Caverns", "party", 1, "", 5, 0, false, 43 end
+C_Map.GetBestMapForUnit = function() return 279 end
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+local terrain = ns.MinimapArt[279]
+assert(ns.Floors[279].terrain and #terrain == 47)
+assert(DungeonMapsFrame.terrainBack:IsShown() and not DungeonMapsFrame.picture:IsShown())
+for _, tex in ipairs(DungeonMapsFrame.tiles) do assert(not tex:IsShown(), "incomplete parchment still visible") end
+for i, part in ipairs(terrain) do
+  local tex = DungeonMapsFrame.terrainTiles[i]
+  assert(tex:IsShown() and tex._texture == part[1], "missing terrain part " .. i)
+  assert(tex._pts[4] == part[2] and tex._pts[5] == -part[3])
+  assert(tex._width == part[4] and tex._height == part[5] and tex._level == part[14])
+  for j=1,8 do assert(tex._texcoord[j] == part[j+5], "terrain orientation changed") end
+end
+for i, boss in ipairs(ns.Bosses.wailingcaverns) do
+  local pin = DungeonMapsFrame.bosses[i]
+  assert(pin.tipTitle == boss.name and pin._pts[4] == boss.x * 1002 and pin._pts[5] == -boss.y * 668)
+end
+local retained = DungeonMapsFrame.terrainTiles[1]
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+assert(DungeonMapsFrame.terrainTiles[1] == retained, "reopening allocated duplicate terrain")
+GetInstanceInfo = function() return "Ragefire Chasm", "party", 1, "", 5, 0, false, 389 end
+C_Map.GetBestMapForUnit = function() return 213 end
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+assert(not DungeonMapsFrame.terrainBack:IsShown())
+for _, tex in ipairs(DungeonMapsFrame.terrainTiles) do assert(not tex:IsShown(), "WC terrain leaked onto another map") end
+for _, tex in ipairs(DungeonMapsFrame.tiles) do assert(tex:IsShown(), "another floor lost its original art") end
+print("OK Wailing Caverns complete terrain, unchanged pins, texture reuse, and floor isolation")
+
+-- Exercise every imported name/alias against the addon's actual kill matcher.
+-- This includes shared encounter IDs, without assuming the first pin is correct.
+DungeonMapsFrame:Hide()
+local pins, labels = 0, 0
+for _, d in ipairs(ns.Dungeons) do
+  GetInstanceInfo = function() return d.name, "party", 1, "", 5, 0, false, d.instanceID end
+  C_Map.GetBestMapForUnit = function() return d.floors[1] end
+  for i, boss in ipairs(ns.Bosses[d.key] or {}) do
+    pins = pins + 1
+    local names = {boss.name}
+    for _, alias in ipairs(boss.aliases or {}) do names[#names+1] = alias end
+    for _, name in ipairs(names) do
+      DungeonMapsCharDB.runs[d.key] = nil
+      fire("ENCOUNTER_END", 0, name, 1, 5, 1)
+      local progress = DungeonMapsCharDB.runs[d.key]
+      assert(progress and progress.killed[i], d.key .. " failed name: " .. name)
+      for other in pairs(progress.killed) do assert(other == i, "name resolved another boss: " .. name) end
+      labels = labels + 1
+    end
+  end
+end
+assert(pins == 212)
+print("OK all 212 boss pins and " .. labels .. " names/aliases resolve correctly")
 -- Creature display names and encounter titles must both resolve to the same pin.
 GetInstanceInfo = function() return "Ruins of Lordaeron", "party", 1, "", 5, 0, false, 2999 end
 C_Map.GetBestMapForUnit = function() return 1029991 end

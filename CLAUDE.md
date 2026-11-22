@@ -1,5 +1,30 @@
 # Dungeon Maps: working notes
 
+## v1.0.15 Wailing Caverns art and boss-name audit (2026-11-22)
+- User screenshot: WC pins4/5 (Pythas/Skum) on blank parchment. The source project's0.5.19 notes
+  explicitly say the later-version drawing omits the Winding Chasm. Boss coordinates were correct
+  for the retained world frame; do not move them onto unrelated drawn rooms.
+- extract.lua exports all47 DR.MinimapArt[279] building parts and sets Floors[279].terrain=true.
+  Only this floor displays complete client terrain, using exact exported placement/UV/layer order.
+  Textures configured on floor changes, reused, hidden on other floors. Tracker JSON byte-identical;
+  no route/world/entry/room/boss-coordinate change, no tracking algorithm/cache change.
+- Audited all212 imported pins against installed Blizzard DungeonEncounter export (client70862
+  via FDR1.3.6); validation/boss-names.json records titles/IDs and known creature-label differences.
+  All eight WC labels match client titles. Nine retained creature/shared-encounter exceptions cover
+  eleven differing encounter IDs, rather than overwriting creature names with encounter titles.
+  This export audit is not independent live confirmation of every creature name.
+- Lua harness checks actual terrain rendering/UV/layers, unchanged pins, reuse and floor isolation;
+  all1634 names/aliases resolve to the correct212 pins. Maps, name inventory, beacon, context and
+  updater checks passed. New tests/test_boss_names.py in CI.
+- Backported ONLY visual terrain code + WC data to the currently installed protocol6 native addon;
+  version remains1.0.10 until full paired update. Tested in isolated fixture including protocol6
+  decode and all1634 aliases; all other data tables identical. /reload loads visual fix safely with
+  current tracker. No game input, capture picker, or tracker restart.
+- Backup: ~/.local/share/wow-addon-backups/dungeonmaps-wailing-terrain-20261122-141048/.
+  Private patch script /tmp/dungeonmaps-wailing-terrain-hotfix.py; do not reapply blindly.
+- Full v1.0.15 pending ZIP must match source for next full Battle.net launch; release updates both
+  Windows/Linux through the usual EXE/addon packaging. Await player confirmation of client textures.
+
 ## Dungeon validation (2026-11-22)
 - Canonical reviewed evidence: [validation/README.md](validation/README.md), with a README and
   machine-readable cases per dungeon. Start with the [latest Ruins assessment](validation/dungeons/ruinsoflordaeron/README.md).

@@ -23,6 +23,7 @@ jobs:
         run: lua5.1 tests/addon_harness.lua addon | tail -1
       - run: python tests/test_beacon.py
       - run: python tests/test_maps.py
+      - run: python tests/test_boss_names.py
       - run: python tests/test_cache_recovery.py
       - run: python tests/test_odometry.py
       - run: python tests/test_facing.py
@@ -84,7 +85,7 @@ jobs:
         run: |
           (cd addon && zip -r ../dist/DungeonMaps-addon.zip DungeonMaps)
           tar czf dist/DungeonMaps-linux.tar.gz --transform 's,^,dungeon-maps/,' \
-            dungeonmaps overlay linux requirements.txt README.md LICENSE tools/replay_trace.py tools/samples_report.py
+            dungeonmaps overlay linux validation requirements.txt README.md LICENSE tools/replay_trace.py tools/samples_report.py
       - uses: softprops/action-gh-release@v2
         with:
           files: |

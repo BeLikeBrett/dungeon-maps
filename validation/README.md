@@ -6,6 +6,11 @@ and decisions; the tracker does not load them as positioning rules.
 | Dungeon | Latest reviewed case | Decision |
 | --- | --- | --- |
 | [Ruins of Lordaeron](dungeons/ruinsoflordaeron/README.md) | 2026-11-22: bridge/drop report, one correction | Preserve tracking; bridge adjustment needs more evidence |
+| [Wailing Caverns](dungeons/wailingcaverns/README.md) | 2026-11-22: Pythas/Skum outside drawn passages | Display complete client terrain on floor 279; retain coordinates |
+
+The [boss-name audit](boss-names.json) covers all 212 imported pins and their client
+encounter IDs/titles. Documented creature-title differences and shared encounters
+are explicit. This is not independent live confirmation of every creature name.
 
 ## Layout
 

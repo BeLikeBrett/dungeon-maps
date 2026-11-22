@@ -1,5 +1,14 @@
 # Dungeon Maps: plan and status
 
+## v1.0.15 Wailing Caverns full terrain and boss names (2026-11-22)
+- The original WC parchment omits the Winding Chasm. Show all47 client building-part textures on
+  floor279, keeping pins/world/rooms/entry/routes and tracking math unchanged. Other floors retain art.
+- All212 imported boss labels audited against client encounter export; documented creature-title
+  differences preserved. Actual Lua matching covers all1634 names/aliases, including shared encounters.
+- [WC assessment](validation/dungeons/wailingcaverns/README.md), complete name inventory and tests
+  published together. Compatible native-only visual hotfix installed; /reload loads it. Full source
+  update remains staged for Battle.net launch; no live tracker restart.
+
 ## Validation data organization (2026-11-22)
 - Reviewed cases now live [under each dungeon](validation/README.md), with human-readable decisions
   and JSON metrics/provenance. Root README links to the index. Raw clips remain private.
