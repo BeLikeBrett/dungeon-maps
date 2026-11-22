@@ -1,5 +1,18 @@
 # Dungeon Maps: working notes
 
+## v1.0.13 defeated-boss reset (2026-11-22)
+- Fresh living entry from outside / another instance clears killed flags for all wings sharing
+  the entered instanceID. An ordinary living exit/re-entry counts as a fresh visit; no unique
+  server-run ID is available in our beacon. Duplicate zone events, login/reload inside and corpse
+  returns preserve progress. PLAYER_LEAVING_WORLD captures dead/ghost before automatic door revive.
+- Pulling a boss marked defeated clears the old instance progress as a missed-reset fallback.
+  Reset announcements redraw the skulls immediately. Existing learned atlas/calibration untouched.
+- No beacon format change: the existing boss_mask/active_boss fields clear for both platforms.
+- Lua harness exercises all 41 maps/shared wings, labels, reset, wipe, login, reload, corpse and
+  duplicate events. Real Lua beacon round trip confirms zero boss mask/active encounter on re-entry.
+- v1.0.12 release CI completed successfully with Windows EXE + addon + Linux assets published.
+  Native changes remain staged for next full Battle.net launch; do not restart live tracking.
+
 ## v1.0.12 run-based recovery and dungeon profiles (2026-11-22)
 - Latest Lordaeron run: eight manual corrections, largest 169.2 and 93.1 yd; clean pictures at both
   large corrections. Native captures also show Questie hover popups at some impossible-match events.

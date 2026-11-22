@@ -120,9 +120,18 @@ local beaconX = arg[2] == "near" and beacon._pts[4] * 0.75 * K or 0
 place(beacon, 0.75, beaconX, 0, #beacon.cells * 2, 2)
 local ticker
 for i, f in ipairs(ALLFRAMES) do if f == beacon then ticker = ALLFRAMES[i + 1] end end
-if arg[2] == "context" then
+if arg[2] == "context" or arg[2] == "newrun" then
   fire("BOSS_KILL", 2732, "Oggleflint")
   fire("ENCOUNTER_START", 2733, "Taragaman the Hungerer")
+end
+if arg[2] == "newrun" then
+  local isInInstance = IsInInstance
+  fire("PLAYER_LEAVING_WORLD")
+  IsInInstance = function() return false, "none" end
+  fire("PLAYER_ENTERING_WORLD", false, false)
+  fire("PLAYER_LEAVING_WORLD")
+  IsInInstance = isInInstance
+  fire("PLAYER_ENTERING_WORLD", false, false)
 end
 if arg[2] == "blocked" then
   GameTooltip:Show()

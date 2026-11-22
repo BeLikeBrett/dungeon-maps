@@ -190,4 +190,83 @@ fire("ENCOUNTER_START", 450, "High Inquisitor Whitemane")
 assert(not DungeonMapsDB.bossNames["enUS:450"], "shared encounter must not rename individual pins")
 UnitName = originalUnitName
 print("OK boss aliases, live creature labels, and shared-encounter identity")
+
+-- Run progress belongs to a visit, rather than the last three hours. Exercise
+-- every dungeon (including shared-instance wings) through the real event handler.
+local inside, dead = false, false
+IsInInstance = function() return inside, inside and "party" or "none" end
+UnitIsDeadOrGhost = function(u) return u == "player" and dead end
+GetSubZoneText = function() return "" end
+for _, d in ipairs(ns.Dungeons) do
+  GetInstanceInfo = function() return d.name, "party", 1, "", 5, 0, false, d.instanceID end
+  C_Map.GetBestMapForUnit = function() return d.floors[1] end
+  fire("PLAYER_LEAVING_WORLD")
+  inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+  for _, wing in ipairs(ns.Dungeons) do
+    if wing.instanceID == d.instanceID then
+      DungeonMapsCharDB.runs[wing.key] = {t = time(), killed = {[1] = true}}
+    end
+  end
+  DungeonMapsCharDB.runs.unrelated = {t = time(), killed = {[1] = true}}
+  fire("PLAYER_LEAVING_WORLD")
+  inside = true; fire("PLAYER_ENTERING_WORLD", false, false)
+  for _, wing in ipairs(ns.Dungeons) do
+    if wing.instanceID == d.instanceID then
+      assert(not DungeonMapsCharDB.runs[wing.key], "fresh entry retained kills: " .. wing.key)
+    end
+  end
+  assert(DungeonMapsCharDB.runs.unrelated.killed[1], "entry cleared another instance")
+  local progress = {t = time(), killed = {[1] = true}}
+  DungeonMapsCharDB.runs[d.key] = progress
+  fire("ZONE_CHANGED_NEW_AREA")
+  fire("PLAYER_ENTERING_WORLD", false, false) -- duplicate notification inside
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "duplicate event erased progress")
+  fire("PLAYER_ENTERING_WORLD", false, true)
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "UI reload erased progress")
+  fire("PLAYER_ENTERING_WORLD", true, false)
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "login erased progress")
+  dead = true; fire("PLAYER_LEAVING_WORLD")
+  inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+  fire("PLAYER_LEAVING_WORLD")
+  inside, dead = true, false -- automatically resurrected at the instance door
+  fire("PLAYER_ENTERING_WORLD", false, false)
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "corpse run erased progress")
+  -- Login/reload flags must also protect progress without a prior inside event,
+  -- which is how a newly loaded copy of the addon starts.
+  fire("PLAYER_LEAVING_WORLD")
+  inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+  inside = true; fire("PLAYER_ENTERING_WORLD", true, false)
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "login inside erased saved progress")
+  inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+  inside = true; fire("PLAYER_ENTERING_WORLD", false, true)
+  assert(DungeonMapsCharDB.runs[d.key] == progress, "reload inside erased saved progress")
+  fire("PLAYER_LEAVING_WORLD")
+  inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+  fire("PLAYER_LEAVING_WORLD")
+  inside = true; fire("PLAYER_ENTERING_WORLD", false, false)
+  assert(not DungeonMapsCharDB.runs[d.key], "living return retained kills: " .. d.key)
+end
+-- A missed reset is also caught by pulling a boss previously marked killed.
+GetInstanceInfo = function() return "Ruins of Lordaeron", "party", 1, "", 5, 0, false, 2999 end
+C_Map.GetBestMapForUnit = function() return 1029991 end
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+fire("BOSS_KILL", 3355, "The Butcher")
+assert(DungeonMapsFrame.bosses[2].tipLines[1]:find("defeated"), "missing defeated label")
+fire("PLAYER_LEAVING_WORLD")
+inside = false; fire("PLAYER_ENTERING_WORLD", false, false)
+fire("PLAYER_LEAVING_WORLD")
+inside = true; fire("PLAYER_ENTERING_WORLD", false, false)
+DungeonMaps_Toggle()
+assert(not DungeonMapsFrame.bosses[2].tipLines[1]:find("defeated"), "stale defeated label after entry")
+fire("BOSS_KILL", 3355, "The Butcher")
+fire("ENCOUNTER_START", 3355, "The Butcher")
+assert(not DungeonMapsCharDB.runs.ruinsoflordaeron, "living boss retained previous run's kills")
+assert(not DungeonMapsFrame.bosses[2].tipLines[1]:find("defeated"), "boss restart did not redraw skull")
+fire("ENCOUNTER_END", 3355, "The Butcher", 1, 5, 0)
+assert(not DungeonMapsCharDB.runs.ruinsoflordaeron, "wipe counted as a kill")
+fire("BOSS_KILL", 3355, "The Butcher")
+fire("CHAT_MSG_SYSTEM", "Ruins of Lordaeron has been reset.")
+assert(not DungeonMapsCharDB.runs.ruinsoflordaeron, "instance reset retained kills")
+assert(not DungeonMapsFrame.bosses[2].tipLines[1]:find("defeated"), "reset did not redraw skull")
+print("OK all dungeon runs reset; reload, login, duplicate zone events and corpse returns preserve progress")
 print("OK no runtime errors")

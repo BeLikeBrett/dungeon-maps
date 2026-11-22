@@ -1,5 +1,12 @@
 # Dungeon Maps: plan and status
 
+## v1.0.13 automatic defeated-boss reset (2026-11-22)
+- Fresh living dungeon visits clear old defeated flags across shared-instance wings. Preserve
+  login/reload, duplicate notifications and corpse returns (including automatic door resurrection).
+- A defeated boss being pulled again catches a missed reset; server reset messages refresh skulls.
+- Existing beacon boss progress fields reset for both Linux and Windows. Learning data is retained.
+- Covered all 41 maps in the Lua harness and the actual beacon round trip; updater checks pass.
+
 ## v1.0.12 run-based recovery and dungeon profiles (2026-11-22)
 - Latest Lordaeron run: eight manual corrections, largest 169.2 and 93.1 yd; clean pictures at both
   large corrections. Native captures also show Questie hover popups at some impossible-match events.

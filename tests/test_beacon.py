@@ -95,6 +95,12 @@ def main():
     blocked = json.loads([line for line in blocked.splitlines() if line.startswith("{")][-1])
     assert beacon.find(paint(blocked)).fields["minimap_blocked"] == 1
     assert b.fields["minimap_blocked"] == 0
+    output = subprocess.run(["lua5.1", os.path.join(HERE, "beacon_harness.lua"), ADDONS, "newrun"],
+                            capture_output=True, text=True, check=True).stdout
+    fresh = json.loads([line for line in output.splitlines() if line.startswith("{")][-1])
+    fields = beacon.find(paint(fresh)).fields
+    assert fields["boss_mask"] == 0 and fields["active_boss"] == 0, fields
+    print("PASS fresh run clears defeated and active boss context in the real Lua beacon")
 
 
 if __name__ == "__main__":

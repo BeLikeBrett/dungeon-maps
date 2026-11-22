@@ -60,6 +60,8 @@ local landmarkCount = 0 -- goes up with every new landmark (the live tracker wat
 local wingPick = {}    -- [instanceID] = dungeon key picked (instances with several wings)
 local members = {}     -- [sender] = { key, room name } from group messages
 local activeEncounter -- { key, index }: only while an encounter is active
+local worldInstance   -- last observed instance, so duplicate zone events aren't new runs
+local enteringDead = false -- captured before loading; the client may resurrect us at the door
 
 -- A size setting (Settings / the map's gear menu): 0.5x to 2.5x, in tenths.
 local function sizeOf(key)
@@ -210,6 +212,22 @@ end
 -- Boss kills (per character, per run)
 ---------------------------------------------------------------------------------------------------
 
+local function clearInstanceRun(id)
+	if not DungeonMapsCharDB.runs then return end
+	-- Several wings can share one instance; none should retain the previous visit's kills.
+	for _, d in ipairs(byInstance[id] or {}) do DungeonMapsCharDB.runs[d.key] = nil end
+end
+
+local function checkRunEntry(initialLogin, reloadingUI)
+	local id = inDungeon() and instanceID() or nil
+	if id and id ~= worldInstance and not plain(initialLogin) and not plain(reloadingUI)
+		and not enteringDead and not plain(UnitIsDeadOrGhost("player")) then
+		clearInstanceRun(id)
+	end
+	worldInstance = id
+	enteringDead = false
+end
+
 local function run(key, create)
 	DungeonMapsCharDB.runs = DungeonMapsCharDB.runs or {}
 	local r = DungeonMapsCharDB.runs[key]
@@ -307,6 +325,9 @@ local function landmarkBoss(encounterID, encounterName)
 	local d = findDungeon()
 	if not d then return end
 	local i, b = bossFor(d.key, encounterID, encounterName)
+	-- A living boss that we marked dead is direct evidence of a fresh run, even
+	-- if we logged in after zoning or missed the server's reset announcement.
+	if i and bossDone(d.key, i) then clearInstanceRun(d.instanceID) end
 	activeEncounter = b and { key = d.key, index = i, id = encounterID } or nil
 	if b then setLandmark(d.key, b.floor, b.x, b.y, b.name, LM_BOSS) end
 end
@@ -1607,6 +1628,7 @@ if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
 end
 
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("PLAYER_LEAVING_WORLD")
 events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 events:RegisterEvent("ZONE_CHANGED")
 events:RegisterEvent("ZONE_CHANGED_INDOORS")
@@ -1619,7 +1641,10 @@ events:RegisterEvent("BOSS_KILL")
 events:RegisterEvent("CHAT_MSG_ADDON")
 events:RegisterEvent("CHAT_MSG_SYSTEM")
 events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
-	if event == "PLAYER_REGEN_ENABLED" then
+	if event == "PLAYER_LEAVING_WORLD" then
+		enteringDead = plain(UnitIsDeadOrGhost("player")) == true
+		return
+	elseif event == "PLAYER_REGEN_ENABLED" then
 		if bindingsPending then applyBindings() end
 		return
 	elseif event == "GROUP_ROSTER_UPDATE" then
@@ -1654,13 +1679,15 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		local text = plain(arg1)
 		if type(text) == "string" and text:find("reset") then
 			for _, d in ipairs(ns.Dungeons) do
-				if text:find(d.name, 1, true) and DungeonMapsCharDB.runs then DungeonMapsCharDB.runs[d.key] = nil end
+				if text:find(d.name, 1, true) then clearInstanceRun(d.instanceID) end
 			end
+			refreshPeople()
 		end
 		return
 	end
 	if event == "PLAYER_ENTERING_WORLD" then
 		activeEncounter = nil
+		checkRunEntry(arg1, arg2)
 		if not DungeonMapsDB.samplesNotice then
 			say("Shift+click corrections share small minimap pictures to improve maps (up to 20 per dungeon). Turn sharing off in /dmaps settings.")
 			DungeonMapsDB.samplesNotice = true
@@ -1676,6 +1703,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 			if inDungeon() and not plain(arg1) then landmarkEntrance() end
 		end
 		sendState(true)
+		refreshPeople()
 	end
 	applyBindings()
 	if map and map:IsShown() and not inDungeon() then map:Hide() end
