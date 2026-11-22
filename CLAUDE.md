@@ -46,7 +46,9 @@
 - Optimizations (bit-identical, verified): MaskedNCC caches key-only sums per key (surface
   4.46->2.92 ms/frame); _estimate cluster distances per axis (3.46->0.22 ms @500, 9.35->1.24 @4000).
 - Live tracker runs from this repo; the Python changes load at the next game launch (hook). Not
-  restarted mid-play. No pending-addon.zip exists. Nothing committed/released yet.
+  restarted mid-play. No pending-addon.zip exists.
+- Released: commit b7949b1, tag v1.0.18, CI 45043357997 green (test/windows/release). Downloaded
+  add-on zip matches GitHub SHA-256 and is byte-identical to source.
 
 ## v1.0.17 green-map regression and native entrance arrow (2026-11-22)
 - User photos show v16 instance texture green. Our old Pillow/stub tests were insufficient: palette
