@@ -10,6 +10,7 @@ import os
 import sys
 import tempfile
 import zipfile
+from unittest.mock import patch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -64,6 +65,41 @@ def main():
         assert update.addon_version(addons) == (9, 9, 9) and any("SHA-256" in line for line in logs), logs
         # the exe never updates itself when not frozen (running from source)
         assert update.update_exe(dict(rel, version=(99,)), logs.append) is False
+        # Failure at the final directory swap restores the installed addon.
+        replace = os.replace
+        def fail_addon_swap(src, dest):
+            if src.endswith("DungeonMaps.update"):
+                raise OSError("simulated install failure")
+            return replace(src, dest)
+        with patch.object(update.os, "replace", side_effect=fail_addon_swap):
+            assert update.update_addon(dict(rel, version=(10,)), logs.append, [addons]) is None
+        assert update.addon_version(addons) == (9, 9, 9)
+        # Exercise the frozen EXE path: digest check, replacement, preserved
+        # options, parent handoff, rollback on failed launch and failed swap.
+        exe = os.path.join(tmp, "DungeonMaps.exe")
+        payload = b"new executable fixture"
+        exe_rel = dict(rel, version=(99,), assets={update.EXE_ASSET:
+                       {"url": "exe", "sha256": hashlib.sha256(payload).hexdigest()}})
+        with patch.object(sys, "frozen", True, create=True), patch.object(sys, "executable", exe), \
+             patch.object(sys, "argv", [exe, "--no-share", "--updated-from=123"]), \
+             patch.object(update, "_get", return_value=payload):
+            with open(exe, "wb") as f: f.write(b"old executable")
+            with patch("subprocess.Popen") as launch:
+                assert update.update_exe(exe_rel, logs.append)
+                args = launch.call_args.args[0]
+                assert args == [exe, "--no-share", "--updated-from=%d" % os.getpid()], args
+            assert open(exe, "rb").read() == payload
+            assert open(exe + ".old", "rb").read() == b"old executable"
+            for mode in ("launch", "swap"):
+                with open(exe, "wb") as f: f.write(b"old executable")
+                def fail_exe_swap(src, dest):
+                    if src == exe + ".new": raise OSError("simulated swap failure")
+                    return replace(src, dest)
+                with patch("subprocess.Popen", side_effect=OSError("launch failed")), \
+                     patch.object(update.os, "replace", side_effect=fail_exe_swap if mode == "swap" else replace):
+                    assert not update.update_exe(exe_rel, logs.append)
+                assert open(exe, "rb").read() == b"old executable"
+                assert not os.path.exists(exe + ".new")
     print("PASS update")
 
 

@@ -47,6 +47,8 @@ jobs:
       - run: pip install -r requirements.txt pyinstaller
       - name: overlay smoke test
         run: python tests/smoke_windows.py
+      - name: Windows updater transactions
+        run: python tests/test_update.py
       - name: DungeonMaps.exe
         run: pyinstaller --noconfirm --distpath dist packaging/DungeonMaps.spec
       - name: Windows executable and synthetic game

@@ -97,7 +97,12 @@ def install_addon(addons_dir, zip_bytes):
                 fh.write(z.read(n))
     if os.path.isdir(dest):
         os.replace(dest, old)
-    os.replace(tmp, dest)
+    try:
+        os.replace(tmp, dest)
+    except OSError:
+        if os.path.isdir(old) and not os.path.exists(dest):
+            os.replace(old, dest)
+        raise
     shutil.rmtree(old, ignore_errors=True)
 
 
@@ -208,7 +213,14 @@ def update_exe(rel, log):
         return False
     import subprocess
     args = [a for a in sys.argv[1:] if not a.startswith("--updated-from=")]
-    subprocess.Popen([exe] + args + ["--updated-from=%d" % os.getpid()], close_fds=True)
+    try:
+        subprocess.Popen([exe] + args + ["--updated-from=%d" % os.getpid()], close_fds=True)
+    except OSError as e:
+        log("updated exe could not start; restoring previous copy: %r" % e)
+        os.replace(exe, new)
+        os.replace(old, exe)
+        os.remove(new)
+        return False
     log("updated %s -> %s; restarting" % (__version__, rel["tag"]))
     return True
 
@@ -219,7 +231,13 @@ def wait_for_previous():
         if a.startswith("--updated-from="):
             try:
                 import ctypes
-                h = ctypes.windll.kernel32.OpenProcess(0x00100000, False, int(a.split("=", 1)[1]))  # SYNCHRONIZE
+                from ctypes import wintypes
+                kernel = ctypes.windll.kernel32
+                kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+                kernel.OpenProcess.restype = wintypes.HANDLE
+                kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+                kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+                h = kernel.OpenProcess(0x00100000, False, int(a.split("=", 1)[1]))  # SYNCHRONIZE
                 if h:
                     ctypes.windll.kernel32.WaitForSingleObject(h, 15000)
                     ctypes.windll.kernel32.CloseHandle(h)

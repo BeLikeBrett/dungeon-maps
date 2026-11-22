@@ -459,6 +459,12 @@ class LayeredWindow:
             user32.DestroyWindow(self.hwnd)
             self.hwnd = None
 
+    def move(self, x, y):
+        # Reuse the layered bitmap during map drags; no DIB allocation or full
+        # RGBA conversion/upload when only the map's origin changed.
+        if not user32.SetWindowPos(self.hwnd, -1, round(x), round(y), 0, 0, 0x1 | 0x10 | 0x40):
+            raise ctypes.WinError()
+
 
 class Tray:
     """A silent tray icon; the menu is opened only by the user's right-click."""
@@ -579,9 +585,12 @@ class Overlay:
                 self._dot(friend, w, h)
             if me:
                 self._marker(me, w, h, "#ffd24d", "You")
-        if key != self.drawn or geo != self.geometry or not self.shown:
+        if key != self.drawn or not self.shown:
             self.surface.present(self.image, geo[0], geo[1])
             self.geometry, self.drawn, self.shown = geo, key, True
+        elif geo != self.geometry:
+            self.surface.move(geo[0], geo[1])
+            self.geometry = geo
 
     def _label(self, x, y, text, colour, w):
         size = int(max(11, 13 * w / 1002))

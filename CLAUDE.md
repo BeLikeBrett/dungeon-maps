@@ -1,5 +1,17 @@
 # Dungeon Maps: working notes
 
+## v1.0.11 Windows dragging and updater verification (2026-11-21)
+- Windows reuses its layered bitmap when only the map origin changes, moving with SetWindowPos
+  and no-activate flags. Avoids RGBA premultiplication, DIB allocation and upload on pure drags.
+- Addon swap restores the installed directory if the final rename fails. EXE replacement restores
+  the prior executable if launching the replacement fails. Parent-process handoff declares 64-bit
+  HANDLE signatures explicitly. Update asset names and automatic startup checks remain compatible.
+- Expanded updater transaction tests cover frozen replacement, SHA check, preserved CLI flags,
+  parent handoff, install/swap/launch rollback. Run on Linux and Windows CI. Windows native smoke
+  checks drag reuses the bitmap, reaches its target rectangle and preserves foreground focus.
+- Shared tracking/context, names and compact beacon improvements already ship to Windows in the
+  same EXE/addon release. Linux-specific Qt runtime changes are local only.
+
 ## Latest: v1.0.10 renderer and screenshot optimization (2026-11-21)
 - User reports detached/blurry arrow during map dragging and when walking with the map open.
   Linux used a small raster Canvas and moved/resized its layer-shell surface at each sample.

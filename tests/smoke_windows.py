@@ -39,6 +39,13 @@ assert user32.IsWindowVisible(ov.hwnd)
 assert user32.GetForegroundWindow() == fg_before, "overlay took the foreground"
 assert ov.image.getpixel((240, 320)) == (255, 124, 10, 255), "friend dot missing"
 assert ov.image.getbbox(), "empty overlay"
+previous = ov.image
+ov.surface.present = lambda *args: (_ for _ in ()).throw(AssertionError("map drag uploaded bitmap again"))
+ov.update((160, 130, 800, 533, me, [friend]))
+rect = windows.wintypes.RECT()
+user32.GetWindowRect(ov.hwnd, ctypes.byref(rect))
+assert (rect.left, rect.top) == (160, 130) and ov.image is previous
+assert user32.GetForegroundWindow() == fg_before, "drag took focus"
 ov.notice("Dungeon Maps smoke test", seconds=0.1)
 ov.pump()
 assert user32.GetForegroundWindow() == fg_before, "notice took the foreground"
