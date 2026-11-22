@@ -611,7 +611,7 @@ class Overlay:
     def _marker(self, who, w, h, colour, label):
         s = max(20, 26 * w / 1002) * (who.get("size") or 1)
         cx, cy = who["u"] * w, who["v"] * h
-        if who.get("fresh") is False or who.get("guess"):
+        if who.get("fresh") is False:
             colour = _dim(colour, 0.6)
         hd = who.get("heading")
         if hd is None:

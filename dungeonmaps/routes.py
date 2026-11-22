@@ -67,9 +67,12 @@ class RouteGraph:
                         todo.append(j)
 
     def nearest(self, p):
-        ids = np.full(len(p), -1, int)
-        for k, point in enumerate(p):
-            cell = tuple(np.floor(point / CELL).astype(int))
+        # Nearby particles share cells. Resolve each distinct cell once, then
+        # distribute its result with NumPy instead of looping over every guess.
+        cells, inverse = np.unique(np.floor(p / CELL).astype(int), axis=0, return_inverse=True)
+        resolved = np.full(len(cells), -1, int)
+        for k, coords in enumerate(cells):
+            cell = tuple(coords)
             if cell not in self.nearest_cache:
                 centre = (np.asarray(cell) + 0.5) * CELL
                 bx, by = np.floor(centre / 16).astype(int)
@@ -80,7 +83,8 @@ class RouteGraph:
                     ds = ((self.points[candidates] - centre) ** 2).sum(1)
                     best = candidates[int(np.argmin(ds))]
                 self.nearest_cache[cell] = best
-            ids[k] = self.nearest_cache[cell]
+            resolved[k] = self.nearest_cache[cell]
+        ids = resolved[inverse]
         d = np.full(len(p), math.inf)
         ok = ids >= 0
         d[ok] = np.linalg.norm(p[ok] - self.points[ids[ok]], axis=1)

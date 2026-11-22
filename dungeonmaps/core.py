@@ -69,6 +69,8 @@ class Core:
         self.context_key = None
         self.context_epoch = 0
         self.pending_match = None
+        self.pending_since = None
+        self.confidence_match = None
         self.trail = []            # [(odo yards, floor, north, west, yd/px, picture)] since the last fix
         self.trail_start = 0.0     # odo yards at the last fix
         self.pf.on_fix = self._on_fix
@@ -119,7 +121,7 @@ class Core:
                 self.recording.clear()
             self.context_key = context
             self.context_epoch += 1
-            self.atlas_found = self.pending_match = None
+            self.atlas_found = self.pending_match = self.confidence_match = None
         self.fields, self.beacon = f, b
         self.recording.upload.set_allowed(f.get("contribute", 0) == 1)
         self.name = b.name
@@ -168,10 +170,11 @@ class Core:
         if self.odo.rejected != rejected_before:
             self.info("ignored impossible minimap step: %.1f yards in %.3f seconds" % (self.odo.rejected_step * ypp, dt))
             self.pf.motion_valid = False
+            self.pf.pose_error = max(15.0, self.pf.pose_error)
             self.pf.trust = max(800.0, self.pf.trust)
             self.trail = []
             self.trail_start = self.odo_yards
-            self.atlas_found = self.pending_match = None
+            self.atlas_found = self.pending_match = self.confidence_match = None
             self.context_epoch += 1
             self.recording.add_case(self.odo.rejection, now, ypp, dt)
             self.recording.add(img, f, self.pf, now, self.odo.score, force=True)
@@ -222,9 +225,9 @@ class Core:
         mask = self.odo.mask
         ypp_s *= pf.scale
         c = self.counts
-        if pf.p is None or pf.searching is not None or not pf.found:
-            self._atlas_search(a, gray.copy(), mask.copy(), ypp_s, now)
-        elif pf.walked >= 8 or pf.source not in ("entrance", "marked"):
+        if pf.p is None or pf.searching is not None:
+            self._atlas_search(a, gray, mask, ypp_s, now)
+        elif pf.walked >= 8 or pf.source not in ("entrance", "marked") or pf.guessed:
             # (just after the entrance or your click, those win: the atlas may be what's wrong there)
             n, w = pf.est
             c["atlas_tries"] += 1
@@ -234,7 +237,12 @@ class Core:
                 if score >= LOCK_SCORE and score - second >= LOCK_MARGIN and share >= LOCK_SHARE:
                     c["atlas_locks"] += 1
                     if math.hypot(N - n, W - w) <= 3 * max(LOCK_SIGMA, pf.spread):
-                        pf.observe(N, W, LOCK_SIGMA)
+                        strong = score >= 0.8 and score - second >= 0.12 and share >= 0.5
+                        verified = strong and self._confidence_lock(floor, N, W, now)
+                        was_guess = pf.guessed
+                        pf.observe(N, W, LOCK_SIGMA, verified=verified)
+                        if was_guess and not pf.guessed:
+                            self.info("tracking confidence recovered from consistent minimap matches")
                     elif (score >= JUMP_SCORE and score - second >= JUMP_MARGIN
                           and self._confirm_match(floor, N, W)):
                         c["atlas_jumps"] += 1
@@ -244,6 +252,8 @@ class Core:
                         self.info("the minimap matches the atlas %.0f yards from the arrow: moved there (%.2f, next best %.2f)" % (
                             math.hypot(N - n, W - w), score, second))
                         pf._init(floor, (N, W), 2.0, N_PARTICLES, "matched")
+            if pf.guessed:
+                self._atlas_search(a, gray, mask, ypp_s, now)
         if (pf.found and pf.floor == floor and not pf.guessed and pf.spread < 8
                 and (not self.trail or self.odo_yards - self.trail[-1][0] >= TRAIL_EVERY)):
             n, w = pf.est
@@ -308,6 +318,8 @@ class Core:
         """No position yet: look for the minimap on the whole floor (in the background: it takes a moment)."""
         if self.atlas_busy or now - self.atlas_search_at < 2.0 or a.coverage() < 3000:
             return
+        # Snapshot only when starting a worker, not at every throttled attempt.
+        gray, mask = gray.copy(), mask.copy()
         self.atlas_busy = True
         self.atlas_search_at = now
         moved_from = (self.north, self.east)
@@ -352,7 +364,7 @@ class Core:
         pf = self.pf
         if epoch != self.context_epoch or floor not in pf.floors:
             return  # a room/fix/dungeon/zoom changed while the worker was searching
-        if pf.found and pf.searching is None:
+        if pf.found and not pf.guessed and pf.searching is None:
             return
         N, W = N + (self.north - n0), W - (self.east - e0)   # (you kept walking meanwhile)
         if not self._confirm_match(floor, N, W):
@@ -362,16 +374,29 @@ class Core:
         self.info("found you with the minimap atlas (%.2f, next best %.2f)" % (score, second))
         pf._init(floor, (N, W), 3.0, N_PARTICLES, "matched")
 
+    def _confidence_lock(self, floor, n, w, now):
+        old = self.confidence_match
+        if old is not None:
+            fl, pn, pw, north, east, start, last, count = old
+            expected = (pn + self.north - north, pw - self.east + east)
+            if fl == floor and now - last <= 1.5 and math.hypot(n - expected[0], w - expected[1]) <= 6:
+                self.confidence_match = (floor, n, w, self.north, self.east, start, now, count + 1)
+                return count >= 2 and now - start >= .5
+        self.confidence_match = (floor, n, w, self.north, self.east, now, now, 1)
+        return False
+
     def _confirm_match(self, floor, n, w):
-        """A relocation needs consistent pictures along a short walk, not one peak."""
+        """Confirm across a short walk, or repeated stable observations over real time."""
         old = self.pending_match
         if old is not None:
             fl, pn, pw, north, east, start, count = old
             expected = (pn + self.north - north, pw - self.east + east)
             if fl == floor and math.hypot(n - expected[0], w - expected[1]) <= 6.0:
                 self.pending_match = (floor, n, w, self.north, self.east, start, count + 1)
-                return count >= 2 and self.odo_yards - start >= 5.0
+                stable = self.pending_since is not None and time.monotonic() - self.pending_since >= 2.0
+                return count >= 2 and (self.odo_yards - start >= 5.0 or stable)
         self.pending_match = (floor, n, w, self.north, self.east, self.odo_yards, 1)
+        self.pending_since = time.monotonic()
         return False
 
     def _walk_from_atlas(self, floor):

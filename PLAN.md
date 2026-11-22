@@ -1,7 +1,21 @@
 # Dungeon Maps: plan and status
 
+## v1.0.9 confidence recovery and route cost (2026-11-21)
+- Separate current pose uncertainty from calibration integrity: repeated strong, movement-consistent
+  atlas matches restore pose confidence without authorizing learning across missing motion.
+- Fresh own arrows stay solid with a question mark for uncertainty; only stale capture fades.
+  Local and global visual recovery work for uncertain poses; three matches can also confirm over
+  two seconds stationary. Ignore finished boss landmarks on startup.
+- Resolve shared route cells once per check. Reference comparison produced identical weights and
+  near-route decisions for 5,000 hypotheses on every route floor. Same-process benchmark: 500
+  particles 1.63 -> 0.83 ms; 4,000 particles 13.38 -> 5.12 ms. These are route-check costs, not game FPS.
+- Delay background image copies until a search actually starts. No per-frame route drawing or searches.
+- All 14 Linux test scripts passed; final pipeline/context/atlas/guard reruns and Lua harness also
+  passed. Exact live rejection replay reproduced the invalid peak and guard decision. Live accuracy
+  still requires gameplay feedback.
+
 ## v1.0.8 live repair (2026-11-21)
-- Reject impossible minimap shifts before committing them; preserve a dim arrow for known uncertain
+- Reject impossible minimap shifts before committing them; preserve an arrow for known uncertain
   poses, stop boss pins from teleporting ranged players, bound scale learning and ignore stale cached
   startup marks. Restored Brett's pre-glitch local calibration/atlas and preserved all faulty evidence.
 - Exact rejected image-match snapshots are locally replayable; sampled recordings alone missed the

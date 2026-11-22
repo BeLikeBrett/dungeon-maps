@@ -1,6 +1,27 @@
 # Dungeon Maps: working notes
 
-## Latest: v1.0.8 live glitch repair (2026-11-21)
+## Latest: v1.0.9 confidence recovery and route optimization (2026-11-21)
+- Brett reported repeated transparency/manual fixes and worse behavior after context changes.
+  Lifetime training distance and motion_valid had made uncertainty permanent after a rejection.
+- pose_error now tracks current localization separately. Three strong local atlas matches across
+  >=.5 s, within 6 yd after motion compensation, can restore pose confidence. Calibration integrity
+  remains false until a real fix. Global/local recovery now also attempts uncertain known poses.
+- Fresh own arrows stay solid; only stale capture fades. A ? still reports uncertainty. Matching can
+  confirm after >=3 observations and >=5 yd or >=2 real seconds stable, so standing still recovers.
+- Finished cached bosses at startup no longer seed a false pose. v1.0.9 live restarted 09:23:26 in
+  screenshot mode, no picker. User mark 09:24:33 anchored the session; no further restarts yet.
+- RouteGraph.nearest groups equal spatial cells before cache lookup. Compared against prior code:
+  identical weights/near flags for 5,000 hypotheses per route floor. Same-process benchmark improved
+  500-particle route check 1.63 -> .83 ms (49%); 4,000 13.38 -> 5.12 ms (62%). No FPS claim.
+- Atlas background snapshots copied after busy/rate/coverage guards, avoiding unused copies.
+- All 14 local Linux test scripts passed; final context/pipeline/atlas/guard reruns and Lua harness
+  passed after optimization. Exact live rejection replay reproduced 48.84px candidate vs 2.02px
+  allowed. Synthetic atlas median error 2.4 yd, reacquisition 4.5s/1.7yd (not live ground truth).
+  v1.0.8 CI cancelled intentionally, superseded by this fix; v1.0.7 last public release.
+- Do not restart again mid-run just to activate optimization: current worker already has confidence
+  changes; routes.py optimization can take effect at next safe restart/game launch.
+
+## v1.0.8 live glitch repair (2026-11-21)
 - Live logs showed 100–300-yard image-matching jumps in seconds; poisoned i2z0 calibration grew to
   1.133 (per-particle ~1.15). Boss pulls also hard-seeded ranged players at spawn pins, and spread
   oscillating around 6 yd hid the arrow. User's 08:58:05 mark immediately contradicted a boss snap.
@@ -8,7 +29,7 @@
   offsets/static learning. Reset/rebase prevents an opposite phantom jump next frame. Core clears
   the invalid trail and excludes the broken segment from calibration and map learning. Real teleports
   or unusually fast knockbacks may require visual reacquisition or a fresh user mark.
-- Known, uncertain poses stay visible/dim (displayable separate from found); whole-floor searches
+- Known, uncertain poses stay visible (displayable separate from found); whole-floor searches
   remain hidden. Boss pins seed only unknown/different-floor/searching poses, spread 25 yd; never
   teleport an already tracked ranged player. Cached manual markers at startup are ignored as stale.
 - Scale pairs accepted only .8..1.25, no learning across rejected motion, and each accepted pair
@@ -23,7 +44,7 @@
   tools/replay_trace.py replays these cases exactly; normal sampled route remains approximate.
   Community sample policy/server unchanged; exact-case arrays are never uploaded.
 - Regression tests: impossible high-score peak + rebase, no opposite jump, scale poisoning, stable
-  dim arrow across 5.9/6.1/25 yd spreads, ranged pulls, unknown-boss recovery, stale startup mark.
+  visible arrow across 5.9/6.1/25 yd spreads, ranged pulls, unknown-boss recovery, stale startup mark.
   Full pipeline/atlas and other Linux checks passed; recorder case round-trip/replay passes.
 
 ## v1.0.7 Windows locale fix (2026-11-21)

@@ -117,11 +117,12 @@ def context_tests():
     pf.dungeon = 1
     pf._init(213, (0., 0.), 1., 500, "marked")
     pf.trust = 1000.
+    pf.pose_error = 19.
     assert pf.spread < 3 and pf.uncertainty >= 19 and pf.guessed
     pf.observe(0., 0., 3.)
     assert pf.trust == 1000.
     pf._init(213, (0., 0.), 1., 500, "matched")
-    assert pf.trust == 1000. and pf.guessed
+    assert pf.trust == 1000. and not pf.guessed
     # A real manual fix does restore confidence.
     pf._init(213, (0., 0.), 1., 500, "marked")
     assert not pf.guessed

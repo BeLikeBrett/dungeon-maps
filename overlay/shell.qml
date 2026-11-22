@@ -56,8 +56,8 @@ ShellRoot {
         height: s
         x: who.u * mapW - width / 2
         y: who.v * mapH - height / 2
-        // dimmed: no minimap for a while, or found by walking only (right-click the map to confirm)
-        opacity: who.fresh === false || who.guess === true ? 0.55 : 1
+        // Fresh positions remain readable; uncertainty has its own ? indicator.
+        opacity: who.fresh === false ? 0.55 : 1
 
         Item {
             anchors.fill: parent

@@ -47,6 +47,12 @@ assert not c.pf.motion_valid
 for spread in (5.9, 6.1, 25.):
     c.pf.spread = spread
     assert c.view(.05)["me"]["guess"], "uncertain arrow must remain visible"
+c.pf.spread = 1.
+assert not c._confidence_lock(213, *centre, 0.)
+assert not c._confidence_lock(213, *centre, .3)
+assert c._confidence_lock(213, *centre, .6)
+assert c.pf.observe(*c.pf.est, 3., verified=True)
+assert not c.pf.guessed and not c.pf.motion_valid, "localization recovers without allowing unsafe scale training"
 
 # Bad motion must not teach scale; a new real fix permits later valid pairs.
 pf = c.pf
@@ -70,11 +76,20 @@ assert np.array_equal(pf.est, before) and pf.source == "marked"
 class NoMaps:
     def get(self, floor): return None
 unknown = ParticleFilter(c.data, NoMaps())
-unknown.on_beacon(dict(f, lm_count=1, lm_kind=2, lm_floor=1, lm_u=3000, lm_v=3000))
+unknown.on_beacon(dict(f, lm_count=1, lm_kind=2, lm_floor=1, lm_u=3000, lm_v=3000, active_boss=1))
 assert unknown.displayable and unknown.guessed and unknown.source == "boss"
 stale = ParticleFilter(c.data, NoMaps())
 stale.on_beacon(dict(f, lm_count=9, lm_kind=3, lm_floor=1, lm_u=3000, lm_v=3000))
 assert stale.est is None, "a cached mark from before startup is not a current player location"
 stale.on_beacon(dict(f, lm_count=10, lm_kind=3, lm_floor=1, lm_u=3000, lm_v=3000))
 assert stale.displayable and stale.source == "marked"
+old_boss = ParticleFilter(c.data, NoMaps())
+old_boss.on_beacon(dict(f, lm_count=19, lm_kind=2, lm_floor=1, lm_u=3000, lm_v=3000, active_boss=0))
+assert old_boss.est is None, "a finished boss is not a startup position"
+# Recovery also works while standing still; no repeated correction or walking ritual.
+c.pending_match = None
+assert not c._confirm_match(213, *centre)
+assert not c._confirm_match(213, *centre)
+c.pending_since -= 2.1
+assert c._confirm_match(213, *centre)
 print("PASS impossible peak rejection/rebase, no phantom reverse jump, calibration guards, ranged bosses, and visible uncertain arrows")

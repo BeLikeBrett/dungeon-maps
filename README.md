@@ -58,9 +58,9 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
   - Walking in through the entrance sets it straight away.
   - So does Shift+clicking the map where you stand.
-  - Pulling a boss sets it too.
+  - An active boss can give a broad starting hint if your position is unknown.
   - If you start the tracker partway through a dungeon, it works out where you are by walking. Until
-    it's sure, the arrow is dimmed and labelled "You?".
+    it's sure, a localized estimate is labelled "You?".
 - **Friends:** anyone in your party or raid who also runs the tracker shows up on your map, and you
   on theirs. Nothing to set up. Solo, nothing is sent.
 - The tracker uses guide routes and their connections in the background to help tell nearby
@@ -69,7 +69,9 @@ Automatic crash recovery also uses screenshots, so it won't repeatedly reopen th
 - Boss labels use the creature's name where the encounter title differs; hover to see that title.
   For an unambiguous single-boss encounter, the addon also remembers the game's actual boss-unit
   name in your language.
-- Uncertain positions stay visible as "You?" instead of blinking out at a confidence threshold.
+- Fresh positions stay fully visible, with "You?" for uncertainty. Fading means minimap frames
+  have stopped arriving. Repeated strong minimap matches restore confidence automatically;
+  a rejected motion reading still prevents unsafe calibration learning.
   Boss pulls preserve a tracked player position; a boss spawn is only a broad hint when you're lost.
   Impossible minimap jumps are discarded and do not train scale calibration or the learned map.
 - **Settings:** Esc → Options → AddOns → Dungeon Maps (or `/dmaps settings`) has your arrow's size

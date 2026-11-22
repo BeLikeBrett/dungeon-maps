@@ -128,6 +128,7 @@ class ParticleFilter:
         self.boss_context_travel = 0.0
         self.route_checks = self.route_used = 0
         self.motion_valid = True
+        self.pose_error = math.inf  # current localization error; separate from calibration/training history
 
     # -- set up ------------------------------------------------------------------------------------
 
@@ -146,12 +147,11 @@ class ParticleFilter:
     @property
     def uncertainty(self):
         """Include accumulated bias: identical particles can still all be wrong."""
-        base = self.anchor[3] if self.anchor else 5.0
-        return max(self.spread, base + 0.015 * min(self.trust, 2000.0))
+        return max(self.spread, self.pose_error)
 
     @property
     def guessed(self):
-        return not self.found or not self.motion_valid or self.source == "found by walking" or self.uncertainty > 12.0
+        return not self.found or self.uncertainty > 12.0
 
     def scale_prior(self, n):
         m, sd = self.calib.get()
@@ -180,6 +180,9 @@ class ParticleFilter:
         self.s = s
         self.w = np.full(n, 1 / n)
         self.source = why
+        self.pose_error = 6.0 if why == "matched" else FIX_SIGMA.get(why, 6.0)
+        if why == "boss":
+            self.pose_error = 25.0
         self.off_path = 0.0
         self.searching = None
         if why in ("entrance", "marked"):
@@ -295,7 +298,7 @@ class ParticleFilter:
                 elif kind == 2:
                     n, w = self.data.to_world(floor, u, v)
                     unknown = self.est is None or self.floor != floor or self.searching is not None
-                    if unknown:
+                    if unknown and (not first or f.get("active_boss", 0)):
                         self.fix(floor, u, v, "boss", BOSS_SPREAD)
         rooms = self.data.rooms.get(key, [])
         room = rooms[f["room"] - 1] if 0 < f["room"] <= len(rooms) else None
@@ -350,6 +353,7 @@ class ParticleFilter:
         self.raw += step
         self.walked += dist
         self.trust += dist
+        self.pose_error += 0.015 * dist
         self.p += step[None, :] * self.s[:, None]
         self.p += self.rng.normal(0, NOISE_FIXED + NOISE_PER_YARD * dist, (n, 2))
         if dist > 0:
@@ -416,7 +420,7 @@ class ParticleFilter:
         self.w *= 0.5 + 0.5 * np.exp(-0.5 * (d / 40.0) ** 2)
         self.w /= self.w.sum()
 
-    def observe(self, n, w, sigma, why="matched"):
+    def observe(self, n, w, sigma, why="matched", verified=False):
         """An outside measurement of where you are (the atlas matched the minimap there).
         Returns True when it was used."""
         if self.p is None:
@@ -429,6 +433,10 @@ class ParticleFilter:
         self.w /= self.w.sum()
         self._resample_if_needed()
         self._estimate()
+        if verified:
+            # Repeated strong visual observations recover current localization.
+            # They do not repair missing raw motion or authorize scale learning.
+            self.pose_error = min(self.pose_error, max(6.0, 2 * sigma))
         if self.searching is not None and self.spread <= FOUND_SPREAD:
             self.searching = None
             self.source = "found by the minimap"
