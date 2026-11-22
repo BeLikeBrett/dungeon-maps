@@ -1,5 +1,21 @@
 # Dungeon Maps: working notes
 
+## v1.0.14 manual defeated-boss button (2026-11-22)
+- Map gear and regular Options now include "Clear defeated bosses". Map button clears displayed
+  wing; Options and /dmaps reset clear detected dungeon. Immediate skull/tooltip refresh, confirmation
+  in chat. Preserve other dungeons, live pose, learned atlas/calibration. No beacon change.
+- Brett still had native v1.0.10 + protocol6 loaded (WoW PID1180580); v1.0.13 was pending, not active.
+  Do not present staged updates as already running. Full paired source/native update remains queued
+  for full Battle.net relaunch (restarting just WoW while Battle.net stays open won't run its prehook).
+- Installed ONLY the reset button/helper/settings backport into the active native v1.0.10 Lua.
+  Kept version/protocol6 and beaconCells byte-for-byte intact so /reload is safe with current tracker.
+  Tested candidate in isolated addon tree: real UI handlers, wing targeting, no-op outside, immediate
+  redraw, protocol6 decode, zero reset mask, unchanged player landmark. No tracker/game restart/input.
+- Backup + hashes: ~/.local/share/wow-addon-backups/dungeonmaps-manual-reset-20261122-101929/.
+  Private patch script /tmp/dungeonmaps-manual-reset-hotfix.py. Do not reapply blindly.
+- Public v1.0.14 includes the button plus all previous changes; full pending ZIP must match v1.0.14.
+  Source Lua + beacon + updater tests pass. Native button appears after Brett types /reload.
+
 ## v1.0.13 defeated-boss reset (2026-11-22)
 - Fresh living entry from outside / another instance clears killed flags for all wings sharing
   the entered instanceID. An ordinary living exit/re-entry counts as a fresh visit; no unique

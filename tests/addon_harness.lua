@@ -111,6 +111,19 @@ IsInGroup = function() return false end; GetNumSubgroupMembers = function() retu
 local gear = DungeonMapsFrame.gear
 rawget(gear, "_scripts").OnClick(gear)
 assert(DungeonMapsFrame.settings._shown, "gear must open the settings")
+local reset = assert(rawget(DungeonMapsFrame.settings, "resetBosses"), "map settings need a boss reset button")
+assert(reset._text == "Clear defeated bosses")
+local unrelated = {t = time(), killed = {[1] = true}}
+DungeonMapsCharDB.runs.unrelated = unrelated
+assert(DungeonMapsCharDB.runs.ragefire, "test must start with a defeated boss")
+rawget(reset, "_scripts").OnClick(reset)
+assert(not DungeonMapsCharDB.runs.ragefire, "map settings reset did not clear boss progress")
+assert(DungeonMapsCharDB.runs.unrelated == unrelated, "button cleared another dungeon")
+for _, boss in ipairs(DungeonMapsFrame.bosses) do
+  if boss:IsShown() then assert(not boss.tipLines[1]:find("defeated"), "reset did not redraw defeated label") end
+end
+rawget(reset, "_scripts").OnClick(reset) -- already clear: harmless
+print("OK map settings button clears and redraws only this dungeon's defeated bosses")
 DungeonMapsDB.bossSize = 2
 rawget(DungeonMapsFrame, "_scripts").OnUpdate(DungeonMapsFrame, 1)
 print("OK gear settings open; boss icon size setting 2.0x")
@@ -190,6 +203,27 @@ fire("ENCOUNTER_START", 450, "High Inquisitor Whitemane")
 assert(not DungeonMapsDB.bossNames["enUS:450"], "shared encounter must not rename individual pins")
 UnitName = originalUnitName
 print("OK boss aliases, live creature labels, and shared-encounter identity")
+
+-- A hand-selected map wing can differ from the detected current wing. The map
+-- button clears the displayed one; the Options button clears the current one.
+C_Map.GetBestMapForUnit = function() return 304 end
+GetSubZoneText = function() return "" end
+local armory = {t = time(), killed = {[1] = true}}
+DungeonMapsCharDB.runs.sm_armory = armory
+local mapReset = DungeonMapsFrame.settings.resetBosses
+rawget(mapReset, "_scripts").OnClick(mapReset)
+assert(not DungeonMapsCharDB.runs.sm_cathedral, "button did not use the displayed wing")
+assert(DungeonMapsCharDB.runs.sm_armory == armory, "map button cleared the detected wing instead")
+local optionsReset = assert(rawget(ns.settingsPanel, "resetBosses"))
+rawget(optionsReset, "_scripts").OnClick(optionsReset)
+assert(not DungeonMapsCharDB.runs.sm_armory, "Options button did not clear current dungeon")
+local isInInstance = IsInInstance
+IsInInstance = function() return false, "none" end
+DungeonMapsCharDB.runs.sm_armory = armory
+rawget(optionsReset, "_scripts").OnClick(optionsReset)
+assert(DungeonMapsCharDB.runs.sm_armory == armory, "Options button cleared progress outside a dungeon")
+IsInInstance = isInInstance
+print("OK map/Options reset target the correct wing; outside click preserves saved runs")
 
 -- Run progress belongs to a visit, rather than the last three hours. Exercise
 -- every dungeon (including shared-instance wings) through the real event handler.

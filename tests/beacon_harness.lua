@@ -133,6 +133,11 @@ if arg[2] == "newrun" then
   IsInInstance = isInInstance
   fire("PLAYER_ENTERING_WORLD", false, false)
 end
+if arg[2] == "manualreset" then
+  fire("BOSS_KILL", 2732, "Oggleflint")
+  local button = DungeonMapsFrame.settings.resetBosses
+  rawget(button, "_scripts").OnClick(button)
+end
 if arg[2] == "blocked" then
   GameTooltip:Show()
   place(GameTooltip, 0.75, 2290, 190, 250, 200)

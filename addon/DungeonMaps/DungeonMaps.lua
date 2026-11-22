@@ -1412,6 +1412,17 @@ function DungeonMaps_Toggle()
 	end
 end
 
+local function resetBossProgress(d)
+	if not d then
+		say("go into a dungeon first.")
+		return
+	end
+	if DungeonMapsCharDB.runs then DungeonMapsCharDB.runs[d.key] = nil end
+	GameTooltip:Hide()
+	refreshPeople()
+	say("defeated bosses cleared for " .. d.name .. ".")
+end
+
 SLASH_DUNGEONMAPS1 = "/dmaps"
 SLASH_DUNGEONMAPS2 = "/dmk"
 SlashCmdList.DUNGEONMAPS = function(input)
@@ -1460,10 +1471,7 @@ SlashCmdList.DUNGEONMAPS = function(input)
 			InterfaceOptionsFrame_OpenToCategory(ns.settingsPanel)
 		end
 	elseif cmd == "reset" then
-		local d = findDungeon()
-		if d and DungeonMapsCharDB.runs then DungeonMapsCharDB.runs[d.key] = nil end
-		refreshPeople()
-		say("boss kills cleared for this dungeon.")
+		resetBossProgress(inDungeon() and findDungeon())
 	else
 		local keys = { GetBindingKey("TOGGLEWORLDMAP") }
 		say(("map key: %s; in a dungeon now: %s. /dmaps settings = options, /dmaps size 1.5 = your arrow size, /dmaps dots 1.5 and /dmaps bosses 1.5 = marker sizes, /dmaps others = teammates without the add-on on/off, /dmaps reset = clear boss kills, /dmaps live = live tracker beacon on/off, /dmaps diag = what the game reports here."):format(
@@ -1542,6 +1550,25 @@ local function addSettingsControls(parent, x, y, width)
 	slider("Your arrow", "arrowSize")
 	slider("Teammate dots", "dotSize")
 	slider("Boss icons", "bossSize")
+	local reset = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	reset:SetPoint("TOPLEFT", x, y - 4)
+	reset:SetSize(math.min(width - 16, 220), 24)
+	reset:SetText("Clear defeated bosses")
+	reset:SetScript("OnClick", function()
+		-- The map button applies to the displayed wing; the Options panel uses
+		-- the dungeon we're currently in. Never clear another dungeon's progress.
+		local d = (map and parent == map.settings and dungeon) or (inDungeon() and findDungeon())
+		resetBossProgress(d)
+	end)
+	reset:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Clear defeated bosses")
+		GameTooltip:AddLine("Mark this dungeon's bosses as undefeated again. Your arrow and learned map data stay intact.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	parent.resetBosses = reset
+	y = y - 38
 	local function refresh() for _, f in ipairs(refreshers) do f() end end
 	settingsRefreshers[#settingsRefreshers + 1] = refresh
 	return refresh, y
@@ -1584,7 +1611,7 @@ function ns.makeGear(frame)
 	gear:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
 		GameTooltip:SetText("Map settings")
-		GameTooltip:AddLine("Teammates without Dungeon Maps, live tracker, and the sizes of your arrow, teammates and bosses.", 1, 1, 1, true)
+		GameTooltip:AddLine("Teammates, live tracker, marker sizes, and clearing defeated bosses.", 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	gear:SetScript("OnLeave", function() GameTooltip:Hide() end)

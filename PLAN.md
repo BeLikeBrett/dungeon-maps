@@ -1,5 +1,13 @@
 # Dungeon Maps: plan and status
 
+## v1.0.14 manual defeated-boss reset (2026-11-22)
+- Add "Clear defeated bosses" to map gear/Options. Clears displayed/current dungeon respectively,
+  redraws immediately and preserves other dungeons/position/learning; same action as /dmaps reset.
+- Native UI handlers and real beacon tests cover reset, correct wing, outside no-op, and landmark.
+- Brett's active native was still v1.0.10. Backported button only, protocol6 unchanged, tested in
+  isolation; /reload activates it safely with running tracker. Full source/native update stays paired
+  in the Battle.net launch hook. No unsolicited tracker restart or capture picker.
+
 ## v1.0.13 automatic defeated-boss reset (2026-11-22)
 - Fresh living dungeon visits clear old defeated flags across shared-instance wings. Preserve
   login/reload, duplicate notifications and corpse returns (including automatic door resurrection).
