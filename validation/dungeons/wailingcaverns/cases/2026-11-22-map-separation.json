@@ -1,0 +1,63 @@
+{
+  "scope": "Selected Wailing Caverns clips from the current Nov 22 run; older Ruins data excluded. Last three new-map manual references checked separately from old-art corrections.",
+  "recorded_tracker": "1.0.11",
+  "recorded_beacon": 6,
+  "new_map_reference_weights": [
+    {
+      "map_pixel": [
+        439,
+        339
+      ],
+      "old_art_weight": 0.07999999821186066,
+      "instance_geometry_weight": 1.0
+    },
+    {
+      "map_pixel": [
+        435,
+        343
+      ],
+      "old_art_weight": 0.07999999821186066,
+      "instance_geometry_weight": 1.0
+    },
+    {
+      "map_pixel": [
+        438,
+        361
+      ],
+      "old_art_weight": 0.07999999821186066,
+      "instance_geometry_weight": 1.0
+    }
+  ],
+  "removed_approach_chamber_weight": {
+    "map_pixel": [
+      350,
+      560
+    ],
+    "old_art_weight": 0.07999999821186066,
+    "instance_geometry_weight": 0.07999999821186066
+  },
+  "legacy_atlas_texture_expansion_weight": 1.0,
+  "candidate_atlas_texture_expansion_weight": 0.07999999821186066,
+  "limits": [
+    "These are path-model checks, not full-frequency live tracking accuracy.",
+    "2D texture geometry does not prove which height layer the player occupies.",
+    "Approach map uses native uninstanced detection; no dungeon beacon is emitted there."
+  ],
+  "format": 1,
+  "case": "2026-11-22-map-separation",
+  "dungeon": "wailingcaverns",
+  "floor": 279,
+  "review_date": "2026-11-22",
+  "candidate_tracker": "1.0.16",
+  "status": "implemented_scoped_fix",
+  "zoom_settle_seconds": 0.35,
+  "excluded_approach_texture_ids": [
+    8111382,
+    8111387,
+    8111391,
+    8111396
+  ],
+  "instance_part_count": 43,
+  "coordinate_changes": false,
+  "approach_automatic_tracking": false
+}

@@ -184,6 +184,19 @@ local function subzone()
 	return type(s) == "string" and s or nil
 end
 
+-- The approach is outdoors/uninstanced, even though its minimap is a cave.
+-- A separate native context prevents its artwork/marks from entering floor 279.
+local function findApproach()
+	local inside = plain((IsInInstance()))
+	if inside ~= false or not ns.WailingApproach then return nil end
+	local here = subzone()
+	if here == "Cavern of Mists" or here == "Wailing Caverns" then return ns.WailingApproach end
+end
+
+local function inMappedArea()
+	return inDungeon() or findApproach() ~= nil
+end
+
 ---------------------------------------------------------------------------------------------------
 -- Which dungeon
 ---------------------------------------------------------------------------------------------------
@@ -191,6 +204,7 @@ end
 -- The dungeon you are in. Instances with several wings (Scarlet Monastery, Blackrock Spire): the wing
 -- whose room you stand in, else the one whose floor the game names, else the last pick, else the first.
 local function findDungeon()
+	if not inDungeon() then return findApproach() end
 	local id = instanceID()
 	local list = id and byInstance[id]
 	if not list then return nil end
@@ -652,7 +666,7 @@ local function drawDots(people)
 	local groups, order = {}, {}
 	for _, p in ipairs(people) do
 		local s = p.spot
-		if p.me and DungeonMapsDB.live ~= false then s = nil end -- live mode: the tracker draws you
+		if p.me and DungeonMapsDB.live ~= false and not dungeon.approach then s = nil end
 		if s then
 			if s.floor == floor then
 				local key = ("%.4f:%.4f"):format(s.u, s.v)
@@ -724,6 +738,7 @@ end
 
 local function legendDetail(p)
 	if p.status then return p.status end
+	if p.me and dungeon.approach then return "Approach cave: A = cave entrance; B = instance portal" end
 	if p.me and DungeonMapsDB.live ~= false then
 		if landmark and landmark.kind == LM_MARKED and GetTime() - landmark.t < 5 then return "marked - the arrow starts here" end
 		return "live arrow (Shift+click the map where you stand to set it)"
@@ -833,9 +848,15 @@ local function showFloor(index)
 	floorIndex = index
 	local floor = floors[index]
 	local info = ns.Floors[floor]
-	local terrain = info and info.terrain and ns.MinimapArt[floor]
-	local tiles = not terrain and info and info.tiles
-	local image = not terrain and info and info.image
+	local image = info and info.image
+	local missing = false
+	if image then
+		local file = image.routeFile and DungeonMapsDB.wailingRoute ~= false and image.routeFile or image.file
+		missing = map.picture:SetTexture(ADDON_PATH .. file, nil, nil, "TRILINEAR") == false
+		if missing then image = nil end
+	end
+	local terrain = not image and info and info.terrain and ns.MinimapArt[floor]
+	local tiles = not image and not terrain and not missing and info and info.tiles
 	for i, tex in ipairs(map.tiles) do
 		if tiles then
 			tex:SetTexture(tiles[i], nil, nil, "TRILINEAR") -- the game's own map tile (file ID)
@@ -846,7 +867,13 @@ local function showFloor(index)
 	end
 	-- Santiago Reyes's pictures are bundled with the addon; no other addon or discovery API needed.
 	if image then
-		map.picture:SetTexture(ADDON_PATH .. image.file, nil, nil, "TRILINEAR")
+		map.picture:ClearAllPoints()
+		if image.square then
+			map.picture:SetSize(MAP_H, MAP_H)
+			map.picture:SetPoint("TOP", map.canvas, "TOP", 0, 0)
+		else
+			map.picture:SetAllPoints(map.canvas)
+		end
 		map.picture:SetTexCoord(0, image.right or 1, 0, image.bottom or 1)
 		map.picture:Show()
 	else
@@ -872,9 +899,21 @@ local function showFloor(index)
 		tex:Show()
 	end
 	for i = count + 1, #map.terrainTiles do map.terrainTiles[i]:Hide() end
-	map.noArt:SetText("No map art for this floor")
+	map.noArt:SetText(missing and "New map: fully restart WoW once to load its pictures" or "No map art for this floor")
 	map.noArt:SetShown(not tiles and not image and count == 0)
-	map.credit:SetText(info and info.credit and ("Map: " .. info.credit) or "")
+	map.credit:SetText(missing and "New clean map: fully restart WoW once to load it" or (info and info.credit or ""))
+	map.portal:SetShown(dungeon.approach == true and image ~= nil)
+	if dungeon.approach then
+		map.note:SetText("|cffffd100APPROACH CAVE: A = cave entrance; B = instance portal.|r  The dungeon map starts after the portal.")
+	elseif dungeon.key == "wailingcaverns" then
+		if DungeonMapsDB.wailingRoute ~= false then
+			map.note:SetText("|cffffd100INSTANCE ONLY.|r  Teal: boss circuit. Gold: Naralex escort. Crossings may be on different levels. Hide guide in gear menu.")
+		else
+			map.note:SetText("|cffffd100INSTANCE ONLY.|r  Shift+click where you stand. Enable the route guide in the gear menu for the boss circuit.")
+		end
+	else
+		map.note:SetText("|cffffd100Shift+click where you stand to place your arrow.|r   Skulls: bosses.   Dots: where the game last showed someone.")
+	end
 	local wings = #(byInstance[dungeon.instanceID] or {})
 	map.title:SetText(dungeon.name .. (wings > 1 and "  |cff999999(click: other wing)|r" or ""))
 	local name = info and info.name or ("Map " .. tostring(floor))
@@ -978,7 +1017,7 @@ local function buildBackButton()
 		if WorldMapFrame:IsShown() then toggleWorldMap() end
 		openMap()
 	end)
-	local function sync() backButton:SetShown(inDungeon() and findDungeon() ~= nil) end
+	local function sync() backButton:SetShown(inMappedArea() and findDungeon() ~= nil) end
 	WorldMapFrame:HookScript("OnShow", sync)
 	sync()
 end
@@ -1118,10 +1157,15 @@ local function buildMap()
 	map.legend = legend
 
 	local note = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	map.note = note
 	note:SetPoint("BOTTOMRIGHT", -10, 8)
 	note:SetText("|cffffd100Shift+click where you stand to place your arrow.|r   Skulls: bosses.   Dots: where the game last showed someone.")
 	map.credit = canvas:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	map.credit:SetPoint("BOTTOMRIGHT", note, "TOPRIGHT", 0, 3)
+	map.portal = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	map.portal:SetPoint("LEFT", canvas, "TOPLEFT", (MAP_W-MAP_H)/2 + 270*MAP_H/512 + 10, -350*MAP_H/512)
+	map.portal:SetText("B - INSTANCE PORTAL")
+	map.portal:Hide()
 
 	local elapsed = 0
 	map:SetScript("OnUpdate", function(_, dt)
@@ -1130,6 +1174,7 @@ local function buildMap()
 		elapsed = 0
 		-- walking into a room of another wing (Scarlet Monastery, Blackrock Spire) switches the map
 		local d = findDungeon()
+		if not d then map:Hide(); return end
 		if d and d ~= dungeon then
 			setDungeon(d)
 			return
@@ -1422,7 +1467,7 @@ local function applyBindings()
 	end
 	bindingsPending = false
 	ClearOverrideBindings(events)
-	if not (inDungeon() and findDungeon()) then return end
+	if not (inMappedArea() and findDungeon()) then return end
 	for _, key in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do
 		SetOverrideBinding(events, true, key, "DUNGEONMAPS_TOGGLE")
 	end
@@ -1431,7 +1476,7 @@ end
 function DungeonMaps_Toggle()
 	if map and map:IsShown() then
 		map:Hide()
-	elseif inDungeon() then
+	elseif inMappedArea() then
 		openMap()
 	else
 		toggleWorldMap()
@@ -1573,6 +1618,12 @@ local function addSettingsControls(parent, x, y, width)
 		function() return DungeonMapsDB.live ~= false end, function(v) DungeonMapsDB.live = v end)
 	check("Share Shift+click corrections and minimap pictures to improve maps (20 per dungeon)",
 		function() return DungeonMapsDB.contribute ~= false end, function(v) DungeonMapsDB.contribute = v end)
+	check("Wailing Caverns: show the route guide on the instance map",
+		function() return DungeonMapsDB.wailingRoute ~= false end,
+		function(v)
+			DungeonMapsDB.wailingRoute = v
+			if map and map:IsShown() and dungeon and dungeon.key == "wailingcaverns" then showFloor(floorIndex) end
+		end)
 	slider("Your arrow", "arrowSize")
 	slider("Teammate dots", "dotSize")
 	slider("Boss icons", "bossSize")
@@ -1711,6 +1762,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		return
 	elseif event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then
 		sendState()
+		applyBindings()
+		if map and map:IsShown() then
+			local d = findDungeon()
+			if not d then map:Hide() elseif d ~= dungeon then setDungeon(d) end
+		end
 		return
 	elseif event == "ENCOUNTER_START" then
 		landmarkBoss(arg1, arg2)
@@ -1759,5 +1815,5 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		refreshPeople()
 	end
 	applyBindings()
-	if map and map:IsShown() and not inDungeon() then map:Hide() end
+	if map and map:IsShown() and not inMappedArea() then map:Hide() end
 end)

@@ -80,6 +80,7 @@ class Core:
         self.share = share
         self.fields = self.beacon = None
         self.mm_key = None
+        self.minimap_settle_until = -math.inf
         self.last_good = -math.inf
         self.motion_at = None
         self.track = []            # (time, east, north) yards travelled, last second
@@ -129,6 +130,19 @@ class Core:
         mm = b.rect("mm")
         key = (f["mm_w"], f["mm_h"], f["zoom"], f["radius4"], f["dungeon"], f["indoors"])
         if key != self.mm_key:
+            previous_key = self.mm_key
+            if previous_key is None or previous_key[4] != key[4]:
+                self.minimap_settle_until = -math.inf
+            elif previous_key[2:4] != key[2:4] and f["dungeon"]:
+                floors = self.data.dungeons[f["dungeon"] - 1]["floors"]
+                settle = max(self.data.floors[fl].get("zoom_settle_seconds", 0) for fl in floors)
+                if settle:
+                    # WC recordings show high-score false shifts while the
+                    # minimap animates a zoom change. Rebase after it settles;
+                    # never turn that scaling into player movement or learning.
+                    self.minimap_settle_until = now + settle
+                    self._lost_motion()
+                    self.motion_at = None
             if self.mm_key is None or key[:2] != self.mm_key[:2]:
                 self.odo.reset_static()
                 self.facing.reset()
@@ -167,7 +181,7 @@ class Core:
                 pf.scale, pf.source))
 
     def _minimap(self, img, mm, f, now):
-        if f.get("minimap_blocked", 0):
+        if f.get("minimap_blocked", 0) or now < self.minimap_settle_until:
             # Keep diagnostic pictures but never use tooltip/map pixels as
             # terrain, facing, a keyframe, or learned atlas texture.
             self.recording.add(img, f, self.pf, now, self.odo.score, accepted=False)
@@ -435,6 +449,8 @@ class Core:
 
     def _walk_from_atlas(self, floor):
         """Floor the atlas has seen joins the walk map (in the background)."""
+        if self.data.floors.get(floor, {}).get("walk_mask"):
+            return  # WC has client geometry; seeing a texture doesn't prove it is a floor.
         def work():
             try:
                 fm = self.atlases.floor_on_map(floor)

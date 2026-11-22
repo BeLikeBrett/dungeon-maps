@@ -1,7 +1,8 @@
 # Dungeon Maps
 
 Dungeon maps for **WoW: Forever**. Inside a dungeon, your map key opens a big map of
-the floor you're on, with the bosses and your group marked. Outside a dungeon the key works as normal.
+the floor you're on, with the bosses and your group marked. Wailing Caverns also has a separate
+approach-cave map leading to its instance portal. Elsewhere outside dungeons the key works as normal.
 
 With the **tracker** running as well, the map shows a live arrow for where you are and which way
 you're facing. **Everyone in your group who runs it shows up too**, as a dot in their class colour
@@ -37,8 +38,8 @@ That's enough for the maps. Bosses, group dots and Shift+click "I'm here" all wo
   screen instead, which only sees WoW while it's the active window. Either way the arrows only show
   over WoW.
 - **Updates itself:** each time it opens it checks GitHub for a newer release, swaps in the new exe
-  and updates the add-on in your `_forever_` folder. A tray message tells you to `/reload` if WoW
-  is open. `DUNGEONMAPS_UPDATE=off` turns this off.
+  and updates the add-on in your `_forever_` folder. A tray message tells you whether to `/reload` or fully restart WoW when new map pictures
+  need loading. `DUNGEONMAPS_UPDATE=off` turns this off.
 
 **Linux (Wayland):** needs Python 3 with `numpy`, `Pillow` and `websockets`, GStreamer with the
 PipeWire plug-in plus `python-gobject` (for window capture), `grim`, and
@@ -60,8 +61,15 @@ selects an optional per-app runtime.
 - Defeated bosses reset automatically on a fresh living entry into a dungeon. Reloading the UI,
   logging back in inside, and corpse returns preserve progress. To clear them manually, open the
   map's gear menu and click **Clear defeated bosses**, or type `/dmaps reset`.
-- Wailing Caverns uses the game's complete minimap terrain, including the Winding Chasm where
-  Lord Pythas and Skum stand. Its later-version parchment drawing omits that wing.
+- Wailing Caverns has two separate maps: the uninstanced approach cave (**A** = entrance,
+  **B** = instance portal), then a clean instance chart including Pythas and Skum's Winding Chasm.
+  The map switches contexts at the portal. The approach is a static guide with optional manual
+  marks; automatic live tracking starts inside the instance.
+- Wailing Caverns' optional route guide shows the main boss circuit in teal and Naralex's escort
+  in gold. Hide it in the map's gear menu. Passages can cross at different heights; crossing lines
+  do not always mean a junction. Its separate passage mask excludes the approach chamber and
+  cannot be widened by the learned texture atlas. Minimap zoom animations are briefly excluded
+  from movement and learning on this dungeon.
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
   - Walking in through the entrance sets it straight away.
   - So does Shift+clicking the map where you stand.
@@ -71,7 +79,7 @@ selects an optional per-app runtime.
 - **Friends:** anyone in your party or raid who also runs the tracker shows up on your map, and you
   on theirs. Nothing to set up. Solo, nothing is sent.
 - The tracker uses guide routes and their connections in the background to help tell nearby
-  passages apart. It draws no route lines, allows backtracking and shortcuts, and checks room
+  passages apart. It allows backtracking and shortcuts, and checks room
   changes and active boss encounters too. The arrow is labelled "You?" when its accuracy is uncertain.
 - Boss labels use the creature's name where the encounter title differs; hover to see that title.
   For an unambiguous single-boss encounter, the addon also remembers the game's actual boss-unit
@@ -154,4 +162,7 @@ preserves its good tracking; the bridge/drop concern remains an investigation, w
   data (MIT, Checkov23).
 - Hand-drawn Forever maps: Santiago Reyes, Atlas de Azeroth: Forever. Included with the original
   watermarks and credits; these images retain the artist's copyright (see `maps/CREDITS.txt` in the add-on).
-- Everything else: MIT, see `LICENSE`.
+- Wailing Caverns approach map: Atlas / Arith, GPL-2.0, with original credits and the full license
+  included. The instance navigation chart is reconstructed from Blizzard client geometry;
+  see the add-on’s `maps/CREDITS.txt` for asset sources and licenses.
+- Code and imported guide data: MIT, see `LICENSE`.

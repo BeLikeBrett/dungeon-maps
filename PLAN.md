@@ -1,5 +1,32 @@
 # Dungeon Maps: plan and status
 
+## v1.0.16 Wailing Caverns approach / instance separation (2026-11-22)
+- Supersedes v1.0.15 WC artwork notes below. User asked to research Turtle/free maps and fix both
+  the portal approach and actual instance, autonomously. Turtle Atlas has incompatible custom
+  rooms/bosses; do not import those. Unchanged Classic Atlas entrance BLP (Arith, GPL-2.0) included
+  with license/credits, as native-only virtual floor -43. Not in tracker JSON/dungeon order/beacon.
+- Approach selected ONLY when IsInInstance() is false and plain subzone/minimap text is Cavern of
+  Mists or Wailing Caverns. Static A->B portal guide + manual marks, not automatic live tracking.
+  Real instance43 always uses actual floor279. Zone transitions update binding/open map context.
+- Rebuilt clean instance chart from43 installed client textures. Exclude approach chamber IDs
+  8111382,8111387,8111391,8111396. Keep exact world/entry/rooms/boss positions/route data. New BLP
+  plain + optional baked route guide, exact1002x668 crop; one texture, no per-frame route drawing.
+  tools/build_wailing_map.py reproduces from private extracted client BLPs; inputs not committed.
+- Bundled binary WC passage mask + art_revision instance-v2 supersedes stale279.png. WC-only
+  atlas-to-walk expansion disabled (coverage sees walls/void). Latest three manual references old
+  parchment weight .08 -> instance1.0; excluded chamber stays .08 even with atlas coverage. This is
+  a path-model check, not live whole-run accuracy. Other dungeons unchanged. WC zoom/radius changes
+  hold images .35s then rebase, with invalid motion learning; other maps have no hold profile.
+- Public sanitized case: validation/dungeons/wailingcaverns/. Private current WC clips/run-only
+  log/old art/path-mask-review under ~/.local/share/dungeon-maps/research/wailing-20261122/.
+  All captured tracker1.0.11/beacon6; exclude older Ruins. Latest Ruins isolated v11/v16 sampled
+  replay stays identical (maxdiff0); no Ruins heuristic or live learned-cache edit.
+- Both platform packages include the new mask. Windows updater distinguishes new media and tells
+  users to fully restart WoW; code-only updates still /reload. Beacon stays v7/58, decoder4..7.
+- Current live protocol6 addon/tracker left running. Full v16 native ZIP staged in pending-addon.zip
+  for the next full Battle.net launch hook. New asset names require full game restart; do not claim
+  live activation or restart capture/QML mid-game. No game inputs or graphics changes.
+
 ## v1.0.15 Wailing Caverns full terrain and boss names (2026-11-22)
 - The original WC parchment omits the Winding Chasm. Show all47 client building-part textures on
   floor279, keeping pins/world/rooms/entry/routes and tracking math unchanged. Other floors retain art.

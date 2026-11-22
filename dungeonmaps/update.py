@@ -157,15 +157,29 @@ def update_addon(rel, log, addons_dirs=None):
     if not asset:
         return None
     note = None
+    restart_needed = False
     for d in addons_dirs if addons_dirs is not None else find_addons_dirs():
         have = addon_version(d)
         if have is not None and have >= rel["version"]:
             continue
         try:
             os.makedirs(d, exist_ok=True)
-            install_addon(d, download(asset))
+            payload = download(asset)
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                new_media = False
+                for name in archive.namelist():
+                    parts = name.replace("\\", "/").split("/")
+                    if (parts[0] == "DungeonMaps" and ".." not in parts
+                            and name.lower().endswith((".blp", ".tga"))
+                            and not os.path.isfile(os.path.join(d, *parts))):
+                        new_media = True
+                        break
+            install_addon(d, payload)
+            restart_needed = restart_needed or new_media
             log("add-on %s: %s -> %s" % (d, ".".join(map(str, have)) if have else "none", rel["tag"]))
-            note = "The Dungeon Maps add-on was updated to %s. If WoW is open, type /reload." % rel["tag"]
+            action = ("If WoW is open, fully restart it once to load the new map pictures."
+                      if restart_needed else "If WoW is open, type /reload.")
+            note = "The Dungeon Maps add-on was updated to %s. %s" % (rel["tag"], action)
         except Exception as e:
             log("add-on update failed in %s: %r" % (d, e))
     return note

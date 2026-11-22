@@ -8,3 +8,17 @@ https://asguevara433.wixsite.com/srmaps
 Used with his permission, in the versions with his watermark. They are not covered by the
 MIT license of this addon; all rights stay with Santiago Reyes. Please do not reuse them
 without his permission.
+
+wailing_caverns_approach.blp: unchanged Classic Atlas entrance map by Arith / Atlas Team.
+Source: nanderson11/Atlas, Images/Atlas_ClassicWoW/CL_WailingCavernsEnt.blp
+https://github.com/nanderson11/Atlas
+License: GPL-2.0; the complete license is in ../LICENSE-Atlas.txt. Atlas credits in the
+image are retained. The MIT license of Dungeon Maps does not replace this asset's license.
+
+wailing_caverns_instance.blp and wailing_caverns_route.blp: Dungeon Maps navigation
+reconstruction from Blizzard's Wailing Caverns minimap textures. The four approach-chamber
+textures are excluded. Geometry remains in the client's coordinate frame. Artwork/geometry
+derived from Blizzard's game assets remains Blizzard Entertainment's; the reconstruction
+script is tools/build_wailing_map.py. Placement data: Forever Dungeon Routes (MIT).
+Turtle WoW's Atlas maps were reviewed as references; Turtle-only dungeon rooms/bosses were
+not imported into the Forever map.

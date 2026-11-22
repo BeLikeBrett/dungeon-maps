@@ -50,12 +50,16 @@ def main():
         update._get = lambda url, timeout: z
         logs = []
         note = update.update_addon(rel, logs.append, [addons])
-        assert note and "/reload" in note, (note, logs)
+        assert note and "fully restart" in note, (note, logs)
         assert update.addon_version(addons) == (9, 9, 9)
         files = set(os.listdir(os.path.join(addons, "DungeonMaps")))
         assert "stale.lua" not in files and "DungeonMaps.lua" in files and "maps" in files, files
         assert not os.path.exists(os.path.join(tmp, "_forever_", "Interface", "evil.txt"))
         assert not any(n.startswith("DungeonMaps.") for n in os.listdir(addons)), os.listdir(addons)
+        # Existing media names only require a UI reload for a code-only update.
+        with open(os.path.join(addons, "DungeonMaps", "DungeonMaps.toc"), "w") as fh:
+            fh.write("## Version: 9.9.8\n")
+        assert "/reload" in update.update_addon(rel, logs.append, [addons])
         # up to date: nothing happens
         assert update.update_addon(rel, logs.append, [addons]) is None
         # a download that doesn't match GitHub's digest is refused and the add-on is left alone

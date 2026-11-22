@@ -100,6 +100,7 @@ function time() return os.time() end
 DungeonMapsDB, DungeonMapsCharDB = nil, nil
 local ns = {}
 assert(loadfile(ADDONS .. "/DungeonMaps/Data.lua"))("DungeonMaps", ns)
+assert(loadfile(ADDONS .. "/DungeonMaps/Approaches.lua"))("DungeonMaps", ns)
 assert(loadfile(ADDONS .. "/DungeonMaps/DungeonMaps.lua"))("DungeonMaps", ns)
 
 WorldMapFrame = widget("Frame"); WorldMapFrame._shown = false

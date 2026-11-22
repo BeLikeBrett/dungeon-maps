@@ -60,8 +60,17 @@ for f in pairs(usedFloors) do
     -- Keep the verified world frame and pins; show all client building parts
     -- on this floor instead. Every other floor retains its existing artwork.
     if f == 279 then
-      D.Floors[f].terrain = true
-      D.MinimapArt[f] = assert(DR.MinimapArt and DR.MinimapArt[f], "missing full Wailing Caverns terrain")
+      D.Floors[f].terrain = true -- fallback until the new bundled image is loaded
+      D.Floors[f].image = { file = "maps\\wailing_caverns_instance", routeFile = "maps\\wailing_caverns_route",
+        right = 1002 / 1024, bottom = 668 / 1024 }
+      D.Floors[f].credit = "Map: Blizzard client geometry; Dungeon Maps reconstruction"
+      -- These four building textures depict the approach's circular chamber.
+      -- They are not part of the navigable instance map (compare Classic Atlas).
+      local approach = { [8111382]=true, [8111387]=true, [8111391]=true, [8111396]=true }
+      D.MinimapArt[f] = {}
+      for _, part in ipairs(assert(DR.MinimapArt and DR.MinimapArt[f], "missing Wailing Caverns terrain")) do
+        if not approach[part[1]] then table.insert(D.MinimapArt[f], part) end
+      end
     end
     -- minimap pictures: the fallback where a floor has neither tiles nor a drawn map
     if not tiles and not info.image then
@@ -148,7 +157,14 @@ if jsonOut then
   for _, d in ipairs(DR.Dungeons) do table.insert(T.dungeons, { key = d.key, name = d.name, floors = d.floors }) end
   for f in pairs(usedFloors) do
     local info = DR.Floors[f]
-    if info then T.floors[tostring(f)] = { name = info.name, world = info.world, frame = info.frame } end
+    if info then
+      T.floors[tostring(f)] = { name = info.name, world = info.world, frame = info.frame }
+      if f == 279 then
+        T.floors[tostring(f)].art_revision = "instance-v2"
+        T.floors[tostring(f)].walk_mask = "wailing_instance_walk.png"
+        T.floors[tostring(f)].zoom_settle_seconds = 0.35
+      end
+    end
   end
   T.bosses, T.entry = {}, {}
   for key, list in pairs(D.Bosses) do

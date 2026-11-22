@@ -73,6 +73,7 @@ function time() return os.time() end
 DungeonMapsDB, DungeonMapsCharDB = nil, nil
 local ns = {}
 assert(loadfile(ADDONS .. "/DungeonMaps/Data.lua"))("DungeonMaps", ns)
+assert(loadfile(ADDONS .. "/DungeonMaps/Approaches.lua"))("DungeonMaps", ns)
 assert(loadfile(ADDONS .. "/DungeonMaps/DungeonMaps.lua"))("DungeonMaps", ns)
 print("dungeons", #ns.Dungeons, "rfc bosses", #ns.Bosses.ragefire, "hallofthanes image", ns.Floors[1030651].image.file)
 WorldMapFrame = widget("Frame"); WorldMapFrame._shown = false
@@ -168,7 +169,8 @@ for _, d in ipairs(ns.Dungeons) do
       DungeonMaps_Toggle()
       local m = DungeonMapsFrame
       assert(m.picture._shown and not m.noArt._shown, "picture hidden for floor " .. floor)
-      assert(m.picture._texture == "Interface\\AddOns\\DungeonMaps\\" .. info.image.file, m.picture._texture)
+      local file = info.image.routeFile or info.image.file
+      assert(m.picture._texture == "Interface\\AddOns\\DungeonMaps\\" .. file, m.picture._texture)
       assert(m.picture._texcoord[2] == (info.image.right or 1) and m.picture._texcoord[4] == (info.image.bottom or 1))
       local file = assert(io.open(ADDONS .. "/DungeonMaps/" .. info.image.file:gsub("\\", "/") .. ".blp", "rb"))
       assert(file:read(4) == "BLP2", "invalid BLP image for floor " .. floor)
@@ -177,15 +179,25 @@ for _, d in ipairs(ns.Dungeons) do
     end
   end
 end
-assert(pictures == 17, "expected all 17 bundled map pictures, got " .. pictures)
-print("OK 17 bundled pictures loaded without Forever Dungeon Routes")
+assert(pictures == 18, "expected 17 Santiago maps and one WC instance map, got " .. pictures)
+print("OK 18 bundled instance pictures loaded without Forever Dungeon Routes")
 -- Wailing Caverns must display all building parts, including the omitted east
 -- wing, without changing its marker coordinates or other floors' artwork.
 GetInstanceInfo = function() return "Wailing Caverns", "party", 1, "", 5, 0, false, 43 end
 C_Map.GetBestMapForUnit = function() return 279 end
 DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
 local terrain = ns.MinimapArt[279]
-assert(ns.Floors[279].terrain and #terrain == 47)
+assert(ns.Floors[279].terrain and #terrain == 43)
+assert(DungeonMapsFrame.picture:IsShown() and DungeonMapsFrame.picture._texture:find("wailing_caverns_route"))
+DungeonMapsDB.wailingRoute = false
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+assert(DungeonMapsFrame.picture._texture:find("wailing_caverns_instance"))
+DungeonMapsDB.wailingRoute = true
+-- New image files need a full game start on some clients. Exercise the safe
+-- instance-only fallback while preserving the request to restart.
+local setPicture = DungeonMapsFrame.picture.SetTexture
+rawset(DungeonMapsFrame.picture, "SetTexture", function() return false end)
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
 assert(DungeonMapsFrame.terrainBack:IsShown() and not DungeonMapsFrame.picture:IsShown())
 for _, tex in ipairs(DungeonMapsFrame.tiles) do assert(not tex:IsShown(), "incomplete parchment still visible") end
 for i, part in ipairs(terrain) do
@@ -202,6 +214,7 @@ end
 local retained = DungeonMapsFrame.terrainTiles[1]
 DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
 assert(DungeonMapsFrame.terrainTiles[1] == retained, "reopening allocated duplicate terrain")
+rawset(DungeonMapsFrame.picture, "SetTexture", setPicture)
 GetInstanceInfo = function() return "Ragefire Chasm", "party", 1, "", 5, 0, false, 389 end
 C_Map.GetBestMapForUnit = function() return 213 end
 DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
@@ -209,6 +222,32 @@ assert(not DungeonMapsFrame.terrainBack:IsShown())
 for _, tex in ipairs(DungeonMapsFrame.terrainTiles) do assert(not tex:IsShown(), "WC terrain leaked onto another map") end
 for _, tex in ipairs(DungeonMapsFrame.tiles) do assert(tex:IsShown(), "another floor lost its original art") end
 print("OK Wailing Caverns complete terrain, unchanged pins, texture reuse, and floor isolation")
+
+-- Entering the approach without crossing the instance portal opens a separate
+-- map. Its marks and boss state must never become an instance player fix.
+local realInstance, realSubzone = IsInInstance, GetSubZoneText
+IsInInstance = function() return false, "none" end
+GetSubZoneText = function() return "Cavern of Mists" end
+fire("ZONE_CHANGED")
+DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+assert(DungeonMapsFrame:IsShown() and DungeonMapsFrame.title._text:find("Approach cave"))
+assert(DungeonMapsFrame.picture._texture:find("wailing_caverns_approach"))
+assert(DungeonMapsFrame.portal:IsShown())
+for _,boss in ipairs(DungeonMapsFrame.bosses) do assert(not boss:IsShown(), "instance boss leaked onto approach") end
+GetSubZoneText = function() return "The Barrens" end
+fire("ZONE_CHANGED")
+assert(not DungeonMapsFrame:IsShown(), "approach map stayed after leaving the cave")
+-- The same room text inside the real instance must never select the approach.
+IsInInstance = realInstance
+GetInstanceInfo = function() return "Wailing Caverns", "party", 1, "", 5, 0, false, 43 end
+C_Map.GetBestMapForUnit = function() return 279 end
+GetSubZoneText = function() return "Cavern of Mists" end
+fire("PLAYER_ENTERING_WORLD", false, false)
+DungeonMaps_Toggle()
+assert(DungeonMapsFrame.title._text == "Wailing Caverns" and not DungeonMapsFrame.portal:IsShown())
+assert(DungeonMapsFrame.bosses[4]:IsShown())
+GetSubZoneText = realSubzone
+print("OK approach/portal/real-instance boundaries and unrelated outdoor zones")
 
 -- Exercise every imported name/alias against the addon's actual kill matcher.
 -- This includes shared encounter IDs, without assuming the first pin is correct.

@@ -32,21 +32,28 @@ for line in manifest.splitlines():
     print('OK', floor, relative)
 actual = {p.relative_to(ROOT / 'addon/DungeonMaps').as_posix()
           for p in (ROOT / 'addon/DungeonMaps/maps').glob('*.blp')}
-assert len(expected) == 17 and expected == actual, (expected - actual, actual - expected)
+extra = {'maps/wailing_caverns_route.blp', 'maps/wailing_caverns_approach.blp'}
+assert len(expected) == 18 and expected | extra == actual, ((expected | extra) - actual, actual - expected - extra)
+for name in extra:
+    with Image.open(ROOT / 'addon/DungeonMaps' / name) as image:
+        image.load()
+        assert image.format == 'BLP' and image.size == ((512, 512) if 'approach' in name else (1024, 1024))
 assert 'Santiago Reyes' in (ROOT / 'addon/DungeonMaps/maps/CREDITS.txt').read_text()
-print('PASS 17 bundled maps: decoded, correct crop, complete references, artist credits')
+print('PASS 17 Santiago maps plus WC instance/plain/approach artwork: decoded, correct crop and credits')
 
 # Wailing Caverns' later-version parchment omits the Winding Chasm. Its
 # replacement uses all client building parts in the existing coordinate frame.
 subprocess.run(['lua5.1', '-e', r"""
 local ns = {}
 assert(loadfile("addon/DungeonMaps/Data.lua"))("DungeonMaps", ns)
-assert(ns.Floors[279].terrain and #ns.MinimapArt[279] == 47)
+assert(ns.Floors[279].terrain and #ns.MinimapArt[279] == 43)
 for floor, info in pairs(ns.Floors) do
   if floor ~= 279 then assert(not info.terrain, "another floor's renderer changed") end
 end
 for floor in pairs(ns.MinimapArt) do assert(floor == 279) end
+local excluded = {[8111382]=true,[8111387]=true,[8111391]=true,[8111396]=true}
 for _, part in ipairs(ns.MinimapArt[279]) do
+  assert(not excluded[part[1]], "approach chamber leaked into instance")
   assert(#part == 14 and part[1] > 0 and part[4] > 0 and part[5] > 0)
   assert(part[2] >= 0 and part[3] >= 0 and part[2]+part[4] <= 1002.02 and part[3]+part[5] <= 668.02)
 end

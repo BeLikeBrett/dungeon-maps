@@ -19,7 +19,7 @@ from collections import deque
 import numpy as np
 from PIL import Image, ImageFilter
 
-from .data import MAP_H, MAP_W, user_dir
+from .data import HERE, MAP_H, MAP_W, user_dir
 
 CACHE = os.path.join(user_dir("data"), "floors")
 WALL_SIGMA = 5.0     # yards: how fast the weight falls off outside a path (hand-drawn art misses lanes)
@@ -169,9 +169,14 @@ class WalkMaps:
         os.makedirs(CACHE, exist_ok=True)
 
     def art_path(self, floor):
-        return os.path.join(CACHE, "%d.png" % floor)
+        revision = self.data.floors.get(floor, {}).get("art_revision")
+        name = "%d-%s.png" % (floor, revision) if revision else "%d.png" % floor
+        return os.path.join(CACHE, name)
 
     def has_art(self, floor):
+        mask = self.data.floors.get(floor, {}).get("walk_mask")
+        if mask and os.path.isfile(os.path.join(HERE, "data", mask)):
+            return True
         return os.path.exists(self.art_path(floor))
 
     def _seeds(self, floor):
@@ -195,6 +200,8 @@ class WalkMaps:
 
     def add_floor(self, floor, floor_mask):
         """Atlas floor (MAP_H x MAP_W bool) joins the floor's walk map; with no art, it IS the walk map."""
+        if self.data.floors.get(floor, {}).get("walk_mask"):
+            return  # Texture coverage includes walls and air; retain verified WC geometry.
         with self.lock:
             wm = self._get(floor)
             if wm is None:
@@ -222,6 +229,18 @@ class WalkMaps:
     def _get(self, floor):
         if floor in self.maps:
             return self.maps[floor]
+        mask = self.data.floors.get(floor, {}).get("walk_mask")
+        if mask:
+            try:
+                with Image.open(os.path.join(HERE, "data", mask)) as image:
+                    walk = np.asarray(image.convert("L")) > 127
+                if walk.shape != (MAP_H, MAP_W) or walk.sum() < 500:
+                    raise ValueError("invalid bundled walk mask")
+                wm = WalkMap(walk, np.zeros_like(walk), self.data.px_per_yard(floor))
+                self.maps[floor] = wm
+                return wm
+            except (OSError, ValueError, SyntaxError):
+                pass  # Ordinary cache/capture recovery remains available if an install is incomplete.
         if not self.has_art(floor) or floor not in self.data.floors:
             return None
         try:
