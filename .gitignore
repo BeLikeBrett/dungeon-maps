@@ -9,3 +9,7 @@ dist/
 relay/logs/
 relay/samples/
 relay/backups/
+# Public validation contains summaries; original clips/payloads stay private.
+validation/private/
+**/trace-*.zip
+**/session-*.jsonl

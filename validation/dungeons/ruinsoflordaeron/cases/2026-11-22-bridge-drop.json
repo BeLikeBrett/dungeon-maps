@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "case": "2026-11-22-bridge-drop",
+  "dungeon": "ruinsoflordaeron",
+  "floor": 1029991,
+  "review_date": "2026-11-22",
+  "status": "preserve_tracking",
+  "scope": {
+    "selected_corrections": 1,
+    "selection": "Latest manual correction and its attached clip only",
+    "earlier_corrections_included": false,
+    "live_atlas_included": false,
+    "live_calibration_included": false
+  },
+  "recording": {
+    "tracker_version": "1.0.11",
+    "beacon_version": 6,
+    "data_sha256": null,
+    "frames": 106,
+    "duration_seconds": 52.59803403499245,
+    "sampling_hz_approx": 2,
+    "minimap": {
+      "zoom": 0,
+      "indoors_field": 2,
+      "radius4_field": 933,
+      "rotating": false,
+      "crop_width": 314,
+      "crop_height": 314
+    }
+  },
+  "feedback": {
+    "overall": "Player reported nearly perfect tracking with one correction",
+    "uncertainty": "Question mark sometimes appeared while the arrow remained accurate",
+    "remaining_concern": "Grey castle bridge followed by a jump down as a shortcut",
+    "bridge_jump_timing_verified": false,
+    "height_available": false
+  },
+  "measurements": {
+    "recorded_correction_yards": 21.18114521336731,
+    "minimap_match_score_mean": 0.9418233493128965,
+    "minimap_match_score_min": 0.8399751895306551,
+    "net_estimate_vs_scaled_recorded_odometry_yards": 0.06231165712401603
+  },
+  "replay": {
+    "baseline_tracker": "1.0.11",
+    "candidate_tracker": "1.0.14",
+    "random_seed": 7,
+    "initial_particle_spread_yards": 1,
+    "initial_pose": "Recorded estimate at the first selected frame",
+    "baseline_endpoint_error_yards": 22.00459275547925,
+    "candidate_endpoint_error_yards": 22.00459275547925,
+    "maximum_baseline_candidate_difference_yards": 0,
+    "baseline_rejected_steps": 0,
+    "candidate_rejected_steps": 0,
+    "full_frequency_replay": false,
+    "limits": [
+      "Sampled minimaps rather than original capture frequency",
+      "Approximate seeded initial particle distribution",
+      "Only the final manual point is an independent reference",
+      "No verified bridge height or jump timing"
+    ]
+  },
+  "decision": {
+    "tracking_code_changed": false,
+    "learned_map_changed": false,
+    "bridge_rule_implemented": false,
+    "reason": "This single clip does not establish a safe bridge-specific adjustment",
+    "next_evidence": "Verified before/after bridge-to-ground examples on this dungeon"
+  }
+}

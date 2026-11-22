@@ -35,6 +35,7 @@ jobs:
       - run: python tests/test_context.py
       - run: python tests/test_recording.py
       - run: python tests/test_samples.py
+      - run: python tests/test_samples_report.py
       - run: python tests/test_motion_guard.py
       - run: python tests/test_run_recovery.py
 

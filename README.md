@@ -139,6 +139,13 @@ To turn all relay communication off, set `DUNGEONMAPS_RELAY=off`. The `--no-shar
 live party positions. To use your own relay, set `DUNGEONMAPS_RELAY=wss://your.host` (the server is in
 `relay/`).
 
+## Tracking validation
+
+Reviewed observations and comparison results are organized [by dungeon](validation/README.md).
+Each case records the actual capture build, selected evidence and limitations. Raw
+recordings stay private. The latest [Ruins of Lordaeron assessment](validation/dungeons/ruinsoflordaeron/README.md)
+preserves its good tracking; the bridge/drop concern remains an investigation, with no new rule.
+
 ## Credits
 
 - Dungeon layouts, boss and room positions: Forever Dungeon Routes

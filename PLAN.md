@@ -1,5 +1,13 @@
 # Dungeon Maps: plan and status
 
+## Validation data organization (2026-11-22)
+- Reviewed cases now live [under each dungeon](validation/README.md), with human-readable decisions
+  and JSON metrics/provenance. Root README links to the index. Raw clips remain private.
+- Latest Ruins case uses only the selected correction, excludes older builds' corrections, and
+  preserves tracking. No bridge-specific positioning rule was implemented.
+- Offline sample reports separate tracker builds and data revisions, with exact selection filters.
+  Report regression coverage is in CI. No game/runtime/release version change for this organization.
+
 ## v1.0.14 manual defeated-boss reset (2026-11-22)
 - Add "Clear defeated bosses" to map gear/Options. Clears displayed/current dungeon respectively,
   redraws immediately and preserves other dungeons/position/learning; same action as /dmaps reset.
