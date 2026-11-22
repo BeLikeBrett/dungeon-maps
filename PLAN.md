@@ -28,8 +28,9 @@
   entry and real downloaded ZIP install in isolation. Public release notes updated.
 - The queued hook did not run when Brett restarted (old Battle.net processes remained). Installed
   full native v16 directly with complete backup under ~/.local/share/wow-addon-backups/ and every
-  file byte-verified. Pending ZIP renamed applied-addon-1.0.16.zip. Native16 is on disk; existing
-  loaded Lua still requires one full WoW restart for new image names. Battle.net can stay open.
+  file byte-verified. Pending ZIP renamed applied-addon-1.0.16.zip. User then restarted WoW again:
+  new WoW process after install, and v16 tracker logs fresh WC movement from09:03:24 with no runtime
+  errors. Native16 and tracker16 are now paired; no further restart required for this update.
 - Refreshed the tracker once for this repair: log confirms v1.0.16, screenshots mode/private Qt6.12,
   no picker. Reader supports old protocol6 until native7 loads after restart. No game inputs or
   graphics changes. Do not repeat tracker restart merely for verification.
