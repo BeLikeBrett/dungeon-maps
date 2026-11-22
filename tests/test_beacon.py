@@ -90,6 +90,11 @@ def main():
     assert new[2] * new[3] < old[2] * old[3] / 10, (old, new)
     print("PASS compact screenshot region: %s -> %s (%.1fx fewer pixels)" %
           (old[2:], new[2:], old[2] * old[3] / (new[2] * new[3])))
+    blocked = subprocess.run(["lua5.1", os.path.join(HERE, "beacon_harness.lua"), ADDONS, "blocked"],
+                             capture_output=True, text=True, check=True).stdout
+    blocked = json.loads([line for line in blocked.splitlines() if line.startswith("{")][-1])
+    assert beacon.find(paint(blocked)).fields["minimap_blocked"] == 1
+    assert b.fields["minimap_blocked"] == 0
 
 
 if __name__ == "__main__":

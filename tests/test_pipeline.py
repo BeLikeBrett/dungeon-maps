@@ -44,7 +44,8 @@ def encode(fields):
     """Python twin of the addon's beaconCells(): fields -> the cell colours."""
     bits = []
     legacy = fields.get("version") == 4
-    layout = beacon.FIELDS[:-3] if legacy else beacon.FIELDS[:-1] if fields.get("version") == 5 else beacon.FIELDS
+    version = fields.get("version")
+    layout = beacon.FIELDS[:-4] if legacy else beacon.FIELDS[:-2] if version == 5 else beacon.FIELDS[:-1] if version == 6 else beacon.FIELDS
     for name, n in layout:
         v = max(0, min(2 ** n - 1, int(math.floor(fields.get(name, 0) + 0.5))))
         bits += [(v >> (n - 1 - i)) & 1 for i in range(n)]

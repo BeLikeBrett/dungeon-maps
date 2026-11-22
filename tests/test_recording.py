@@ -32,8 +32,14 @@ assert motion.step(np.roll(rgb, 15, axis=1)) is None
 c.recording.add_case(motion.rejection, 4., 1., .05)
 c._on_fix(213, (0., 0.), (20., 0.), "marked", 4.)
 c.recording.worker.join(5)
-files = list(Path(c.recording.folder).glob("trace-*.zip"))
-assert len(files) == 1 and not list(Path(c.recording.folder).glob("*.tmp"))
+files = list(Path(c.recording.folder).rglob("trace-*.zip"))
+assert len(files) == 1 and not list(Path(c.recording.folder).rglob("*.tmp"))
+assert files[0].parent.parent.name == "ragefire"
+c.recording.journal.join()
+journals = list(Path(c.recording.folder).rglob("session-*.jsonl"))
+assert len(journals) == 1
+rows = [json.loads(line) for line in journals[0].read_text().splitlines()]
+assert len(rows) == 5 and all(row["dungeon_key"] == "ragefire" for row in rows)
 with zipfile.ZipFile(files[0]) as z:
     m = json.loads(z.read("manifest.json"))
     assert m["event"]["error_yards"] == 20 and len(m["frames"]) == 5
@@ -53,7 +59,7 @@ recording.MAX_FILES = 2
 for i in range(3):
     assert r.trigger("test", {}, now=100 + 11*i)
     r.worker.join(5)
-assert len(list(Path(r.folder).glob("trace-*.zip"))) == 2
+assert len(list(Path(r.folder).rglob("trace-*.zip"))) == 2
 r.clear()
 assert not r.frames and r.bytes == 0
 print("PASS local lossless minimap evidence, correction trigger, replay, throttling, RAM and disk limits")

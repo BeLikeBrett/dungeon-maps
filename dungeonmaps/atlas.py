@@ -225,7 +225,7 @@ class FloorAtlas:
         sy, sx = iy + dy - margin, ix + dx - margin
         return n - sy * ypp, w - sx * ypp, best, second, float(share[iy, ix])
 
-    def locate_anywhere(self, gray, mask, ypp, odo=None, max_px=1100):
+    def locate_anywhere(self, gray, mask, ypp, odo=None, max_px=600):
         """Match the minimap against everything the atlas knows (no estimate needed).
         Returns (north, west, score, runner-up score, overlap share) or None."""
         known = self.wt >= MIN_WEIGHT
@@ -235,7 +235,28 @@ class FloorAtlas:
         size = gray.shape[0]
         span = max(rows.max() - rows.min(), cols.max() - cols.min()) * RES / ypp + size
         if span > max_px:
-            return None
+            # Zooming in must not silently disable whole-floor recovery. Search
+            # a bounded coarse image, then verify the result at full resolution.
+            from PIL import Image
+            factor = span / max_px * 1.1
+            side = int(size / factor)
+            if side < 24:
+                return None  # too little visual detail for an honest global lock
+            small = np.asarray(Image.fromarray(gray.astype(np.float32)).resize(
+                (side, side), Image.Resampling.BOX))
+            smask = np.asarray(Image.fromarray(mask.astype(np.float32)).resize(
+                (side, side), Image.Resampling.BOX))
+            smask = (smask >= .99).astype(np.float32)
+            coarse = self.locate_anywhere(small, smask, ypp * size / side, odo, max_px)
+            if coarse is None or coarse[2] < .65 or coarse[2] - coarse[3] < .08:
+                return None
+            refined = self.locate(gray, mask, coarse[0], coarse[1], ypp,
+                                  max(12., 4 * ypp * size / side), odo)
+            if refined is None:
+                return None
+            n, w, score, second, share = refined
+            # A unique local peak cannot erase global ambiguity.
+            return n, w, min(score, coarse[2]), max(second, coarse[3]), share
         rc, cc = (rows.min() + rows.max()) / 2, (cols.min() + cols.max()) / 2
         n, w = self.n_max - rc * RES, self.w_max - cc * RES
         return self.locate(gray, mask, n, w, ypp, (span - size) / 2 * ypp + size / 2 * ypp, odo)

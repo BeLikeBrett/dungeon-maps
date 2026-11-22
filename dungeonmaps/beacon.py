@@ -13,7 +13,7 @@ import numpy as np
 HEADER = 5
 CELLS = 58
 PX = 2  # cell side in pixels (BEACON_PX in the addon)
-FORMAT_VERSION = 6
+FORMAT_VERSION = 7
 
 # (name, bits) in the order the addon pushes them
 FIELDS = [
@@ -31,6 +31,7 @@ FIELDS = [
     ("dot_size", 5),
     ("active_boss", 6), ("boss_mask", 32),
     ("contribute", 1),
+    ("minimap_blocked", 1),
 ]
 
 
@@ -115,7 +116,7 @@ def decode_at(img, x, y, pitch):
         values.append(level(p[0]) * 64 + level(p[1]) * 8 + level(p[2]))
     version = values[0] >> 6
     cells = 54 if version == 4 else CELLS
-    if version not in (4, 5, FORMAT_VERSION) or len(pts) < cells:
+    if version not in (4, 5, 6, FORMAT_VERSION) or len(pts) < cells:
         return None
     values = values[:cells - HEADER]
     data, check = values[:-1], values[-1]
@@ -125,7 +126,7 @@ def decode_at(img, x, y, pitch):
     for v in data:
         bits.extend((v >> (8 - k)) & 1 for k in range(9))
     fields, pos = {}, 0
-    layout = FIELDS[:-3] if version == 4 else FIELDS[:-1] if version == 5 else FIELDS
+    layout = FIELDS[:-4] if version == 4 else FIELDS[:-2] if version == 5 else FIELDS[:-1] if version == 6 else FIELDS
     for name, n in layout:
         v = 0
         for b in bits[pos:pos + n]:
@@ -135,6 +136,7 @@ def decode_at(img, x, y, pitch):
     fields.setdefault("active_boss", 0)
     fields.setdefault("boss_mask", 0)
     fields.setdefault("contribute", 0)  # older addons haven't displayed the new disclosure/setting
+    fields.setdefault("minimap_blocked", 0)
     return Beacon(x, y, pitch, fields)
 
 

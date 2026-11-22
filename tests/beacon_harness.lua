@@ -124,6 +124,10 @@ if arg[2] == "context" then
   fire("BOSS_KILL", 2732, "Oggleflint")
   fire("ENCOUNTER_START", 2733, "Taragaman the Hungerer")
 end
+if arg[2] == "blocked" then
+  GameTooltip:Show()
+  place(GameTooltip, 0.75, 2290, 190, 250, 200)
+end
 rawget(ticker, "_scripts").OnUpdate(ticker, 5)
 io.write("{\"cells\":[")
 for i, t in ipairs(beacon.cells) do

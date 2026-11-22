@@ -143,8 +143,12 @@ def context_tests():
     fight.p[250:] += 100.
     positions = fight.p.copy()
     fight.active_boss = 1
+    fight.searching = (boss["floor"], None)
     fight._boss_hint(5.)
     assert fight.w[:250].sum() > fight.w[250:].sum() and np.array_equal(fight.p, positions)
+    weights = fight.w.copy()
+    fight._boss_hint(5.)
+    assert np.array_equal(fight.w, weights), "repeated boss hints must not accumulate"
     fight.boss_mask = 1
     weights = fight.w.copy()
     fight._boss_hint(5.)
@@ -157,6 +161,19 @@ def context_tests():
     anchor = pf.anchor
     pf._init(213, (80., 0.), 8., 500, "boss")
     assert pf.anchor is anchor and pf.trust >= 800 and pf.guessed
+    # Lordaeron patrol pins (Witherfang and Bjork) provide no spatial evidence.
+    lord = next(i + 1 for i, d in enumerate(data.dungeons) if d["key"] == "ruinsoflordaeron")
+    for index in (1, 5):
+        patrol = data.bosses["ruinsoflordaeron"][index - 1]
+        centre = data.to_world(patrol["floor"], patrol["x"], patrol["y"])
+        fight.dungeon = lord
+        fight._init(patrol["floor"], centre, 10., 500, "marked")
+        fight.searching = (patrol["floor"], None)
+        fight.active_boss = index
+        fight.boss_hint_used = False
+        before = fight.w.copy()
+        fight._boss_hint(5.)
+        assert np.array_equal(fight.w, before)
     # Resampling must carry each particle's own preceding route position.
     pf.route_previous = pf.p.copy()
     pf.w[:] = 0
@@ -182,15 +199,16 @@ def context_tests():
     else:
         raise AssertionError("missing multi-floor room fixture")
     # v4 remains usable until /reload; v5 fields survive both encoders.
-    for version in (4, 5, 6):
-        fields = dict(version=version, active_boss=27, boss_mask=(1 << 31) + 13, contribute=1)
+    for version in (4, 5, 6, 7):
+        fields = dict(version=version, active_boss=27, boss_mask=(1 << 31) + 13, contribute=1, minimap_blocked=1)
         cols = encode(fields)
         img = np.zeros((2, len(cols) * 2, 3), np.uint8)
         for i, col in enumerate(cols): img[:, 2*i:2*i+2] = col
         b = beacon.decode_at(img, .5, .5, 2)
         assert b and b.fields["active_boss"] == (27 if version >= 5 else 0)
         assert b.fields["boss_mask"] == (fields["boss_mask"] if version >= 5 else 0)
-        assert b.fields["contribute"] == (1 if version == 6 else 0)
+        assert b.fields["contribute"] == (1 if version >= 6 else 0)
+        assert b.fields["minimap_blocked"] == (1 if version >= 7 else 0)
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     result = subprocess.run(["lua5.1", os.path.join(root, "tests/beacon_harness.lua"),
                              os.path.join(root, "addon"), "context"],

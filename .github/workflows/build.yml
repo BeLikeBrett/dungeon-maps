@@ -36,6 +36,7 @@ jobs:
       - run: python tests/test_recording.py
       - run: python tests/test_samples.py
       - run: python tests/test_motion_guard.py
+      - run: python tests/test_run_recovery.py
 
   windows:
     runs-on: windows-latest

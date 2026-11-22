@@ -77,7 +77,7 @@ class NoMaps:
     def get(self, floor): return None
 unknown = ParticleFilter(c.data, NoMaps())
 unknown.on_beacon(dict(f, lm_count=1, lm_kind=2, lm_floor=1, lm_u=3000, lm_v=3000, active_boss=1))
-assert unknown.displayable and unknown.guessed and unknown.source == "boss"
+assert not unknown.displayable and unknown.source != "boss", "a boss pin must not invent a player pose"
 stale = ParticleFilter(c.data, NoMaps())
 stale.on_beacon(dict(f, lm_count=9, lm_kind=3, lm_floor=1, lm_u=3000, lm_v=3000))
 assert stale.est is None, "a cached mark from before startup is not a current player location"

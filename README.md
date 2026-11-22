@@ -60,7 +60,7 @@ selects an optional per-app runtime.
 - Open the dungeon map in a dungeon. Your arrow appears once the tracker knows where you are:
   - Walking in through the entrance sets it straight away.
   - So does Shift+clicking the map where you stand.
-  - An active boss can give a broad starting hint if your position is unknown.
+  - Fixed boss encounters can weakly guide a search. Patrol pins never set your position.
   - If you start the tracker partway through a dungeon, it works out where you are by walking. Until
     it's sure, a localized estimate is labelled "You?".
 - **Friends:** anyone in your party or raid who also runs the tracker shows up on your map, and you
@@ -74,7 +74,8 @@ selects an optional per-app runtime.
 - Fresh positions stay fully visible, with "You?" for uncertainty. Fading means minimap frames
   have stopped arriving. Repeated strong minimap matches restore confidence automatically;
   a rejected motion reading still prevents unsafe calibration learning.
-  Boss pulls preserve a tracked player position; a boss spawn is only a broad hint when you're lost.
+  Boss pulls never set your position. Fixed bosses can provide one soft hint during a search;
+  roaming bosses do not pull the estimate toward their map icons.
   Impossible minimap jumps are discarded and do not train scale calibration or the learned map.
 - On Linux, the arrow uses a cached vector shape and short, bounded display prediction between
   captures. Corrections and heading changes remain immediate. Dragging the map moves markers
@@ -99,18 +100,23 @@ position was found, capture mode). With them go a random install id, your charac
 tracker version and your OS. No pictures. They are kept for 30 days. `DUNGEONMAPS_LOGS=off` turns
 this off.
 
-**Local tracking evidence:** the tracker keeps up to one minute of minimap crops and tracking
-context in a bounded memory buffer (30 MB). Shift+click corrections, large position corrections,
-and atlas relocations save that buffer to `state/recordings/trace-*.zip` beside the local log.
-It retains at most 10 recordings and 100 MB. Full recordings stay on your computer. If the arrow
-is wrong, Shift+click your known position while you're there:
-the saved lead-up includes the old estimate and your correction for comparison. Set
-`DUNGEONMAPS_RECORDING=off` to disable this. `python tools/replay_trace.py <trace.zip>` reprocesses
-sampled minimaps with isolated caches; it starts from the recorded estimate, so this is an
-approximate comparison, not an exact replay or independent proof of every position.
-Rejected movement also saves the exact grayscale reference/current pictures, matching mask and
-offsets inside the local archive. The replay tool can reproduce these individual matching decisions
-exactly; they are separate from the approximate sampled walk and stay local.
+**Local tracking evidence:** the tracker keeps up to three minutes of minimap crops and tracking
+context in a bounded memory buffer (128 MB). Corrections and recovery events save clips under
+`state/recordings/<dungeon>/<date>/trace-*.zip`. A compact, once-per-second
+`session-*.jsonl` timeline records accepted and failed readings, zoom, confidence, movement and
+calibration profile. Disk writes and image compression run in background threads.
+It retains up to 200 clips within a 2 GB total budget, preserving manual correction clips and
+session timelines ahead of automatic snapshots. Older flat recordings remain readable and count
+against that budget. Full recordings stay on your computer; the community upload size is unchanged.
+Set `DUNGEONMAPS_RECORDING=off` to disable both local pictures and timelines.
+`python tools/replay_trace.py <trace.zip>` reprocesses sampled minimaps with isolated caches;
+it starts from the recorded estimate, so this is an approximate comparison, not an exact replay
+or independent proof of every position. Exact rejected image-match snapshots are included too.
+
+Calibration profiles are separate for each dungeon and minimap zoom/indoor setting. Learned
+minimap atlases are stored per floor. The tracker handles close-zoom global recovery with a coarse
+search followed by detailed verification, and excludes known tooltip/map overlap reported by the
+addon. A boss pin alone never sets your position; known patrols provide no spatial weighting.
 
 **Community corrections:** with the current addon and tracker, Shift+click also contributes a
 compact correction sample to Brett's server. Each sample has your map correction, the old estimate,

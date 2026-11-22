@@ -177,11 +177,11 @@ class Odometry:
     def step(self, rgb):
         """Returns (dx, dy) you moved since the previous good frame, in crop pixels, or None."""
         gray = to_gray(rgb)
+        self.gray = gray  # recovery must never reuse a previous picture after a blank/failed frame
         scale = rgb.shape[1] / SIZE
         if gray[self.ncc.m > 0].std() < 2:  # blank minimap
             return None
         cur = self.ncc.prepare(gray)
-        self.gray = gray
         if self.key is None:
             self.key = cur
             self.key_gray = gray

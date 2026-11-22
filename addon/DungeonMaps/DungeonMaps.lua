@@ -1145,6 +1145,16 @@ local function pixelRect(frame)
 	return left * s, physH - top * s, frame:GetWidth() * s, frame:GetHeight() * s
 end
 
+-- UI geometry is more reliable than trying to recognize popup text in pixels.
+local function coversMinimap(frame)
+	if not frame or not frame:IsShown() then return false end
+	local x, y, w, h = pixelRect(frame)
+	local mx, my, mw, mh = pixelRect(Minimap)
+	if not (x and mx) then return false end
+	return math.min(x + w, mx + mw) - math.max(x, mx) > mw * 0.1
+		and math.min(y + h, my + mh) - math.max(y, my) > mh * 0.1
+end
+
 -- Your live arrow's size on the map (Settings > AddOns > Dungeon Maps, or /dmaps size 1.5)
 local ARROW_MIN, ARROW_MAX = 0.5, 2.5
 local function arrowSize()
@@ -1193,7 +1203,7 @@ local function beaconCells()
 	local zoom = plain(Minimap:GetZoom()) or 0
 	local indoors = tonumber(GetCVar("minimapZoom")) ~= zoom
 	local radius = C_Minimap and plain(call(C_Minimap.GetViewRadius)) -- yards from centre to edge
-	pushBits(bits, 6, 3) -- format version
+	pushBits(bits, 7, 3) -- format version
 	pushBits(bits, open and 1 or 0, 1)
 	pushBits(bits, indoors == true and 1 or indoors == false and 2 or 0, 2)
 	pushBits(bits, GetCVar("rotateMinimap") == "1" and 1 or 0, 1)
@@ -1259,6 +1269,9 @@ local function beaconCells()
 	end
 	pushBits(bits, mask, 32)
 	pushBits(bits, DungeonMapsDB.contribute ~= false and 1 or 0, 1)
+	pushBits(bits, (coversMinimap(GameTooltip) or coversMinimap(ShoppingTooltip1)
+		or coversMinimap(ShoppingTooltip2) or coversMinimap(map)
+		or coversMinimap(WorldMapFrame)) and 1 or 0, 1)
 	local cells, sum = beaconOut, 0
 	for c = 1, BEACON_CELLS - #HEADER - 1 do
 		local v = 0

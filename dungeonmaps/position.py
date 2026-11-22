@@ -8,7 +8,7 @@ a corridor fixes you sideways all by itself. A jump down a ledge still works: we
 reach zero, and if every guess is off the paths the art is assumed wrong there and ignored.
 
 Exact fixes: the dungeon entrance and a fresh Shift+click on the map ("I am here"). Boss spawns
-provide a broad starting area only when the player's position is unknown. With no fix at all the guesses
+are never player fixes; stationary bosses provide at most one soft hint during a search. With no fix at all the guesses
 start spread over every path of the floor (inside the named room when the game says which one), and
 your position is shown once they agree.
 
@@ -18,6 +18,7 @@ Positions are world yards (north, west), as the game's map data uses.
 import json
 import math
 import os
+import re
 
 import numpy as np
 
@@ -43,11 +44,18 @@ class ScaleCalibration:
 
     def get(self):
         """(log-scale mean, log-scale sd)."""
-        m, sd, _ = self.table.get(self.key, (0.0, CALIB_PRIOR, 0))
+        row = self.table.get(self.key)
+        if row is None:
+            # Legacy/global calibration is a weak starting prior, never a sink
+            # for measurements made in a different dungeon.
+            row = self.table.get(self.key.rsplit("/", 1)[-1], (0.0, CALIB_PRIOR, 0))
+            row = (row[0], max(row[1], CALIB_PRIOR), 0)
+        m, sd, _ = row
         return m, sd
 
     def add(self, ratio, sd_meas):
-        m, sd, n = self.table.get(self.key, (0.0, CALIB_PRIOR, 0))
+        m, sd = self.get()
+        n = self.table.get(self.key, (0, 0, 0))[2]
         z = math.log(ratio)
         k = sd * sd / (sd * sd + sd_meas * sd_meas)
         if abs(z - m) > 0.04:
@@ -73,7 +81,7 @@ CALIB_MIN_YARDS = 35.0  # fix-to-fix calibration needs at least this far between
 CALIB_PRIOR = 0.10      # how wrong the minimap scale may be before any calibration (log sd; seen ~20 %)
 FIX_SPREAD = 1.0        # yards: spread after an exact fix
 BOSS_SPREAD = 25.0      # a spawn/patrol is only a broad hint when no player position is known
-FOUND_SPREAD = 6.0      # yards: trusted estimate; broader known estimates are still drawn dimly
+FOUND_SPREAD = 6.0      # yards: trusted estimate; broader known estimates are labelled uncertain
 ROOM_MARGIN = 8.0       # yards outside a named room's boxes that are still "in the room"
 CONFIRM_YARDS = 60.0    # searching: the answer must hold this far before it is shown
 INJECT = 0.03           # searching: share of guesses replaced by fresh random ones at each resample
@@ -126,8 +134,10 @@ class ParticleFilter:
         self.active_boss = 0
         self.boss_mask = 0
         self.boss_context_travel = 0.0
+        self.boss_hint_used = False
         self.route_checks = self.route_used = 0
         self.motion_valid = True
+        self.stretch_valid = True
         self.pose_error = math.inf  # current localization error; separate from calibration/training history
 
     # -- set up ------------------------------------------------------------------------------------
@@ -207,6 +217,7 @@ class ParticleFilter:
             self.info("fix (%s): the arrow was %.1f yards off after %.0f yards walked (scale %.3f)" % (
                 why, err, self.walked, self.scale))
         a = self.anchor
+        self.stretch_valid = self.motion_valid
         if a is not None and a[0] == floor and why not in ("matched", "boss") and self.motion_valid:
             true = np.array([n - a[1], w - a[2]])
             dt, dr = float(np.hypot(*true)), float(np.hypot(*self.raw))
@@ -219,6 +230,7 @@ class ParticleFilter:
                     self.info("minimap scale: this stretch says x%.3f (turn %.0f deg); calibrated x%.3f +- %.3f" % (
                         ratio, ang, k, sd))
                 else:
+                    self.stretch_valid = False
                     self.info("minimap scale: stretch ignored (x%.2f, turn %.0f deg)" % (ratio, ang))
         if why == "boss":
             # A spawn pin is not the player's location: ranged pulls and patrols
@@ -295,11 +307,8 @@ class ParticleFilter:
                 # present at startup may be minutes behind the moving player.
                 if kind in (1, 3) and not (first and (self.p is not None or kind == 3)):
                     self.fix(floor, u, v, "entrance" if kind == 1 else "marked")
-                elif kind == 2:
-                    n, w = self.data.to_world(floor, u, v)
-                    unknown = self.est is None or self.floor != floor or self.searching is not None
-                    if unknown and (not first or f.get("active_boss", 0)):
-                        self.fix(floor, u, v, "boss", BOSS_SPREAD)
+                # Boss pins are guide annotations, not player measurements.
+                # Never seed a player pose from one, even while lost.
         rooms = self.data.rooms.get(key, [])
         room = rooms[f["room"] - 1] if 0 < f["room"] <= len(rooms) else None
         self.current_room = room
@@ -311,6 +320,7 @@ class ParticleFilter:
         if active != self.active_boss:
             self.active_boss = active
             self.boss_context_travel = 0.0
+            self.boss_hint_used = False
         if f["room"] != self.room:
             self.room = f["room"]
             if room is not None and self.floor is not None and not any(b[0] == self.floor for b in room["boxes"]):
@@ -401,7 +411,8 @@ class ParticleFilter:
     def _boss_hint(self, distance):
         # A fight says "near this boss", never "at its spawn point". Only use
         # the opening 40 yards: bosses can be kited or patrol away from the pin.
-        if not self.active_boss or self.boss_context_travel >= 40 or not self.dungeon:
+        if (not self.active_boss or self.searching is None or self.boss_hint_used
+                or self.boss_context_travel >= 40 or not self.dungeon):
             return
         if self.boss_mask & (1 << (self.active_boss - 1)):
             return  # a defeated boss cannot keep pulling the estimate toward its pin
@@ -411,6 +422,8 @@ class ParticleFilter:
         if not 0 < self.active_boss <= len(bosses):
             return
         boss = bosses[self.active_boss - 1]
+        if re.search(r"\b(patrol\w*|roam\w*|wander\w*)\b", boss.get("note", ""), re.I):
+            return
         if boss["floor"] != self.floor:
             return
         centre = np.asarray(self.data.to_world(self.floor, boss["x"], boss["y"]))
@@ -419,6 +432,7 @@ class ParticleFilter:
             return  # patrols/guide positions may be wrong; don't crush every guess
         self.w *= 0.5 + 0.5 * np.exp(-0.5 * (d / 40.0) ** 2)
         self.w /= self.w.sum()
+        self.boss_hint_used = True  # one soft observation, not repeated attraction
 
     def observe(self, n, w, sigma, why="matched", verified=False):
         """An outside measurement of where you are (the atlas matched the minimap there).

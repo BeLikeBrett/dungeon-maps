@@ -29,6 +29,11 @@ meta = dict(t=10., floor=213, position=[0., 0.], source="marked", walked=10., ra
 frames = [(rgb, dict(meta, t=float(i))) for i in range(12)]
 event = dict(kind="marked", floor=213, before=[10., 0.], fix=[0., 0.], sigma=4., error_yards=10.)
 message = prepare_sample(frames, event, "a" * 32)
+long_frames = [(rgb, dict(meta, t=float(i), walked=float(i))) for i in range(181)]
+long_sample = prepare_sample(long_frames, event, "a" * 32)
+assert len(long_sample["frames"]) == 6
+assert long_sample["frames"][0]["meta"]["walked"] == 120.
+assert long_sample["frames"][-1]["meta"]["t"] == 60.
 assert len(message["frames"]) == 6 and len(json.dumps(message)) <= 512 * 1024
 fields = message["frames"][0]["meta"]["fields"]
 assert not {"n0", "name_len", "group", "contribute"} & fields.keys()

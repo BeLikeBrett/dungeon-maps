@@ -127,14 +127,25 @@ class Core:
         self.name = b.name
         self.colour = b.colour
         mm = b.rect("mm")
-        key = (f["mm_w"], f["mm_h"], f["zoom"], f["radius4"], f["dungeon"])
+        key = (f["mm_w"], f["mm_h"], f["zoom"], f["radius4"], f["dungeon"], f["indoors"])
         if key != self.mm_key:
             if self.mm_key is None or key[:2] != self.mm_key[:2]:
                 self.odo.reset_static()
                 self.facing.reset()
             self.mm_key = key
             self.odo.reset()
-        self.pf.calib.key = "i%dz%d" % (f["indoors"], f["zoom"])
+        dungeon_key = self.data.dungeons[f["dungeon"] - 1]["key"] if f["dungeon"] else "outside"
+        profile = "%s/i%dz%d" % (dungeon_key, f["indoors"], f["zoom"])
+        changed_profile = self.pf.calib.key != profile
+        self.pf.calib.key = profile
+        if changed_profile and self.pf.p is not None and self.pf.dungeon == f["dungeon"]:
+            m, sd = self.pf.calib.get()
+            self.pf.s = np.exp(self.pf.rng.normal(m, sd, len(self.pf.p)))
+            # A pair spanning two settings cannot train either setting alone.
+            self.pf.anchor = None
+            self.pf.raw[:] = 0
+            self.trail = []
+            self.trail_start = self.odo_yards
         old_landmark = self.pf.lm_count
         self.pf.on_beacon(f)
         if old_landmark != self.pf.lm_count and f["lm_kind"] in (1, 3):
@@ -156,6 +167,11 @@ class Core:
                 pf.scale, pf.source))
 
     def _minimap(self, img, mm, f, now):
+        if f.get("minimap_blocked", 0):
+            # Keep diagnostic pictures but never use tooltip/map pixels as
+            # terrain, facing, a keyframe, or learned atlas texture.
+            self.recording.add(img, f, self.pf, now, self.odo.score, accepted=False)
+            return
         radius = f["radius4"] / 4
         if not radius:
             table = MINIMAP_DIAMETER["indoor" if f["indoors"] == 1 else "outdoor"]
@@ -167,17 +183,18 @@ class Core:
         self.odo.max_step = (2.0 + 30.0 * min(dt, 0.5)) / ypp
         rejected_before = self.odo.rejected
         delta = self.odo.step(img)
+        if delta is None and dt > 1.0 and self.odo.rejected == rejected_before:
+            # A tooltip/scene change can leave the key unable to match forever.
+            # Rebase without inventing movement; let the atlas recover pose.
+            self._lost_motion()
+            self.odo.reset()
+            self.motion_at = now
+            self.info("minimap match stalled; rebasing and searching learned references")
         if self.odo.rejected != rejected_before:
             self.info("ignored impossible minimap step: %.1f yards in %.3f seconds" % (self.odo.rejected_step * ypp, dt))
-            self.pf.motion_valid = False
-            self.pf.pose_error = max(15.0, self.pf.pose_error)
-            self.pf.trust = max(800.0, self.pf.trust)
-            self.trail = []
-            self.trail_start = self.odo_yards
-            self.atlas_found = self.pending_match = self.confidence_match = None
-            self.context_epoch += 1
+            self._lost_motion()
             self.recording.add_case(self.odo.rejection, now, ypp, dt)
-            self.recording.add(img, f, self.pf, now, self.odo.score, force=True)
+            self.recording.add(img, f, self.pf, now, self.odo.score, force=True, accepted=False)
             self.recording.trigger("impossible minimap step", {"kind": "motion", "floor": self.pf.floor,
                                    "yards": self.odo.rejected_step * ypp, "elapsed": dt})
         if delta is not None or self.odo.rejected != rejected_before:
@@ -190,11 +207,13 @@ class Core:
             self.east += d_east
             self.north += d_north
             self.odo_yards += math.hypot(d_east, d_north)
-            self._atlas(now, ypp * img.shape[1] / self.odo.mask.shape[1])
-            self.recording.add(img, f, self.pf, now, self.odo.score)
             self.track.append((now, self.east, self.north))
             while self.track and now - self.track[0][0] > 1.0:
                 self.track.pop(0)
+        # Recovery must not depend on odometry already succeeding. Recording
+        # rejected/weak frames is essential to diagnose stalls and obstructions.
+        self._atlas(now, ypp * img.shape[1] / self.odo.mask.shape[1])
+        self.recording.add(img, f, self.pf, now, self.odo.score, accepted=delta is not None)
         h = self.facing.read_minimap(img, now)
         if h is not None:
             self.counts["facing_read"] += 1
@@ -203,6 +222,16 @@ class Core:
             a = _travel_dir(self.track, now, 0.5)
             if a and a[0] > 2.0:
                 self.heading_mm = a[1]   # arrow covered: the way you are moving
+
+    def _lost_motion(self):
+        self.pf.motion_valid = False
+        self.pf.pose_error = max(15.0, self.pf.pose_error)
+        self.pf.trust = max(800.0, self.pf.trust)
+        self.trail = []
+        self.trail_start = self.odo_yards
+        self.track = []
+        self.atlas_found = self.pending_match = self.confidence_match = None
+        self.context_epoch += 1
 
     # -- the minimap atlas ---------------------------------------------------------------------------
 
@@ -218,6 +247,8 @@ class Core:
         floors = pf.floors
         floor = pf.floor if pf.floor is not None else (floors[0] if len(floors) == 1 else None)
         if gray is None or floor is None:
+            return
+        if gray[self.odo.mask > 0].std() < 2:
             return
         a = self.atlases.get(floor)
         if a is None:
@@ -290,6 +321,9 @@ class Core:
                 "error_yards": math.hypot(fix[0] - before[0], fix[1] - before[1]) if before is not None else None})
         trail, start = self.trail, self.trail_start
         self.trail, self.trail_start = [], self.odo_yards
+        if not self.pf.stretch_valid:
+            self.info("atlas: broken/inconsistent movement stretch not re-pasted; fresh correction still anchors current view")
+            return
         if before is None or sigma > 15 or not trail:
             return
         dn, dw = fix[0] - before[0], fix[1] - before[1]

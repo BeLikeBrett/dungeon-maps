@@ -25,6 +25,8 @@ SAFE_META = {"t", "floor", "position", "spread", "uncertainty", "trust", "scale"
 
 def prepare_sample(frames, event, identity):
     """No character names, GUIDs, group hashes, full screens, or local file paths."""
+    # Longer local diagnostics do not expand the community contribution window.
+    frames = [f for f in frames if f[1]["t"] >= frames[-1][1]["t"] - 60]
     dungeon_index = frames[-1][1]["fields"]["dungeon"]
     data = Data()
     if not 0 < dungeon_index <= len(data.dungeons) or event.get("kind") != "marked":

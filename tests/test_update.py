@@ -100,6 +100,14 @@ def main():
                     assert not update.update_exe(exe_rel, logs.append)
                 assert open(exe, "rb").read() == b"old executable"
                 assert not os.path.exists(exe + ".new")
+    with patch.object(sys, "frozen", True, create=True), \
+         patch.object(update, "wait_for_previous"), patch.object(update, "cleanup_old_exe"), \
+         patch.object(update, "latest_release", return_value=exe_rel), \
+         patch.object(update, "update_addon") as addon:
+        for result in (True, False):
+            with patch.object(update, "update_exe", return_value=result):
+                assert update.run(logs.append) == (result, None)
+                addon.assert_not_called()
     print("PASS update")
 
 

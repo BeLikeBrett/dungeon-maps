@@ -1,5 +1,34 @@
 # Dungeon Maps: working notes
 
+## v1.0.12 run-based recovery and dungeon profiles (2026-11-22)
+- Latest Lordaeron run: eight manual corrections, largest 169.2 and 93.1 yd; clean pictures at both
+  large corrections. Native captures also show Questie hover popups at some impossible-match events.
+  These are separate failure classes; popup blocking is not a complete explanation of the run.
+- Beacon v7, still 58 cells: spare bit reports GameTooltip/shopping/map overlap over minimap.
+  Decoder accepts v4/v5/v6/v7. Ignore obstructed images for odometry/facing/learning but record them.
+- Boss pins never seed player poses. Spatial hints apply at most once during search for fixed
+  bosses only; patrol/roam/wander guide notes exclude mobile bosses (including Witherfang/Bjork).
+- Recovery runs even if odometry fails; rebase an unmatched key after >1s without inventing motion.
+  Blank frames cannot reuse an old image. Whole-floor search uses coarse matching + full-detail
+  verification when zoom/coverage would exceed the budget; 600px coarse span, bounded background work.
+- Dungeon/indoor/zoom-specific scale profiles; legacy global values are weak priors. Profile changes
+  discard mixed-setting calibration pairs. Stretches rejected for missing/inconsistent movement no
+  longer re-paint atlas paths. Fresh manual current-view corrections remain valid learning anchors.
+- Local evidence: 180s/128MB buffer, <=200 ZIP clips / 2GB including 1Hz background-written JSONL
+  timelines. New paths <recordings>/<dungeon>/<local-date>/; per-process session IDs link clips.
+  Include weak/rejected/blocked readings, UTC, profile key and acceptance flag. Prioritize manual
+  clips/timelines over auto snapshots in pruning. Community remains 6 thumbnails of last 60s,
+  20/install/dungeon; longer local recordings do not expand remote contributions.
+- Frozen updater now attempts EXE upgrade before installing a potentially newer addon protocol;
+  failed tracker upgrades defer the addon. Future launches retry. Windows/Linux share these fixes.
+- Validation: all 15 local Python scripts + Lua harness passed; updated sample-window/updater
+  regressions rerun. Large synthetic close-zoom test recovered within .004yd in ~131ms; NOT live
+  accuracy. Matching other manual thumbnails directly failed held-out accuracy and was not shipped.
+- Private evidence and review: ~/.local/share/dungeon-maps/research/run-20261122/ (six retained full
+  ZIPs, old atlas/calibration/log, 17 own-install server samples, run-review.json). Never publish it.
+- WoW still running while changes prepared. Native addon/tracker activation must be paired on next
+  full Battle.net launch, no unsolicited live restart. Current runtime remains v1.0.11 until then.
+
 ## v1.0.11 Windows dragging and updater verification (2026-11-21)
 - Windows reuses its layered bitmap when only the map origin changes, moving with SetWindowPos
   and no-activate flags. Avoids RGBA premultiplication, DIB allocation and upload on pure drags.

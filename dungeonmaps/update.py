@@ -261,7 +261,12 @@ def run(log):
     global last_release
     last_release = rel
     log("latest release %s (this is %s)" % (rel["tag"], __version__))
-    note = update_addon(rel, log)
     if update_exe(rel, log):
         return True, None
+    if getattr(sys, "frozen", False) and rel["version"] > version_tuple(__version__):
+        # An addon may introduce a newer beacon protocol. Don't install it if
+        # the matching tracker download/swap/launch failed.
+        log("keeping the current add-on until the newer tracker can start")
+        return False, None
+    note = update_addon(rel, log)
     return False, note
