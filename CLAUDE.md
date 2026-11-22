@@ -1,5 +1,24 @@
 # Dungeon Maps: working notes
 
+## Latest Ruins feedback: preserve accuracy, latest correction only (2026-11-22)
+- Brett reports Ruins was nearly perfect with one correction; occasional ? still accompanied an
+  accurate arrow. Confusion involved running on a grey castle bridge and jumping down as a shortcut.
+- Explicit evidence scope: ONLY the newest correction/attached clip for this assessment. Earlier
+  corrections from hours before used old builds and must not be pooled into this run's validation.
+  Keep prior evidence as historical files; do not use it to justify a new bridge heuristic.
+- Newest manual reference: 21.18 yd correction; 106 crops over 52.60 s, recorded tracker1.0.11/native6.
+  Latest clip mean/min NCC .942/.840. Its net particle displacement differs from scaled recorded
+  odometry by .062 yd; no demonstrated boss-pin snap within this clip. No height/jump timing label.
+- Isolated comparison using only this clip, no live atlas/calibration or older corrections:
+  v1.0.11 and current v1.0.14 produced identical positions (max difference 0 yd); sampled endpoint
+  errors both22.005 yd. Replay is 2Hz, seeded from recorded pose, not full-frequency ground truth.
+- No new tracking heuristic or live atlas/calibration edit justified; preserve current good behavior.
+  Latest evidence/annotation/review saved privately at research/latest-correction-20261122-071054/
+  beneath ~/.local/share/dungeon-maps/. No raw recordings committed. Future bridge adjustment needs
+  verified bridge-to-ground examples, rather than inventing elevation or a region from one mark.
+- v1.0.13 and v1.0.14 release CI both passed; all platform assets published. Local paired full update
+  is still staged; the manual reset backport works after /reload without changing native protocol6.
+
 ## v1.0.14 manual defeated-boss button (2026-11-22)
 - Map gear and regular Options now include "Clear defeated bosses". Map button clears displayed
   wing; Options and /dmaps reset clear detected dungeon. Immediate skull/tooltip refresh, confirmation
