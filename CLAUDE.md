@@ -28,6 +28,8 @@
   DB stores in-instance spawns as -1,-1 and Wowhead blocks scripted fetches. Lists stationary
   outliers to confirm in game (Lorgus Jett, Antu'sul, Gizlock, Jammal'an, Grebmar, Cho'Rush,
   Barthilas, Bijou). ZG/AQ20 offsets look like a frame difference; not investigated.
+- Released: commit f36e4a4, tag v1.0.19, CI 45164309506 green (test/windows/release). Downloaded
+  add-on zip matches GitHub SHA-256 and is byte-identical to source. Installed locally (WoW closed).
 
 ## v1.0.18 parchment Wailing Caverns maps (2026-11-22, Claude)
 - Brett: the v16/v17 WC maps (flat two-colour mask + Atlas entrance art) looked "horrendous" and
