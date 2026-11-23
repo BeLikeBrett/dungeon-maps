@@ -26,6 +26,12 @@
 - Installed locally while WoW ran: Data.lua + toc into the add-on (/reload shows the pin), references
   into user data, backup ~/.local/share/wow-addon-backups/dungeonmaps-before-reference-atlas-*.
   Tracker code + references load at the next game launch (not restarted mid-play).
+- Brett then hit a wall-arrow in WC on the OLD v1.0.19 tracker and said "fix it": restarted ONLY the
+  tracker (own pgid verified, screenshot mode, no picker) at 07:54; v1.0.20 found him from the
+  minimap alone (0.94 vs 0.36); 279.npz re-saved with the reference flag.
+- Released: commit 1deee73, tag v1.0.20, CI 45189283838 green after one rerun (first Windows attempt
+  failed the exit-time check at 4.92 s vs 4.5 s; no reference files exist on CI). Downloaded add-on
+  zip matches the GitHub SHA-256 and is byte-identical to source.
 
 ## v1.0.19 missing bosses: multi-route dungeons, optional bosses and rares (2026-11-23, Claude)
 - Brett: Ruins/WC/Ragefire are good; check boss accuracy and fix future dungeons ahead of time.
