@@ -441,3 +441,10 @@
   Barthilas, Bijou). ZG/AQ20 offsets look like a frame difference; not investigated.
 - Released: commit f36e4a4, tag v1.0.19, CI 45164309506 green (test/windows/release). Downloaded
   add-on zip matches GitHub SHA-256 and is byte-identical to source. Installed locally (WoW closed).
+
+## v1.0.20 reference atlases + Oggleflint pin (2026-11-23, Claude)
+- Done: fixed reference atlases from the client's minimap textures (tools/reference_atlas.py; atlas.py
+  never repaints them); Oggleflint pin moved to its real chamber (extract.lua PIN_FIXES). Replays at
+  Brett's marks: Ragefire 13.5 -> 4.9 yd, WC 14.7 -> 6.7 yd. See validation/dungeons/ragefire/.
+- Open: references are local to Brett's PC (Blizzard-derived; shipping them is Brett's call). Confirm
+  Oggleflint's chamber and Taragaman circling in game on the next run.

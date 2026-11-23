@@ -6,6 +6,7 @@ and decisions; the tracker does not load them as positioning rules.
 | Dungeon | Latest reviewed case | Decision |
 | --- | --- | --- |
 | [Ruins of Lordaeron](dungeons/ruinsoflordaeron/README.md) | 2026-11-22: bridge/drop report, one correction | Preserve tracking; bridge adjustment needs more evidence |
+| [Ragefire Chasm](dungeons/ragefire/README.md) | 2026-11-23: 7 corrections after atlas relocations; Oggleflint not at pin | Reference atlas from client minimap textures (shared); Oggleflint pin moved |
 | [Wailing Caverns](dungeons/wailingcaverns/README.md) | 2026-11-22: scale drift across six run corrections; painted maps | Calibration-anchored particle scale (shared change, cross-dungeon replay); first painted map seen in game |
 
 The [boss-name audit](boss-names.json) covers all 336 imported pins (main bosses, then

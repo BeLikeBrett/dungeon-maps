@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "case": "2026-11-23-reference-atlas",
+  "dungeon": "ragefire",
+  "floor": 213,
+  "review_date": "2026-11-23",
+  "scope": "Brett's two Ragefire runs of 2026-11-23 (tracker 1.0.19, beacon 7, profile i1z4): every manual correction with a retained clip (7), plus all 10 retained Wailing Caverns correction clips of 2026-11-22 as cross-dungeon evidence.",
+  "recorded_tracker": "1.0.19",
+  "recorded_beacon": 7,
+  "candidate_tracker": "1.0.20",
+  "status": "implemented_shared_change",
+  "observation": "Corrections of 10-26 yards, mostly sideways in the long east hall (two parallel corridors) and around Taragaman's platform, each shortly after an atlas relocation ('moved there', 10-35 yards). The learned atlas held ghost copies of the corridors and texture outside the walls.",
+  "change": "Reference atlases from the client's own minimap textures (FDR Minimaps.lua placements, read via CascLib) are loaded as fixed, fully known pixels; pre-reference learned pixels are dropped once.",
+  "replay_mean_error_yards": {
+    "ragefire": {"recorded": 13.5, "no_atlas": 9.6, "learned_atlas": 8.2, "reference": 4.9},
+    "wailingcaverns": {"recorded": 14.7, "no_atlas": 13.1, "learned_atlas": 13.8, "reference": 6.7}
+  },
+  "known_outlier": "Ragefire mark 9 (recorded 2.6, reference 15.6): the minimap picture at that moment matches the reference 0.97 (runner-up 0.45) 15 yards south of the click, and is visibly identical there; the click is the outlier.",
+  "limits": "Sampled ~1 Hz replays from each clip's recorded starting estimate; learned atlas = the current one (it already learned from these WC corrections, which favours it). Manual clicks are approximate references.",
+  "pin_change": "Oggleflint moved from FDR's (0.6953, 0.6484) to the CMaNGOS spawn (0.5605, 0.38). Brett found no boss at FDR's spot; Warcraft Tavern's Forever guide: 'a small chamber at the end of a path that branches off to the right not long after entering'."
+}

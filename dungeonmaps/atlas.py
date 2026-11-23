@@ -16,6 +16,11 @@ The atlas also says where the floor is: dark void on the minimap is outside the 
 treats anything the atlas has seen as floor as walkable, which fixes paths the map art draws unclearly.
 
 Atlas pixels: RES yards each; row 0 = the floor's north edge (+ margin), column 0 = its west edge.
+
+A floor can also have a REFERENCE atlas (reference/<floor>.npz, made by tools/reference_atlas.py from the
+game's own minimap textures, which are exactly what the minimap draws). Its pixels are loaded as fully
+known and are FIXED: no paste ever changes them, so drifted runs can't smear ghost corridors into the
+atlas (Ragefire 2026-11-23: a learned atlas with doubled corridors made 10-20 yard jumps).
 """
 
 import math
@@ -37,6 +42,9 @@ FILL_TRUST = 15.0     # yards since the last sure position: after that, pictures
 VOID = 22             # minimap luminance below this is outside the dungeon
 PEAK_APART = 8.0      # yards: a match's runner-up is looked for at least this far from it
 CACHE = os.path.join(user_dir("data"), "atlas")
+# Reference atlases: made locally from this player's client, or shipped with the program.
+REFERENCE_DIRS = (os.path.join(user_dir("data"), "reference"),
+                  os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "reference"))
 
 
 def _fft_size(n):
@@ -118,6 +126,18 @@ class FloorAtlas:
         self.odo = np.full((rows, cols), -1e9, np.float32)  # session yards walked when first pasted
         self.changed = False
         self.pasted = 0
+        self.fixed = None  # bool (rows, cols): reference pixels no paste may change
+
+    def set_reference(self, gray, known):
+        """Load a reference atlas (same grid): known pixels become fixed, fully weighted truth."""
+        if gray.shape != self.sum.shape or known.shape != self.sum.shape:
+            return False
+        known = known.astype(bool)
+        self.sum[known] = gray[known].astype(np.float32) * MAX_WEIGHT
+        self.wt[known] = MAX_WEIGHT
+        self.odo[known] = -1e9
+        self.fixed = known
+        return True
 
     # -- coordinates ---------------------------------------------------------------------------------
 
@@ -167,6 +187,8 @@ class FloorAtlas:
         g[ok] = gray[yi[ok], xi[ok]]
         k = m * float(weight)
         block = (slice(rows[0], rows[-1] + 1), slice(cols[0], cols[-1] + 1))
+        if self.fixed is not None:
+            k = k * ~self.fixed[block]  # the reference is the truth: never repaint it
         s, t, o = self.sum[block], self.wt[block], self.odo[block]
         unknown = t < MIN_WEIGHT
         if fill_only:
@@ -275,9 +297,10 @@ class FloorAtlas:
 class Atlases:
     """Per-floor atlases, loaded from and saved to disk."""
 
-    def __init__(self, data, folder=CACHE):
+    def __init__(self, data, folder=CACHE, reference_dirs=None):
         self.data = data
         self.folder = folder
+        self.reference_dirs = REFERENCE_DIRS if reference_dirs is None else reference_dirs
         self.atlases = {}
         self.lock = threading.RLock()
         self.saving = False
@@ -298,22 +321,44 @@ class Atlases:
             a = self.atlases.get(floor)
             if a is None and floor in self.data.floors:
                 a = FloorAtlas(floor, *self._extent(floor))
+                learned_with_reference = False
                 try:
                     z = np.load(self.path(floor))
                     if z["sum"].shape == a.sum.shape and float(z["res"]) == RES:
                         a.sum[:] = z["sum"]
                         a.wt[:] = z["wt"]   # (odo stays "long ago": all of it can be matched)
+                        learned_with_reference = "reference" in z.files
                 except (OSError, ValueError, KeyError):
                     pass  # no atlas yet (or a damaged one: start again)
+                if self._load_reference(a) and not learned_with_reference:
+                    # An atlas learned before the reference existed is drift-smeared (ghost corridors,
+                    # texture outside the walls): drop all of it once; only what the reference lacks
+                    # is learned again, and saved with the "reference" flag from then on.
+                    keep = a.fixed
+                    a.sum[~keep] = 0
+                    a.wt[~keep] = 0
+                    a.changed = True
                 self.atlases[floor] = a
             return a
+
+    def _load_reference(self, a):
+        for folder in self.reference_dirs:
+            try:
+                with np.load(os.path.join(folder, "%d.npz" % a.floor)) as z:
+                    if (float(z["res"]) == RES and abs(float(z["n_max"]) - a.n_max) < 1e-3
+                            and abs(float(z["w_max"]) - a.w_max) < 1e-3 and a.set_reference(z["gray"], z["known"])):
+                        return True
+            except (OSError, ValueError, KeyError):
+                continue  # none here (or made for another grid): try the next place
+        return False
 
     def save(self, background=True):
         """Write changed atlases (in the background: compressing takes a moment)."""
         with self.lock:
             if self.saving:
                 return  # (the next save writes what changed meanwhile)
-            todo = [(a.floor, a.sum.copy(), a.wt.copy()) for a in self.atlases.values() if a.changed]
+            todo = [(a.floor, a.sum.copy(), a.wt.copy(), a.fixed is not None)
+                    for a in self.atlases.values() if a.changed]
             for a in self.atlases.values():
                 a.changed = False
         if not todo:
@@ -323,8 +368,9 @@ class Atlases:
             self.saving = True
             try:
                 os.makedirs(self.folder, exist_ok=True)
-                for floor, s, w in todo:
-                    _save_npz(self.path(floor), sum=s, wt=w, res=np.float32(RES))
+                for floor, s, w, ref in todo:
+                    extra = {"reference": np.uint8(1)} if ref else {}
+                    _save_npz(self.path(floor), sum=s, wt=w, res=np.float32(RES), **extra)
             except OSError:
                 pass
             finally:

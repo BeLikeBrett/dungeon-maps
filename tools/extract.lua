@@ -110,6 +110,13 @@ local function pinStops(routes)
   end
   return list, all
 end
+-- Pins FDR places wrongly, confirmed in game. Each moves to an independent spawn position.
+local PIN_FIXES = {
+  -- Brett 2026-11-23: no boss at FDR's spot (a dead-end pocket SE of the long hall). Moved to the
+  -- CMaNGOS 1.12 spawn (-147.5, 38.7: the small round side cave off the upper hall), which the
+  -- other three Ragefire pins match within 3-17 yards.
+  ragefire = { Oggleflint = { floor = 213, x = 0.5605, y = 0.38 } },
+}
 for key, r in pairs(DR.DefaultRoutes) do
   local routes = routesOf(r)
   local bosses = {}
@@ -148,6 +155,8 @@ for key, r in pairs(DR.DefaultRoutes) do
         end
       end
       table.sort(aliases)
+      local fix = PIN_FIXES[key] and PIN_FIXES[key][s.name]
+      if fix then s = setmetatable({ floor = fix.floor, x = fix.x, y = fix.y }, { __index = s }) end
       table.insert(bosses, { floor = s.floor, x = s.x, y = s.y, name = name,
         aliases = aliases, encounterName = encounterName, encounters = s.encounters, note = s.note,
         kind = s.kind ~= "boss" and s.kind or nil })

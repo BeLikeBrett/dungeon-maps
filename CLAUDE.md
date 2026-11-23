@@ -1,5 +1,32 @@
 # Dungeon Maps: working notes
 
+## v1.0.20 reference atlases + Oggleflint pin (2026-11-23, Claude)
+- Brett (Ragefire run): "no boss here" at pin 1, tracking "bad"; circled Taragaman while the arrow sat
+  outside the platform. 13 marks; corrections 10-26 yd, each right after an atlas relocation.
+- Cause: the learned atlas (atlas/213.npz) was drift-smeared: ghost copies of the two PARALLEL east
+  corridors and texture south of the walls. Relocations onto it moved the arrow into the twin hall.
+- Fix: **reference atlases**. tools/reference_atlas.py composites FDR's Data/Minimaps.lua placements of
+  the client's own minimap textures (CascLib by file ID; same textures the minimap draws) onto each
+  floor's atlas grid -> user data `reference/<floor>.npz` (gray, known, res, n_max, w_max). atlas.py
+  loads it as fully known, FIXED pixels (`FloorAtlas.fixed`): paste never changes them. Only pixels a
+  texture covers are known (missing parts still learnable). The first load of a learned atlas without
+  the `reference` flag drops all its learned pixels once. WC approach-cave parts excluded (as in
+  build_wailing_map.py). 71 floors built; 7 Forever-new floors have no textures in this client.
+- Evidence: sampled replays at marks, mean yd recorded -> reference: Ragefire 13.5 -> 4.9 (7 clips;
+  mark 9 is a 15-yd misclick, shown by a 0.97/0.45 visual match), WC 14.7 -> 6.7 (10 clips; learned
+  atlas 13.8 with 18-26 yd misses). Case: validation/dungeons/ragefire/. Harness (private scratch):
+  ab.py none|live|ref per clip, same as tools/replay_trace.py plus the atlas choice.
+- **Distribution open:** references are Blizzard-texture-derived and NOT in the repo/release; they
+  exist only on Brett's PC. CascLib build lived at /tmp/dungeonmaps-casclib (rebuild from
+  ladislav-zezula/CascLib if /tmp was wiped). Windows friends get none until Brett decides.
+- Oggleflint: FDR pin (0.6953,0.6484) is a dead-end pocket. Moved to the CMaNGOS spawn (0.5605,0.38),
+  the small round chamber west of the upper hall; Warcraft Tavern Forever guide agrees ("small chamber
+  at the end of a path that branches off to the right not long after entering"). extract.lua PIN_FIXES
+  keeps it across regeneration; only that pin changed in Data.lua/dungeons.json.
+- Installed locally while WoW ran: Data.lua + toc into the add-on (/reload shows the pin), references
+  into user data, backup ~/.local/share/wow-addon-backups/dungeonmaps-before-reference-atlas-*.
+  Tracker code + references load at the next game launch (not restarted mid-play).
+
 ## v1.0.19 missing bosses: multi-route dungeons, optional bosses and rares (2026-11-23, Claude)
 - Brett: Ruins/WC/Ragefire are good; check boss accuracy and fix future dungeons ahead of time.
 - Bug 1: FDR's DefaultRoutes[key] is either one route or a LIST of routes. extract.lua only read

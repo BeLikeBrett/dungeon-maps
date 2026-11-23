@@ -1,5 +1,9 @@
 # Boss pin positions: independent check (2026-11-23)
 
+**Update 2026-11-23 (later):** Brett found no boss at FDR's Oggleflint pin. The pin now sits at the
+CMaNGOS spawn (tools/extract.lua `PIN_FIXES`), backed by Warcraft Tavern's Forever guide. The
+tables below are the check as first run, against FDR's original pins.
+
 Every pin comes from Forever Dungeon Routes 1.3.6. This compares each pin with the spawn
 point of the same creature in an independent server dataset, the CMaNGOS classic world
 database (`Full_DB/ClassicDB_1_12_1_z2815.sql.gz`, original 1.12 spawns in world yards).

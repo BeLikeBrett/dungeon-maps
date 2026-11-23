@@ -33,6 +33,7 @@ jobs:
       - run: python tests/test_layout.py
       - run: node tests/test_motion.js
       - run: python tests/test_atlas.py
+      - run: python tests/test_reference_atlas.py
       - run: python tests/test_context.py
       - run: python tests/test_recording.py
       - run: python tests/test_samples.py
