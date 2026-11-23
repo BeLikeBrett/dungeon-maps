@@ -84,10 +84,39 @@ for key, rooms in pairs(DR.Rooms) do
   D.Rooms[key] = {}
   for _, r in ipairs(rooms) do table.insert(D.Rooms[key], { name = r.name, boxes = r.boxes }) end
 end
-for key, route in pairs(DR.DefaultRoutes) do
+-- A dungeon's DefaultRoutes entry is either one route or a list of routes (Maraudon's sides,
+-- Stratholme's living/undead halves, raid full-clear/efficient runs). Read both shapes.
+local function routesOf(r)
+  if r == nil then return {} end
+  if r.stops or r.paths then return { r } end
+  return r
+end
+-- Pins in a stable order: every route's main bosses first (in route order), then optional
+-- bosses, then rare spawns. Appending the extra kinds keeps existing boss numbers (and the
+-- saved kill progress / beacon indexes they key) unchanged. A name seen at a better kind wins.
+local PIN_KINDS = { "boss", "optional", "rare" }
+local function pinStops(routes)
+  local list, seen, all = {}, {}, {}
+  for _, route in ipairs(routes) do
+    for _, s in ipairs(route.stops or {}) do all[#all + 1] = s end
+  end
+  for _, kind in ipairs(PIN_KINDS) do
+    for _, s in ipairs(all) do
+      if s.kind == kind and s.floor and s.x and s.y and s.name and not seen[s.name] then
+        seen[s.name] = true
+        list[#list + 1] = s
+      end
+    end
+  end
+  return list, all
+end
+for key, r in pairs(DR.DefaultRoutes) do
+  local routes = routesOf(r)
   local bosses = {}
-  for _, s in ipairs(route.stops or {}) do
-    if s.kind == "boss" and s.floor and s.x and s.y then
+  local pins, allStops = pinStops(routes)
+  local route = { stops = allStops }
+  for _, s in ipairs(pins) do
+    do
       local aliases, seen = {}, {}
       local name = s.name
       for _, id in ipairs(s.encounters or {}) do name = creatureNames[id] or name end
@@ -103,25 +132,29 @@ for key, route in pairs(DR.DefaultRoutes) do
       end
       alias(s.name)
       for _, id in ipairs(s.encounters or {}) do
-        local e = assert(encounters[id], "unknown boss encounter " .. id)
+        -- Main bosses must exist in the client's encounter table. An optional/rare stop may name
+        -- an encounter this client lacks (Baron Aquanis 2694): keep its pin, skip the lookup.
+        local e = encounters[id]
+        assert(e or s.kind ~= "boss", "unknown boss encounter " .. id)
         local shared = false
         for _, other in ipairs(route.stops or {}) do
           if other ~= s then
             for _, oid in ipairs(other.encounters or {}) do if oid == id then shared = true end end
           end
         end
-        if not shared or e.name == s.name then
+        if e and (not shared or e.name == s.name) then
           if e.name ~= name then encounterName = e.name end
           for k, n in pairs(e) do if type(n) == "string" and k:match("^name") then alias(n) end end
         end
       end
       table.sort(aliases)
       table.insert(bosses, { floor = s.floor, x = s.x, y = s.y, name = name,
-        aliases = aliases, encounterName = encounterName, encounters = s.encounters, note = s.note })
+        aliases = aliases, encounterName = encounterName, encounters = s.encounters, note = s.note,
+        kind = s.kind ~= "boss" and s.kind or nil })
     end
   end
   if #bosses > 0 then D.Bosses[key] = bosses end
-  for _, p in ipairs(route.paths or {}) do
+  for _, p in ipairs(routes[1] and routes[1].paths or {}) do
     if p.kind == "main" and p.pts and p.pts[2] then D.Entry[key] = { floor = p.floor, x = p.pts[1], y = p.pts[2] } break end
   end
 end
@@ -170,16 +203,24 @@ if jsonOut then
   for key, list in pairs(D.Bosses) do
     T.bosses[key] = {}
     for _, b in ipairs(list) do table.insert(T.bosses[key], { floor = b.floor, x = b.x, y = b.y, name = b.name,
-      encounters = b.encounters, aliases = b.aliases, encounterName = b.encounterName, note = b.note }) end
+      encounters = b.encounters, aliases = b.aliases, encounterName = b.encounterName, note = b.note,
+      kind = b.kind }) end
   end
   for key, r in pairs(DR.DefaultRoutes) do
-    local paths = {}
-    for _, p in ipairs(r.paths or {}) do
-      if p.floor and p.pts and #p.pts >= 4 then
-        paths[#paths + 1] = { floor = p.floor, kind = p.kind, pts = p.pts }
+    local paths, routes = {}, routesOf(r)
+    local links
+    for _, route in ipairs(routes) do
+      for _, p in ipairs(route.paths or {}) do
+        if p.floor and p.pts and #p.pts >= 4 then
+          paths[#paths + 1] = { floor = p.floor, kind = p.kind, pts = p.pts }
+        end
+      end
+      for _, l in ipairs(route.links or {}) do
+        links = links or {}
+        links[#links + 1] = l
       end
     end
-    T.routes[key] = { paths = paths, links = r.links, source = r.source }
+    T.routes[key] = { paths = paths, links = links or (routes[1] and routes[1].links), source = routes[1] and routes[1].source }
   end
   for key, e in pairs(D.Entry) do T.entry[key] = { floor = e.floor, x = e.x, y = e.y } end
   for key, rooms in pairs(D.Rooms) do

@@ -8,8 +8,10 @@ and decisions; the tracker does not load them as positioning rules.
 | [Ruins of Lordaeron](dungeons/ruinsoflordaeron/README.md) | 2026-11-22: bridge/drop report, one correction | Preserve tracking; bridge adjustment needs more evidence |
 | [Wailing Caverns](dungeons/wailingcaverns/README.md) | 2026-11-22: scale drift across six run corrections; painted maps | Calibration-anchored particle scale (shared change, cross-dungeon replay); first painted map seen in game |
 
-The [boss-name audit](boss-names.json) covers all 212 imported pins and their client
-encounter IDs/titles. Documented creature-title differences and shared encounters
+The [boss-name audit](boss-names.json) covers all 336 imported pins (main bosses, then
+optional bosses and rares) and their client encounter IDs/titles. The
+[boss-position check](boss-positions.md) compares every classic pin with an independent
+server spawn dataset and lists the pins to confirm in game. Documented creature-title differences and shared encounters
 are explicit. This is not independent live confirmation of every creature name.
 
 ## Layout

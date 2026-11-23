@@ -189,7 +189,10 @@ class WalkMaps:
             if e and e["floor"] == floor:
                 seeds.append((e["x"], e["y"]))
             for b in self.data.bosses.get(key, []):
-                if b["floor"] == floor:
+                # Main bosses only: optional/rare pins were added later, and seeding/masking them
+                # would change walk masks of already-cached (verified) floors. Their small skulls
+                # inside rooms are enclosed specks that segment() fills as floor anyway.
+                if b["floor"] == floor and not b.get("kind"):
                     seeds.append((b["x"], b["y"]))
                     markers.append((b["x"], b["y"]))
             for r in self.data.rooms.get(key, []):

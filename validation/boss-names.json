@@ -1,13 +1,13 @@
 {
   "format": 1,
-  "review_date": "2026-11-22",
+  "review_date": "2026-11-23",
   "source": {
     "kind": "Installed Forever Dungeon Routes export of Blizzard DungeonEncounter",
     "client_build": "1.60.1.70862",
     "dungeon_routes_version": "1.3.6"
   },
-  "scope": "All 212 imported boss pins; encounter IDs/titles and retained creature-name exceptions. This is not independent live confirmation of every creature name.",
-  "boss_pins": 212,
+  "scope": "All 336 imported pins: main bosses, plus optional bosses and rare spawns (kind) appended after them so existing indexes are unchanged; encounter IDs/titles and retained creature-name exceptions. Optional/rare pins without a client encounter (quest NPCs, rare spawns) are listed as no_client_encounter. This is not independent live confirmation of every creature name.",
+  "boss_pins": 336,
   "dungeons": {
     "alcazprison": [
       {
@@ -64,6 +64,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Commander Folkar",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
       }
     ],
     "blackfathom": [
@@ -181,6 +188,34 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Baron Aquanis",
+        "encounters": [
+          {
+            "id": 2694,
+            "name": null
+          }
+        ],
+        "kind": "optional",
+        "status": "encounter_not_in_client"
+      },
+      {
+        "index": 8,
+        "label": "Old Serra'kis",
+        "encounters": [
+          {
+            "id": 2765,
+            "name": "Old Serra'kis"
+          },
+          {
+            "id": 2912,
+            "name": "Old Serra'kis"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
       }
     ],
     "blackmawhold": [
@@ -249,6 +284,32 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Impaan the Imprisoner",
+        "encounters": [
+          {
+            "id": 3316,
+            "name": "Impaan the Imprisoner"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Moontouched Wanderer",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Gortek the Apprentice",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "blackrockdepths": [
@@ -438,6 +499,62 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 18,
+        "label": "Ribbly Screwspigot",
+        "encounters": [
+          {
+            "id": 240,
+            "name": "Ribbly Screwspigot"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 19,
+        "label": "Princess Moira Bronzebeard",
+        "encounters": [
+          {
+            "id": 2789,
+            "name": "Princess Moira Bronzebeard"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 20,
+        "label": "The Vault",
+        "encounters": [
+          {
+            "id": 2791,
+            "name": "The Vault"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 21,
+        "label": "Warder Stilgiss & Verek",
+        "encounters": [
+          {
+            "id": 233,
+            "name": "Warder Stilgiss"
+          }
+        ],
+        "kind": "rare",
+        "status": "retained_creature_label",
+        "reason": "Source pin names both creatures of the shared spot; the encounter title is Warder Stilgiss (kept as alias)."
+      },
+      {
+        "index": 22,
+        "label": "Panzor the Invincible",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "blackwinglair": [
@@ -608,6 +725,18 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Lyn the Ignored",
+        "encounters": [
+          {
+            "id": 3310,
+            "name": "Lyn the Ignored"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
       }
     ],
     "deadmines": [
@@ -677,6 +806,30 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Cookie",
+        "encounters": [
+          {
+            "id": 2746,
+            "name": "Cookie"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Miner Johnson",
+        "encounters": [
+          {
+            "id": 3676,
+            "name": "Miner Johnson"
+          }
+        ],
+        "kind": "rare",
+        "status": "matches_client_encounter"
       }
     ],
     "diremaul_east": [
@@ -734,6 +887,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Old Ironbark",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
       }
     ],
     "diremaul_west": [
@@ -790,6 +950,30 @@
             "name": "Prince Tortheldrin"
           }
         ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Lord Hel'nurath",
+        "encounters": [
+          {
+            "id": 2793,
+            "name": "Lord Hel'nurath"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Tsu'zee",
+        "encounters": [
+          {
+            "id": 2794,
+            "name": "Tsu'zee"
+          }
+        ],
+        "kind": "rare",
         "status": "matches_client_encounter"
       }
     ],
@@ -849,6 +1033,32 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Primeval Elemental",
+        "encounters": [
+          {
+            "id": 3511,
+            "name": "Primeval Elemental"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Gill",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Pyromancer Braxton",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "excavationsite": [
@@ -883,6 +1093,18 @@
             "name": "Relic Guardian"
           }
         ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Highland Horror",
+        "encounters": [
+          {
+            "id": 3644,
+            "name": "Highland Horror"
+          }
+        ],
+        "kind": "optional",
         "status": "matches_client_encounter"
       }
     ],
@@ -961,6 +1183,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Dark Iron Ambassador",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "hallofthanes": [
@@ -1055,6 +1284,39 @@
         ],
         "status": "retained_creature_label",
         "reason": "Creature name documented by the source guide; encounter title is Overseer Mugg."
+      },
+      {
+        "index": 5,
+        "label": "Handler Ashka",
+        "encounters": [
+          {
+            "id": 3453,
+            "name": "Handler Ashka"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Tunk",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Zalfan Moonshadow",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Bossman Toof",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
       }
     ],
     "lowerblackrock": [
@@ -1156,6 +1418,48 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Bijou",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Spirestone Butcher",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Spirestone Battle Lord, Spirestone Lord Magus",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 13,
+        "label": "Crystal Fang",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 14,
+        "label": "Bannok Grimaxe",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 15,
+        "label": "Ghok Bashguud",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "moltencore": [
@@ -1540,6 +1844,30 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Plaguemaw the Rotting",
+        "encounters": [
+          {
+            "id": 2781,
+            "name": "Plaguemaw the Rotting"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Ragglesnout",
+        "encounters": [
+          {
+            "id": 2783,
+            "name": "Ragglesnout"
+          }
+        ],
+        "kind": "rare",
+        "status": "matches_client_encounter"
       }
     ],
     "razorfenkraul": [
@@ -1608,6 +1936,27 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Razorfen Spearhide",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Earthcaller Halmgar",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Blind Hunter",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "ruinsoflordaeron": [
@@ -1676,6 +2025,18 @@
             "name": "Rath'mael"
           }
         ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Lordaeron Captain",
+        "encounters": [
+          {
+            "id": 3408,
+            "name": "Lordaeron Captain"
+          }
+        ],
+        "kind": "rare",
         "status": "matches_client_encounter"
       }
     ],
@@ -1812,6 +2173,31 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 13,
+        "label": "Kirtonos the Herald",
+        "encounters": [
+          {
+            "id": 2805,
+            "name": "Kirtonos"
+          }
+        ],
+        "kind": "optional",
+        "status": "retained_creature_label",
+        "reason": "Retain the full creature name; the encounter title is Kirtonos (kept as alias)."
+      },
+      {
+        "index": 14,
+        "label": "Kormok",
+        "encounters": [
+          {
+            "id": 3055,
+            "name": "Kormok"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
       }
     ],
     "shadowfang": [
@@ -1902,6 +2288,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Deathsworn Captain",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "shapersterrace": [
@@ -1970,6 +2363,66 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Cinder",
+        "encounters": [
+          {
+            "id": 3503,
+            "name": "Cinder"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Bolt",
+        "encounters": [
+          {
+            "id": 3505,
+            "name": "Bolt"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Snowtalon",
+        "encounters": [
+          {
+            "id": 3597,
+            "name": "Snowtalon"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Vitrix",
+        "encounters": [
+          {
+            "id": 3600,
+            "name": "Vitrix"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "King Op",
+        "encounters": [
+          {
+            "id": 3504,
+            "name": "King Op"
+          }
+        ],
+        "kind": "rare",
+        "status": "matches_client_encounter"
       }
     ],
     "sm_armory": [
@@ -2008,6 +2461,18 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "High Inquisitor Fairbanks",
+        "encounters": [
+          {
+            "id": 449,
+            "name": "High Inquisitor Fairbanks"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
       }
     ],
     "sm_graveyard": [
@@ -2032,6 +2497,27 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Ironspine",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Azshir the Sleepless",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Fallen Champion",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "sm_library": [
@@ -2113,6 +2599,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Bruegal Ironknuckle",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "sunkentemple": [
@@ -2208,6 +2701,46 @@
             "name": "Shade of Eranikus"
           }
         ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Atal'alarion",
+        "encounters": [
+          {
+            "id": 2814,
+            "name": "Atal'alarion"
+          },
+          {
+            "id": 2952,
+            "name": "Atal'alarion"
+          },
+          {
+            "id": 3582,
+            "name": "Atal'alarion"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Avatar of Hakkar",
+        "encounters": [
+          {
+            "id": 492,
+            "name": "Avatar of Hakkar"
+          },
+          {
+            "id": 2956,
+            "name": "Avatar of Hakkar"
+          },
+          {
+            "id": 3583,
+            "name": "Avatar of Hakkar"
+          }
+        ],
+        "kind": "optional",
         "status": "matches_client_encounter"
       }
     ],
@@ -2345,6 +2878,39 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Solakar Flamewreath",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Goraluk Anvilcrack",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Lord Valthalak",
+        "encounters": [
+          {
+            "id": 3070,
+            "name": "Lord Valthalak"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Jed Runewatcher",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "wailingcaverns": [
@@ -2435,6 +3001,13 @@
           }
         ],
         "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Deviate Faerie Dragon",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
       }
     ],
     "zulfarrak": [
@@ -2513,6 +3086,737 @@
             "name": "Chief Ukorz Sandscalp"
           }
         ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Sergeant Bly",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Gahz'rilla",
+        "encounters": [
+          {
+            "id": 594,
+            "name": "Gahz'rilla"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Zerillis",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Dustwraith",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Sandarr Dunereaver",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      }
+    ],
+    "diremaul_north": [
+      {
+        "index": 1,
+        "label": "Guard Mol'dar",
+        "encounters": [
+          {
+            "id": 362,
+            "name": "Guard Mol'dar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Stomper Kreeg",
+        "encounters": [
+          {
+            "id": 363,
+            "name": "Stomper Kreeg"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Guard Fengus",
+        "encounters": [
+          {
+            "id": 364,
+            "name": "Guard Fengus"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Guard Slip'kik",
+        "encounters": [
+          {
+            "id": 365,
+            "name": "Guard Slip'kik"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Captain Kromcrush",
+        "encounters": [
+          {
+            "id": 366,
+            "name": "Captain Kromcrush"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Cho'Rush the Observer",
+        "encounters": [
+          {
+            "id": 367,
+            "name": "Cho'Rush the Observer"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "King Gordok",
+        "encounters": [
+          {
+            "id": 368,
+            "name": "King Gordok"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Knot Thimblejack",
+        "encounters": [],
+        "kind": "optional",
+        "status": "no_client_encounter"
+      }
+    ],
+    "maraudon": [
+      {
+        "index": 1,
+        "label": "Lord Vyletongue",
+        "encounters": [
+          {
+            "id": 424,
+            "name": "Lord Vyletongue"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Celebras the Cursed",
+        "encounters": [
+          {
+            "id": 425,
+            "name": "Celebras the Cursed"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Landslide",
+        "encounters": [
+          {
+            "id": 426,
+            "name": "Landslide"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Tinkerer Gizlock",
+        "encounters": [
+          {
+            "id": 427,
+            "name": "Tinkerer Gizlock"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Rotgrip",
+        "encounters": [
+          {
+            "id": 428,
+            "name": "Rotgrip"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Princess Theradras",
+        "encounters": [
+          {
+            "id": 429,
+            "name": "Princess Theradras"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Noxxion",
+        "encounters": [
+          {
+            "id": 422,
+            "name": "Noxxion"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Razorlash",
+        "encounters": [
+          {
+            "id": 423,
+            "name": "Razorlash"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Meshlok the Harvester",
+        "encounters": [],
+        "kind": "rare",
+        "status": "no_client_encounter"
+      }
+    ],
+    "ruinsofahnqiraj": [
+      {
+        "index": 1,
+        "label": "Kurinnaxx",
+        "encounters": [
+          {
+            "id": 718,
+            "name": "Kurinnaxx"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "General Rajaxx",
+        "encounters": [
+          {
+            "id": 719,
+            "name": "General Rajaxx"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Ossirian the Unscarred",
+        "encounters": [
+          {
+            "id": 723,
+            "name": "Ossirian the Unscarred"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Moam",
+        "encounters": [
+          {
+            "id": 720,
+            "name": "Moam"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Buru the Gorger",
+        "encounters": [
+          {
+            "id": 721,
+            "name": "Buru the Gorger"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Ayamiss the Hunter",
+        "encounters": [
+          {
+            "id": 722,
+            "name": "Ayamiss the Hunter"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      }
+    ],
+    "stratholme": [
+      {
+        "index": 1,
+        "label": "Hearthsinger Forresten",
+        "encounters": [
+          {
+            "id": 473,
+            "name": "Hearthsinger Forresten"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "The Unforgiven",
+        "encounters": [
+          {
+            "id": 472,
+            "name": "The Unforgiven"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Timmy the Cruel",
+        "encounters": [
+          {
+            "id": 474,
+            "name": "Timmy the Cruel"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Malor the Zealous",
+        "encounters": [
+          {
+            "id": 476,
+            "name": "Malor the Zealous"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Cannon Master Willey",
+        "encounters": [
+          {
+            "id": 475,
+            "name": "Cannon Master Willey"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Archivist Galford",
+        "encounters": [
+          {
+            "id": 477,
+            "name": "Archivist Galford"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Balnazzar",
+        "encounters": [
+          {
+            "id": 478,
+            "name": "Balnazzar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Nerub'enkan",
+        "encounters": [
+          {
+            "id": 480,
+            "name": "Nerub'enkan"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Baroness Anastari",
+        "encounters": [
+          {
+            "id": 479,
+            "name": "Baroness Anastari"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Maleki the Pallid",
+        "encounters": [
+          {
+            "id": 481,
+            "name": "Maleki the Pallid"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 11,
+        "label": "Magistrate Barthilas",
+        "encounters": [
+          {
+            "id": 482,
+            "name": "Magistrate Barthilas"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 12,
+        "label": "Ramstein the Gorger",
+        "encounters": [
+          {
+            "id": 483,
+            "name": "Ramstein the Gorger"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 13,
+        "label": "Baron Rivendare",
+        "encounters": [
+          {
+            "id": 484,
+            "name": "Baron Rivendare"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 14,
+        "label": "Postmaster Malown",
+        "encounters": [
+          {
+            "id": 2798,
+            "name": "Postmaster Malown"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 15,
+        "label": "Crimson Hammersmith",
+        "encounters": [
+          {
+            "id": 2796,
+            "name": "Crimson Hammersmith"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 16,
+        "label": "Ezra Grimm",
+        "encounters": [
+          {
+            "id": 2797,
+            "name": "Ezra Grimm"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 17,
+        "label": "Black Guard Swordsmith",
+        "encounters": [
+          {
+            "id": 2795,
+            "name": "Black Guard Swordsmith"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 18,
+        "label": "Skul",
+        "encounters": [
+          {
+            "id": 2799,
+            "name": "Skul"
+          }
+        ],
+        "kind": "rare",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 19,
+        "label": "Stonespine",
+        "encounters": [
+          {
+            "id": 2800,
+            "name": "Stonespine"
+          }
+        ],
+        "kind": "rare",
+        "status": "matches_client_encounter"
+      }
+    ],
+    "templeofahnqiraj": [
+      {
+        "index": 1,
+        "label": "The Prophet Skeram",
+        "encounters": [
+          {
+            "id": 709,
+            "name": "The Prophet Skeram"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "Battleguard Sartura",
+        "encounters": [
+          {
+            "id": 711,
+            "name": "Battleguard Sartura"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "Fankriss the Unyielding",
+        "encounters": [
+          {
+            "id": 712,
+            "name": "Fankriss the Unyielding"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "Princess Huhuran",
+        "encounters": [
+          {
+            "id": 714,
+            "name": "Princess Huhuran"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "Twin Emperors",
+        "encounters": [
+          {
+            "id": 715,
+            "name": "Twin Emperors"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "C'thun",
+        "encounters": [
+          {
+            "id": 717,
+            "name": "C'thun"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Silithid Royalty",
+        "encounters": [
+          {
+            "id": 710,
+            "name": "Silithid Royalty"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Viscidus",
+        "encounters": [
+          {
+            "id": 713,
+            "name": "Viscidus"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Ouro",
+        "encounters": [
+          {
+            "id": 716,
+            "name": "Ouro"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      }
+    ],
+    "zulgurub": [
+      {
+        "index": 1,
+        "label": "High Priestess Jeklik",
+        "encounters": [
+          {
+            "id": 785,
+            "name": "High Priestess Jeklik"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 2,
+        "label": "High Priest Venoxis",
+        "encounters": [
+          {
+            "id": 784,
+            "name": "High Priest Venoxis"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 3,
+        "label": "High Priestess Mar'li",
+        "encounters": [
+          {
+            "id": 786,
+            "name": "High Priestess Mar'li"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 4,
+        "label": "High Priest Thekal",
+        "encounters": [
+          {
+            "id": 789,
+            "name": "High Priest Thekal"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 5,
+        "label": "High Priestess Arlokk",
+        "encounters": [
+          {
+            "id": 791,
+            "name": "High Priestess Arlokk"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 6,
+        "label": "Hakkar",
+        "encounters": [
+          {
+            "id": 793,
+            "name": "Hakkar"
+          }
+        ],
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 7,
+        "label": "Bloodlord Mandokir",
+        "encounters": [
+          {
+            "id": 787,
+            "name": "Bloodlord Mandokir"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 8,
+        "label": "Edge of Madness",
+        "encounters": [
+          {
+            "id": 788,
+            "name": "Edge of Madness"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 9,
+        "label": "Gahz'ranka",
+        "encounters": [
+          {
+            "id": 790,
+            "name": "Gahz'ranka"
+          }
+        ],
+        "kind": "optional",
+        "status": "matches_client_encounter"
+      },
+      {
+        "index": 10,
+        "label": "Jin'do the Hexxer",
+        "encounters": [
+          {
+            "id": 792,
+            "name": "Jin'do the Hexxer"
+          }
+        ],
+        "kind": "optional",
         "status": "matches_client_encounter"
       }
     ]

@@ -437,6 +437,8 @@ class ParticleFilter:
         if not 0 < self.active_boss <= len(bosses):
             return
         boss = bosses[self.active_boss - 1]
+        if boss.get("kind") == "rare":
+            return  # a rare's pin is one of its possible spawn spots, not a fixed position
         if re.search(r"\b(patrol\w*|roam\w*|wander\w*)\b", boss.get("note", ""), re.I):
             return
         if boss["floor"] != self.floor:

@@ -307,8 +307,33 @@ for _, d in ipairs(ns.Dungeons) do
     end
   end
 end
-assert(pins == 212)
-print("OK all 212 boss pins and " .. labels .. " names/aliases resolve correctly")
+assert(pins == 336)
+print("OK all 336 boss pins and " .. labels .. " names/aliases resolve correctly")
+-- Optional bosses and rares: appended after the main bosses, drawn with their own marks, and
+-- never chosen as "the next boss" floor.
+do
+  local list = ns.Bosses.deadmines
+  local function find(kind)
+    for i, b in ipairs(list) do if b.kind == kind then return i, b end end
+  end
+  local ri, rare = find("rare")
+  local oi, opt = find("optional")
+  assert(rare and opt and rare.name == "Miner Johnson" and opt.name == "Cookie")
+  for i, b in ipairs(list) do assert((b.kind == nil) == (i < oi), "main bosses must come first") end
+  GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  for _, want in ipairs({ { ri, rare, "R", "Rare spawn", "Not always here" }, { oi, opt, tostring(oi), "Boss " .. oi, "Optional" } }) do
+    C_Map.GetBestMapForUnit = function() return want[2].floor end
+    DungeonMapsFrame:Hide(); DungeonMaps_Toggle()
+    local shown
+    for _, b in ipairs(DungeonMapsFrame.bosses) do
+      if b:IsShown() and b.tipTitle == want[2].name then shown = b end
+    end
+    assert(shown, "pin not drawn: " .. want[2].name)
+    assert(shown.num._text == want[3], want[2].name .. " label " .. tostring(shown.num._text))
+    assert(shown.tipLines[1]:find(want[4], 1, true) and shown.tipLines[2]:find(want[5], 1, true), want[2].name)
+  end
+  print("OK optional and rare pins appended, labelled and explained")
+end
 -- Creature display names and encounter titles must both resolve to the same pin.
 GetInstanceInfo = function() return "Ruins of Lordaeron", "party", 1, "", 5, 0, false, 2999 end
 C_Map.GetBestMapForUnit = function() return 1029991 end

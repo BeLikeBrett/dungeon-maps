@@ -235,9 +235,11 @@ def data_and_performance():
     data = Data()
     expected = {"The Baron", "Magmatus", "Arcanic Enigma", "Overlord Mugg", "Deathless Marrow"}
     bosses = [b for bs in data.bosses.values() for b in bs]
-    assert len(bosses) == 212 and expected <= {b["name"] for b in bosses}
-    assert all(b["encounters"] and b["floor"] in data.floors for b in bosses)
-    assert sum(len(r["paths"]) for r in data.routes.values()) == 122
+    assert len(bosses) == 336 and expected <= {b["name"] for b in bosses}
+    assert all(b["floor"] in data.floors for b in bosses)
+    assert all(b.get("encounters") for b in bosses if not b.get("kind"))
+    assert sum(len(r["paths"]) for r in data.routes.values()) == 145
+    assert all(data.entry.get(d["key"]) for d in data.dungeons)
     paths = data.routes["ruinsoflordaeron"]["paths"]
     t0 = time.perf_counter()
     graph = RouteGraph(data, 1029991, paths)
@@ -251,7 +253,7 @@ def data_and_performance():
         for _ in range(10): graph.weights(p, previous, 3.)
         ms = (time.perf_counter() - t0) * 100
         print("route context: %d particles %.2f ms/check (every 3 yards); build %.1f ms" % (n, ms, build * 1000))
-    print("PASS all 212 boss records and 122 route traces")
+    print("PASS all 336 boss records and 145 route traces")
 
 
 if __name__ == "__main__":

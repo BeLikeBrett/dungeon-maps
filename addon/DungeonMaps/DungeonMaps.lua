@@ -16,7 +16,8 @@
 --   * TEAMMATES without either: range checks. Within ~28 yards (CheckInteractDistance 4) they are
 --     drawn beside you; within ~40 yards (UnitInRange), beside you and faded.
 -- Bosses: numbered skulls at Forever's boss spots, hover for the name, grey once killed. (Skulls
--- painted into some classic map art are the Cataclysm versions' bosses.)
+-- painted into some classic map art are the Cataclysm versions' bosses.) Optional bosses (off the
+-- default route) follow the main ones; rare spawns are smaller skulls marked "R".
 
 local _, ns = ...
 
@@ -603,7 +604,8 @@ local function drawBosses(floor)
 		if boss.floor == floor then
 			n = n + 1
 			local b = getBoss(n)
-			local size = BOSS * sizeOf("bossSize")
+			local rare = boss.kind == "rare"
+			local size = BOSS * sizeOf("bossSize") * (rare and 0.8 or 1)
 			b:SetSize(size, size)
 			b.back:SetSize(size + 4, size + 4)
 			b.icon:SetSize(size - 6, size - 6)
@@ -612,12 +614,18 @@ local function drawBosses(floor)
 			local done = bossDone(dungeon.key, i)
 			b:ClearAllPoints()
 			b:SetPoint("CENTER", map.canvas, "TOPLEFT", boss.x * MAP_W, -boss.y * MAP_H)
-			b.num:SetText(tostring(i))
+			b.num:SetText(rare and "R" or tostring(i))
 			b.icon:SetDesaturated(done)
 			b:SetAlpha(done and 0.6 or 1)
 			b.tipTitle = bossLabel(boss)
 			b.tipR, b.tipG, b.tipB = 1, 0.3, 0.3
-			b.tipLines = { ("Boss %d"):format(i) .. (done and "  -  |cff88ff88defeated|r" or "") }
+			local what = rare and "Rare spawn" or ("Boss %d"):format(i)
+			b.tipLines = { what .. (done and "  -  |cff88ff88defeated|r" or "") }
+			if rare then
+				table.insert(b.tipLines, "|cffaaaaaaNot always here: it may not spawn this run.|r")
+			elseif boss.kind == "optional" then
+				table.insert(b.tipLines, "|cffaaaaaaOptional: off the usual route.|r")
+			end
 			if boss.encounterName and boss.encounterName ~= b.tipTitle then
 				table.insert(b.tipLines, "Encounter: " .. boss.encounterName)
 			end
@@ -951,10 +959,10 @@ local function step(delta)
 	end
 end
 
--- The floor of the next boss not killed yet.
+-- The floor of the next main boss not killed yet (optional bosses and rares don't steer it).
 local function nextBossFloor()
 	for i, b in ipairs(ns.Bosses[dungeon.key] or {}) do
-		if not bossDone(dungeon.key, i) and indexOf(b.floor) then return b.floor end
+		if not b.kind and not bossDone(dungeon.key, i) and indexOf(b.floor) then return b.floor end
 	end
 end
 
